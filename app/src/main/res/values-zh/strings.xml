@@ -87,6 +87,7 @@
     <string name="wx_thunder">雷雨</string>
     <string name="wp_daily_latest">每日一图</string>
     <string name="wp_per_app_hint">第一排每个磁贴各用一张壁纸：焦点移到哪个磁贴，背景就换成它的那张；挪到第二排的磁贴保持第一排最后那张。按序号记住，换了 App 也保留，随时可改。</string>
+    <string name="wp_per_app_off_hint">为主排每个磁贴各选一张图或一段视频；选择后会自动应用「每个 App 一张」壁纸，立即生效。</string>
     <string name="wp_per_app_row">第 %1$d 号 · %2$s</string>
     <string name="wp_per_app_inherit">默认</string>
     <string name="wp_per_app_change">选择</string>

@@ -80,6 +80,7 @@
     <string name="wx_thunder">Гроза</string>
     <string name="wp_daily_latest">Всегда сегодняшнее</string>
     <string name="wp_per_app_hint">Своя картинка для каждой плитки первого ряда: фон меняется вместе с фокусом; плитка, ушедшая во второй ряд, сохраняет последнюю картинку первого ряда. Запоминается по номеру плитки, поэтому остаётся при смене приложения.</string>
+    <string name="wp_per_app_off_hint">Своё фото или видео для каждой плитки первого ряда. Выбор сразу включает обои «Каждому приложению — своё».</string>
     <string name="wp_per_app_row">№%1$d · %2$s</string>
     <string name="wp_per_app_inherit">По умолчанию</string>
     <string name="wp_per_app_change">Выбрать</string>

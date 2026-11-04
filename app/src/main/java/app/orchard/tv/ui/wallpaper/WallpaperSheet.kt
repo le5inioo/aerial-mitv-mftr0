@@ -140,6 +140,8 @@ fun WallpaperSheet(
     var qr by remember { mutableStateOf<ImageBitmap?>(null) }
     // The tile whose picture is being chosen ("Each App"): its place and app, or null when closed.
     var picking by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    // The screensaver video picker ("All, in turn" or one film on a loop), over the sheet.
+    var saverPicking by remember { mutableStateOf(false) }
     // Home Guard and ADB kept on, as Android has them now: read again each time the sheet opens,
     // since both can be changed elsewhere (the system's accessibility page, ADB itself).
     var guardOn by remember { mutableStateOf(GuardSetup.guardEnabled(context)) }
@@ -205,12 +207,16 @@ fun WallpaperSheet(
                 // "Each App": one row for each tile of the first row, by its place. Home's
                 // background swaps as the focus moves along that row; a tile keeps its picture when
                 // the app in it is changed, and one that falls to the second row (a narrower row)
-                // keeps the row's last picture.
-                if (Wallpapers.selectedId == Wallpapers.PER_APP) {
-                    Group(stringResource(R.string.wp_per_app_hint)) { note ->
-                        tiles.take(Wallpapers.PER_APP_SLOTS).forEachIndexed { i, (_, label) ->
-                            PerAppRow(i + 1, label, note, first = i == 0) { picking = (i + 1) to label }
-                        }
+                // keeps the row's last picture. Shown always: choosing a tile's picture from
+                // another wallpaper turns "Each App" on, so the choice shows at once.
+                Group(
+                    stringResource(
+                        if (Wallpapers.selectedId == Wallpapers.PER_APP) R.string.wp_per_app_hint
+                        else R.string.wp_per_app_off_hint,
+                    )
+                ) { note ->
+                    tiles.take(Wallpapers.PER_APP_SLOTS).forEachIndexed { i, (_, label) ->
+                        PerAppRow(i + 1, label, note, first = i == 0) { picking = (i + 1) to label }
                     }
                 }
                 // Only for the owner's videos: whether keys stop them. The aerial films always move.
@@ -322,7 +328,8 @@ fun WallpaperSheet(
                         note, first = true,
                     ) { ScreensaverChoice(onStartScreensaver) }
                     // The videos screensaver plays them all in turn; one of them may be picked to
-                    // loop instead, until another is picked or it is deleted.
+                    // loop instead, until another is picked or it is deleted. A second-level menu:
+                    // the row opens the picker over the sheet.
                     if (Wallpapers.screensaver == ScreensaverMode.Videos) {
                         val films = remember(Wallpapers.items) {
                             Wallpapers.items.filter { it.kind == WallpaperKind.Video && it.id != Wallpapers.VIDEOS }
@@ -330,20 +337,11 @@ fun WallpaperSheet(
                         if (films.isNotEmpty()) SettingRow(
                             R.string.ss_saver_video, stringResource(R.string.ss_saver_video_hint), note,
                         ) {
-                            Row(
-                                Modifier.horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Chip(stringResource(R.string.ss_saver_video_all), on = Wallpapers.screensaverVideo == null) {
-                                    Wallpapers.chooseScreensaverVideo(null)
-                                }
-                                films.forEach { film ->
-                                    val id = film.id.removePrefix(Wallpapers.VIDEO_PREFIX)
-                                    Chip(film.title, on = Wallpapers.screensaverVideo == id) {
-                                        Wallpapers.chooseScreensaverVideo(id)
-                                    }
-                                }
-                            }
+                            val chosenTitle = films.firstOrNull { it.id == Wallpapers.VIDEO_PREFIX + Wallpapers.screensaverVideo }?.title
+                            ActionChip(
+                                chosenTitle ?: stringResource(R.string.ss_saver_video_all),
+                                Glyph.ChevronRight,
+                            ) { saverPicking = true }
                         }
                     }
                     // Only the qualities this TV can play; a 1080p-only TV has nothing to choose.
@@ -485,10 +483,16 @@ fun WallpaperSheet(
             onDismiss = { picking = null },
             onPick = { id ->
                 Wallpapers.setPerApp(slot, id)
+                // Choosing a picture from another wallpaper turns "Each App" on, so the choice
+                // shows at once; "inherit" leaves the wallpaper as it is.
+                if (id != null && Wallpapers.selectedId != Wallpapers.PER_APP) Wallpapers.select(Wallpapers.PER_APP)
                 picking = null
             },
         )
     }
+
+    // Over the sheet: which of the videos the screensaver plays — all of them in turn, or one.
+    if (saverPicking) SaverVideoPicker(onDismiss = { saverPicking = false })
 }
 
 /**
@@ -947,9 +951,68 @@ private fun PerAppPicker(slot: Int, label: String, chosen: String?, onDismiss: (
     }
 }
 
+/**
+ * Which of the owner's videos the screensaver plays: all of them in turn, or one on a loop until
+ * another is picked or it is deleted (VideosSaver falls back to all when the film is gone).
+ */
+@Composable
+private fun SaverVideoPicker(onDismiss: () -> Unit) {
+    val films = remember(Wallpapers.items) {
+        Wallpapers.items.filter { it.kind == WallpaperKind.Video && it.id != Wallpapers.VIDEOS }
+    }
+    val first = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        runCatching { first.requestFocus() }
+    }
+    BackHandler(onBack = onDismiss)
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f))
+            .dismissOnTap(onDismiss)
+            .consumeTaps(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier
+                .width(780.dp)
+                .liquidGlass(24.dp)
+                .padding(horizontal = 26.dp, vertical = 20.dp),
+        ) {
+            BasicText(stringResource(R.string.ss_saver_video), style = Type.Headline)
+            Spacer(Modifier.height(4.dp))
+            BasicText(
+                stringResource(R.string.ss_saver_video_hint),
+                style = Type.Caption.copy(color = Palette.TertiaryLabel),
+            )
+            Spacer(Modifier.height(12.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                contentPadding = PaddingValues(start = 4.dp, end = 24.dp, top = 8.dp, bottom = 8.dp),
+            ) {
+                item(key = "all") {
+                    InheritCard(
+                        selected = Wallpapers.screensaverVideo == null,
+                        focusRequester = first,
+                        onClick = { Wallpapers.chooseScreensaverVideo(null); onDismiss() },
+                        label = R.string.ss_saver_video_all,
+                    )
+                }
+                items(films, key = { it.id }) { film ->
+                    val id = film.id.removePrefix(Wallpapers.VIDEO_PREFIX)
+                    WallpaperCard(film, null, onFocused = {}, selected = Wallpapers.screensaverVideo == id) {
+                        Wallpapers.chooseScreensaverVideo(id); onDismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** The card that takes an app's own picture away: it follows the wallpaper again. */
 @Composable
-private fun InheritCard(selected: Boolean, focusRequester: FocusRequester?, onClick: () -> Unit) {
+private fun InheritCard(selected: Boolean, focusRequester: FocusRequester?, label: Int = R.string.wp_per_app_inherit, onClick: () -> Unit) {
     Pressable(onClick = onClick, focusRequester = focusRequester, focusedScale = 1.08f) { state ->
         Box(
             Modifier
@@ -968,7 +1031,7 @@ private fun InheritCard(selected: Boolean, focusRequester: FocusRequester?, onCl
             contentAlignment = Alignment.Center,
         ) {
             BasicText(
-                stringResource(R.string.wp_per_app_inherit),
+                stringResource(label),
                 style = Type.Caption.copy(color = Palette.SecondaryLabel),
             )
         }
