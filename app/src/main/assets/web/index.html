@@ -1646,15 +1646,7 @@ function renderWallpapers() {
     list.forEach(w => g.appendChild(card(w)));
     root.appendChild(g);
     if (sub) root.appendChild(el('p', 'foot', sub));
-    // Whether keys stop the owner's videos, as on the TV; the aerial films always move.
-    if (kind === 'live' && /^videos?:/.test(state.selected)) {
-      const l = el('div', 'list'); l.style.marginTop = '10px';
-      const row = el('label', 'item');
-      const txt = el('span', 'txt', t('sw_always')); txt.appendChild(el('span', 'sub', t('sw_always_sub')));
-      const sw = el('input', 'switch'); sw.type = 'checkbox'; sw.checked = !!state.wallpaperAlwaysMoves; sw.dataset.setting = 'wallpaperAlwaysMoves';
-      sw.onchange = () => setting(sw);
-      row.append(txt, sw); l.appendChild(row); root.appendChild(l);
-    }
+    // The owner's videos play all the time, as on the TV: no "when still" to choose (2026-11-04).
     if (kind === 'photo' && list.length === 1) root.appendChild(el('p', 'foot', t('add_second')));
   }
 }

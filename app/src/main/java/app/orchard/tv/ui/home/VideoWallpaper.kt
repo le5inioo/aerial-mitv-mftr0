@@ -26,7 +26,6 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import app.orchard.tv.ui.components.FilmSlot
-import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.system.DiagLog
 import app.orchard.tv.ui.theme.Motion
 import app.orchard.tv.wallpaper.ScreensaverVideos
@@ -39,10 +38,11 @@ import kotlinx.coroutines.withContext
 
 /**
  * The owner's own videos behind Home (issues #410, #583), sent from the phone page as for the video
- * screensaver: silent, filling the screen, one after another or just the one chosen on a loop (#762). They move when the aerial wallpaper
- * would (LiveWallpaper): on a still shelf, or all the time when set to keep moving. A key that
- * stops them leaves the frame they stopped on as the wallpaper's picture, read off the video plane
- * where the TV allows it and otherwise decoded from the file, which is on the TV.
+ * screensaver: silent, filling the screen, one after another or just the one chosen on a loop (#762).
+ * They play all the while Home shows them: a key does not stop them, and neither does scrolling the
+ * grid (the owner, 2026-11-04 — stopping on the second row and starting again on the way back left
+ * the screen black between the two). A panel over Home holds them too (Personalize, Control Center).
+ * Let go only when the screensaver takes over or Home goes behind an app.
  */
 @Composable
 fun VideoWallpaper(
@@ -51,7 +51,6 @@ fun VideoWallpaper(
     keep: Boolean,
     /** A panel is over Home (Personalize, Control Center): the video goes on playing under it. */
     hold: Boolean = false,
-    lastInputAt: Long,
     cover: Animatable<Float, *>,
     /** Which films to play: the wallpaper's own, or one "Each App" tile's choice. */
     filmsId: String = Wallpapers.selectedId,
@@ -60,14 +59,7 @@ fun VideoWallpaper(
     var player by remember { mutableStateOf<ExoPlayer?>(null) }
     var surface by remember { mutableStateOf<SurfaceView?>(null) }
     var showing by remember { mutableStateOf(false) }
-    var idle by remember { mutableStateOf(false) }
-    LaunchedEffect(lastInputAt, moving) {
-        idle = false
-        if (!moving) return@LaunchedEffect
-        delay(START_AFTER_MS)
-        idle = true
-    }
-    val play = (moving && (idle || AerialSettings.wallpaperAlwaysMoves)) || hold
+    val play = moving || hold
     val keepNow by rememberUpdatedState(keep)
     val scope = rememberCoroutineScope()
     // Bumped whenever the player is let go: with the video set to keep moving (or a panel holding
@@ -164,7 +156,7 @@ fun VideoWallpaper(
     LaunchedEffect(play, stops, released) {
         if (play) {
             val p = player ?: open()?.also { player = it } ?: return@LaunchedEffect
-            DiagLog.i("video wallpaper starts (${p.currentMediaItem?.mediaId} at ${p.currentPosition} ms, idle $idle)")
+            DiagLog.i("video wallpaper starts (${p.currentMediaItem?.mediaId} at ${p.currentPosition} ms)")
             Wallpapers.dropFilmFrost()
             if (p.playbackState == Player.STATE_IDLE) p.prepare()
             p.playWhenReady = true

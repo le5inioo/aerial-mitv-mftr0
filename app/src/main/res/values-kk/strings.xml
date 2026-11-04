@@ -64,6 +64,7 @@
     <string name="unavailable">Бұл теледидарда қолжетімсіз</string>
     <string name="cc_brightness">Жарықтық</string>
     <string name="cc_brightness_in_settings">Кескін параметрлері</string>
+    <string name="cc_brightness_auto">Авто-жарық қосылған: мұнда жарықтықты өзгерту үшін оны кескін параметрлерінде өшіріңіз.</string>
     <string name="cc_personalize">Жекелендіру</string>
     <string name="wp_title">Жекелендіру</string>
     <string name="wp_wallpaper">Түсқағаз</string>

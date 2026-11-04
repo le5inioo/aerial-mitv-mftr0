@@ -216,14 +216,8 @@ fun WallpaperSheet(
                         }
                     }
                 }
-                // Only for the owner's videos: whether keys stop them. The aerial films always move.
-                if (Wallpapers.isVideo()) Group { note ->
-                    Choices(
-                        R.string.st_play, stringResource(R.string.st_play_hint), note,
-                        listOf(false to R.string.st_play_still, true to R.string.st_play_always),
-                        AerialSettings.wallpaperAlwaysMoves, AerialSettings::chooseWallpaperAlwaysMoves, first = true,
-                    )
-                }
+                // The owner's videos, like the aerial films, play all the time: there is no "when
+                // still" any more (the owner, 2026-11-04), so there is nothing to choose here.
 
                 Spacer(Modifier.height(6.dp))
                 SectionTitle(R.string.st_home_layout)

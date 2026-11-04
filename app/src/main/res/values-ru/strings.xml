@@ -64,6 +64,7 @@
     <string name="unavailable">Недоступно на этом телевизоре</string>
     <string name="cc_brightness">Яркость</string>
     <string name="cc_brightness_in_settings">Настройки изображения</string>
+    <string name="cc_brightness_auto">Включена авто-подсветка: отключите её в настройках изображения, чтобы менять яркость здесь.</string>
     <string name="cc_personalize">Персонализация</string>
     <string name="wp_title">Персонализация</string>
     <string name="wp_wallpaper">Обои</string>

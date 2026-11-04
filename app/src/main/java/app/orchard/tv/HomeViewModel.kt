@@ -3,6 +3,7 @@ package app.orchard.tv
 import android.app.Application
 import android.os.Build
 import android.os.SystemClock
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -118,6 +119,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
      * back on screen.
      */
     private var brightnessActedAt = 0L
+
+    /** When Control Center last said the TV's auto backlight is on, so a held key says it once. */
+    private var brightnessHintAt = 0L
 
     /**
      * Levels the row asked for, newest kept: between the repeats of a held key the engine only needs
@@ -606,6 +610,17 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun adjustBrightness(direction: Int) {
+        // The TV's own light sensor is on: the panel is its to manage, and a level written under it
+        // is dropped at the next reading (MiTV-MFTR0). Say so and leave the level alone, rather
+        // than moving the row for a picture that would not change (the owner, 2026-11-04).
+        if (Brightness.autoBacklightOn(context)) {
+            val now = SystemClock.elapsedRealtime()
+            if (now - brightnessHintAt > 3000) {
+                brightnessHintAt = now
+                Toast.makeText(context, R.string.cc_brightness_auto, Toast.LENGTH_LONG).show()
+            }
+            return
+        }
         val current = brightness
         if (xgimiBrightness && current != null) {
             // Step from what the row shows and hand the write to the queue: the key's own thread

@@ -46,13 +46,19 @@ object Brightness {
     /**
      * The light sensor's auto backlight: while it is on, the panel is the sensor's to manage and
      * manual levels are ignored (MiTV-MFTR0: the slider moved, the settings moved, the picture
-     * stayed as it was). A manual step is manual intent, so it turns the sensor off first, as the
-     * TV's own slider does.
+     * stayed as it was). Aerial leaves it be and says so instead of stepping a level the firmware
+     * would drop (the owner, 2026-11-04); the owner turns it off in the TV's picture settings.
      */
     private const val XIAOMI_AUTO_KEY = "tv_picture_light_sensor"
 
-    private fun xiaomiAutoOn(context: Context): Boolean =
-        Settings.Global.getInt(context.contentResolver, XIAOMI_AUTO_KEY, 0) == 1
+    /**
+     * True while the TV's own light sensor drives the panel: Control Center's slider would move a
+     * setting and change nothing, so [adjust] leaves the level as it is and the caller says why.
+     * Only the Xiaomi path has one; the other vendors have no such setting Aerial can read.
+     */
+    fun autoBacklightOn(context: Context): Boolean =
+        usesXiaomiBacklight(context) &&
+            Settings.Global.getInt(context.contentResolver, XIAOMI_AUTO_KEY, 0) == 1
 
     // MiTV-MFTP0 keeps picture_backlight without following it: DeviceProfile.ignoresPictureBacklight.
 
@@ -165,6 +171,9 @@ object Brightness {
             return if (SystemProbe.setXgimiBrightnessLevel(level)) next else current
         }
         val current = level(context, probeSkyworth = false) ?: return null
+        // The TV's auto backlight is on: it owns the panel and would drop the level as soon as it
+        // was written. Report the level unchanged; the caller tells the owner to turn it off.
+        if (autoBacklightOn(context)) return current
         val percent = Math.round(current * 100)
         val next = stepPercent(percent, direction)
         val r = context.contentResolver
@@ -189,10 +198,9 @@ object Brightness {
             if (isTcl(context)) {
                 TclPicture.setBacklight(context, next)
             } else if (usesXiaomiBacklight(context)) {
-                // The auto light sensor holds the panel while it is on: turn it off, then write
-                // both keys — the firmware reads picture_backlight and its MiBackLightManager
-                // follows xiaomi_picture_backlight's change (MiTV-MFTR0, watched over logcat).
-                Settings.Global.putInt(r, XIAOMI_AUTO_KEY, 0)
+                // Both keys: the firmware reads picture_backlight, and the middleware's
+                // MiBackLightManager follows xiaomi_picture_backlight's change (MiTV-MFTR0, watched
+                // over logcat). The auto sensor has been left on its own by the check above.
                 Settings.Global.putInt(r, XIAOMI_BACKLIGHT, next)
                 Settings.Global.putInt(r, XIAOMI_BACKLIGHT_MIRROR, next)
             } else {

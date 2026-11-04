@@ -665,6 +665,11 @@ fun HomeScreen(
         // (Xiaomi MiTV-MFTR0, the aerial wallpaper under Control Center).
         val filmMoves = vm.filmFront && overlay == Overlay.None && !vm.screensaverVisible && !pastShelf &&
             !inGrid && moving == null
+        // The owner's own videos are set to play all the time (the owner, 2026-11-04): a key does not
+        // stop them, and neither does the scroll — stopping on the second row and rising back to the
+        // first let the player go and opened another, and the screen was black for the moment
+        // between (a released SurfaceView is a hole in the window, Xiaomi MiTV-MFTR0).
+        val videoMoves = vm.filmFront && !vm.screensaverVisible
         val sourceInput = Wallpapers.sourceInput
         when {
             Wallpapers.selectedId == Wallpapers.LIVE -> LiveWallpaper(
@@ -688,10 +693,9 @@ fun HomeScreen(
             // Anew for each choice, so another of the owner's videos does not keep the last one's player.
             Wallpapers.isVideo() -> key(Wallpapers.selectedId) {
                 VideoWallpaper(
-                    moving = filmMoves,
+                    moving = videoMoves,
                     keep = vm.filmFront && !vm.screensaverVisible,
                     hold = filmHolds,
-                    lastInputAt = vm.lastInputAt,
                     cover = filmCover,
                 )
             }

@@ -72,6 +72,7 @@
     <string name="unavailable">Not available on this TV</string>
     <string name="cc_brightness">Brightness</string>
     <string name="cc_brightness_in_settings">Picture Settings</string>
+    <string name="cc_brightness_auto">Auto backlight is on: turn it off in Picture settings to change the brightness here.</string>
     <string name="cc_personalize">Personalize</string>
     <string name="wp_title">Personalize</string>
     <string name="wp_wallpaper">Wallpaper</string>

@@ -9,7 +9,7 @@
     },
     {
       "models": ["MiTV_MFTR0", "MiTV-MFTR0"],
-      "note": "Registers a fourth HDMI input (HW8) with no connector behind it; tuners named by what they receive. Its panel ignores manual backlight while the light sensor's auto mode is on; Brightness turns the sensor off when the slider moves.",
+      "note": "Registers a fourth HDMI input (HW8) with no connector behind it; tuners named by what they receive. Its panel is the light sensor's while the TV's auto backlight is on: manual levels are dropped, so Brightness says so instead of stepping one (Control Center), and the owner turns the sensor off in the picture settings.",
       "hidden": [8],
       "labels": {"0": "DTMB", "1": "ATV", "2": "AV", "6": "HDMI 2 (eARC)"}
     },
