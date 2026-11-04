@@ -21,3 +21,6 @@ site/icons/
 # Python bytecode from tools/ (tests run with python3)
 __pycache__/
 *.pyc
+
+# What tools/rescue.sh wrote down on the machine it ran on (screen black, TV unreachable).
+tools/rescue-*.log

@@ -176,3 +176,13 @@
 - 小米显示器 MFFU1（安卓 14）和这台不同：PixelCopy 读得到影片，但 4K 时一次 0.7 秒、有时读出绿色。1.77 里一次慢复制按固件指纹记成慢（`copy_slow_read`），连带不读文件，户主切成杜比视界画质（壁纸随之换成 4K）后底板和面板的磨砂都没了，日志 `copy false, file frames stuck false`。现在慢复制只在有 TCL 解析器的电视上关文件（ARCHITECTURE 同一条 ⑦），这台日志 `TCL's extractor false`，从文件解帧，控制中心是磨砂玻璃。
 
 - 杜比视界屏保回首页（2026-11-04，#1238）：以前黑约 1.1 秒等壁纸影片；现在屏保期间在进程内用 `c2.android.avc.decoder` 解屏保影片的关键帧（不走 mediaserver，不碰屏保占着的那条视频通道），回来先显示它，影片从它接着放。实测按键进屏保时屏保第一帧有时从约 0.8 秒晚到 1.9 秒。这台现在是安卓 14（SDK 34），装包用 `31.dm`。
+
+## 黑屏：一条命令救回来（2026-11-04）
+
+黑屏几乎都是「没有应用接管 Home」：PatchWall 被 `DISABLE_STOCK_HOME=1` 停用，Aerial 又被卸掉 / 停用 / 崩了。屏幕上没东西可画，遥控器主页键没有落点，设置进不去，只剩 ADB 这一条路。
+
+- `tools/rescue.sh`（Windows 上双击 `tools/rescue.bat`）：连上 → 诊断 → 打开被停用的 PatchWall → `restore.sh` 让 Aerial 放手 → Home 还空就 `set-home-activity` → 唤醒并回桌面 → 再解析一次 Home。`--check` 只打印诊断，`--scan` 在本网段找开着 5555 的电视，`RESCUE_TIMEOUT=180` 等正在开机的电视（判据是 `sys.boot_completed`，`adb connect` 回 connected 不算）。
+- 它比 `restore.sh` 多两步。`restore.sh` 只在 Home 解析到 Aerial 时才把 Home 交回 PatchWall（#901 那条分支），Home 已经是空的时候它什么都不做；rescue 先把停用的 PatchWall 打开，最后再自己 `set-home-activity`。Aerial 自己被停用（`pm list packages -d` 里有它）时也一并打开——不装 PatchWall 的电视上只有这一条能让画面回来。
+- `restore.sh` 的 `PKG` 现在可以覆盖（`PKG=com.ts.launcher`，`install-ts.sh` 的包名）。组件名和 `CONFIG` action 仍是代码里的 `app.orchard.tv`，按包名前缀拼会拼错，脚本里分开写成 `LISTENER` 和 `CONFIG_ACTION`。
+- 前提只有一个：ADB 调试曾经开过。黑屏下改不了设置，`tools/dev-mode.sh` 也要先连得上，所以平时 `KEEP_ADB` 别关，这就是那条后路。
+- 验证：`tools/test_rescue.py` 五个用例（stub adb，不接电视）——空 Home 时先启 PatchWall 再指定桌面、`--check` 一次都不改、连不上时给出 `--scan` 等提示、非小米时启回 Aerial、别的桌面正常时不抢。整条链路约 40 次 adb 往返，本机 stub 下 75 秒，真机 adb 每次 0.3–0.6 秒。**`--scan` 和真机修复都没跑过**（电视现在是好的）：扫网段要 254 次 connect，真机上没试。

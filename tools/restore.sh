@@ -7,19 +7,25 @@
 # is switched back on here: Home cannot be handed to a disabled package.
 set -euo pipefail
 : "${TV:?set TV to the TV IP address}"
-PKG=app.orchard.tv
-GUARD="$PKG/$PKG.guard.HomeGuardService"
+# The package Home was given to. A build with another applicationId (tools/install-ts.sh uses
+# com.ts.launcher, the name this TV's firmware accepts, issue #901) passes it in: PKG=com.ts.launcher.
+# Component names and the CONFIG action keep the code namespace app.orchard.tv either way, so they
+# do not follow $PKG — only the package prefix does.
+PKG=${PKG:-app.orchard.tv}
+CONFIG_ACTION=app.orchard.tv.CONFIG
+GUARD="$PKG/app.orchard.tv.guard.HomeGuardService"
+LISTENER="$PKG/app.orchard.tv.guard.RevivalListener"
 case "$TV" in *:*) SERIAL="$TV" ;; *) SERIAL="$TV:5555" ;; esac
 export ANDROID_SERIAL="$SERIAL"
-adb connect "$SERIAL" >/dev/null
+adb connect "$SERIAL" >/dev/null 2>&1 || true
 
 # First take away what lets Aerial switch the guard back on, or it would simply do so.
-adb shell am broadcast -a "$PKG.CONFIG" -n "$PKG/.guard.ConfigReceiver" --ez keep_adb false --ez own_screensaver false >/dev/null 2>&1 || true
-adb shell cmd notification disallow_listener "$PKG/$PKG.guard.RevivalListener" >/dev/null 2>&1 || true
+adb shell am broadcast -a "$CONFIG_ACTION" -n "$PKG/.guard.ConfigReceiver" --ez keep_adb false --ez own_screensaver false >/dev/null 2>&1 || true
+adb shell cmd notification disallow_listener "$LISTENER" >/dev/null 2>&1 || true
 # Android 6 and 7 have no `cmd`: take it out of the setting itself, leaving the other listeners.
 LISTENERS=$(adb shell settings get secure enabled_notification_listeners 2>/dev/null | tr -d '\r')
 case "$LISTENERS" in
-  *"$PKG/$PKG.guard.RevivalListener"*)
+  *"$LISTENER"*)
     REST=$(printf '%s' "$LISTENERS" | tr ':' '\n' | grep -v "^$PKG/" | paste -sd: - || true)
     if [ -n "$REST" ]; then adb shell settings put secure enabled_notification_listeners "$REST" >/dev/null 2>&1 || true
     else adb shell settings delete secure enabled_notification_listeners >/dev/null 2>&1 || true; fi ;;
@@ -34,7 +40,7 @@ adb shell appops set "$PKG" APP_ASSOC_START default >/dev/null 2>&1 || true
 adb shell appops set "$PKG" AUTO_START default >/dev/null 2>&1 || true   # FFALCON T966D5's names
 adb shell appops set "$PKG" ASSOC_START default >/dev/null 2>&1 || true
 adb shell appops set "$PKG" ACCESS_RESTRICTED_SETTINGS default >/dev/null 2>&1 || true   # Android 13+
-adb shell am force-stop "$PKG"
+adb shell am force-stop "$PKG" >/dev/null 2>&1 || true   # the package may already be gone
 case "$(adb shell settings get secure screensaver_components | tr -d '\r')" in
   "$PKG"/*) adb shell settings put secure screensaver_components "$(adb shell settings get secure screensaver_default_component | tr -d '\r')" ;;
 esac
