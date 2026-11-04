@@ -16,6 +16,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.relocation.BringIntoViewResponder
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewResponder
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.onSizeChanged
@@ -398,23 +399,25 @@ fun WallpaperSheet(
 
                 // One row says what it is; a title over it would only repeat it.
                 Spacer(Modifier.height(10.dp))
+                // No explicit scrolling here on focus, unlike before: the Group's own responder
+                // already brings the whole group in, note included, and an extra request of our
+                // own only fought it — to the sheet's absolute bottom once (the row then hidden
+                // above whenever anything followed the group), and to the sheet's top with a
+                // 1 dp anchor (2026-11-04). Every other group scrolls right without one.
                 Group(stringResource(R.string.st_pin_hint)) { note ->
                     SettingRow(R.string.st_pin, null, note, first = true) {
-                        PinChoice(onPin, onFocused = { scope.launch { scroll.animateScrollTo(scroll.maxValue) } })
+                        PinChoice(onPin)
                     }
                     SettingRow(R.string.st_kids, stringResource(R.string.st_kids_hint), note) {
-                        // The last row that takes focus: bring the note under it into view too.
-                        Box(Modifier.onFocusChanged { if (it.hasFocus) scope.launch { scroll.animateScrollTo(scroll.maxValue) } }) {
-                            ActionChip(
-                                when {
-                                    !Restricted.enabled -> stringResource(R.string.st_off)
-                                    Restricted.kind == RestrictedKind.Kids -> stringResource(R.string.kids_kind_kids)
-                                    else -> stringResource(R.string.kids_kind_elders)
-                                },
-                                Glyph.ChevronRight,
-                                onKids,
-                            )
-                        }
+                        ActionChip(
+                            when {
+                                !Restricted.enabled -> stringResource(R.string.st_off)
+                                Restricted.kind == RestrictedKind.Kids -> stringResource(R.string.kids_kind_kids)
+                                else -> stringResource(R.string.kids_kind_elders)
+                            },
+                            Glyph.ChevronRight,
+                            onKids,
+                        )
                     }
                 }
                 Spacer(Modifier.height(22.dp))
@@ -738,7 +741,7 @@ private fun <T> Choices(
 
 /** Parental PIN on or off; either way goes through the PIN pad (issue #10). */
 @Composable
-private fun PinChoice(onPin: (on: Boolean) -> Unit, onFocused: () -> Unit) {
+private fun PinChoice(onPin: (on: Boolean) -> Unit, onFocused: (() -> Unit)? = null) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         listOf(false to R.string.st_pin_off, true to R.string.st_pin_on).forEach { (on, label) ->
             Chip(stringResource(label), on = AerialSettings.pinSet == on, onFocused = onFocused) {

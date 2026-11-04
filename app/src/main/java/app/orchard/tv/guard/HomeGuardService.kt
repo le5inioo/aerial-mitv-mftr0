@@ -383,6 +383,23 @@ class HomeGuardService : AccessibilityService() {
         }
     }
 
+    /**
+     * Plays the About page's model-row taps once per boot (DevModeTap), when the user is unlocked
+     * and the screen is on: asleep still, look again a minute later until the boot window ends.
+     * A val of its own type, not a lambda: it reaches itself to be posted again.
+     */
+    private val devModeTap: Runnable = object : Runnable {
+        override fun run() {
+            if (!GuardSetup.isUserUnlocked(this@HomeGuardService)) {
+                handler.postDelayed(this, 15_000L)
+                return
+            }
+            if (!DevModeTap.pending(this@HomeGuardService)) return
+            if (getSystemService<PowerManager>()?.isInteractive == true) DevModeTap.tap(this@HomeGuardService)
+            else handler.postDelayed(this, 60_000L)
+        }
+    }
+
     private fun onUserUnlocked(how: String) {
         if (!unlockPending) return
         unlockPending = false
@@ -692,6 +709,9 @@ class HomeGuardService : AccessibilityService() {
     override fun onServiceConnected() {
         instance = this
         unlockPending = !GuardSetup.isUserUnlocked(this)
+        // Xiaomi's settings app hides the ADB switch again at every boot (see DevModeTap): poll
+        // until the user is unlocked and the boot has settled, then play the About page's taps.
+        handler.postDelayed(devModeTap, 20_000L)
         // Both read credential storage: bound before unlock, the guard crashed here twice and the
         // system put off its restart for 30 min, so nothing took Home at boot (1.79 to 1.81: Redmi
         // Projector 4 mt5873, Android 13, issue #684; Formovie spiderman, Android 9, issue #1213;
