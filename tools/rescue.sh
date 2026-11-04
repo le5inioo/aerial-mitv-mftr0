@@ -234,6 +234,20 @@ if [ "$MODE" = check ]; then
   exit 0
 fi
 
+# A TV whose Home already resolves to something else is not black. Ask before taking that launcher
+# away: a rescue.bat double-clicked by mistake should not cost a reinstall. Piped or scripted runs
+# (no terminal on stdin) go ahead, which is what makes this usable from a shell script.
+if [ -n "$HOME_NOW" ] && [ "$HOME_NOW" != "${AERIAL:-none}/app.orchard.tv.MainActivity" ] && [ -t 0 ]; then
+  say ""
+  printf '  Home 现在是 %s，画面应该正常。还要交还 Home 吗？[y/N] ' "$HOME_NOW"
+  answer=
+  read -r answer || true
+  case "$answer" in
+    [Yy]*) ;;
+    *) say "  什么都没改。"; exit 0 ;;
+  esac
+fi
+
 # ---------------------------------------------------------------- 4. fix
 
 head_ "修复"
