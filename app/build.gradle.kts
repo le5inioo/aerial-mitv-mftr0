@@ -24,8 +24,8 @@ android {
         targetSdk = 34
         // Above homekey-standin's 102, which this package name held before (a clean update, no
         // uninstall needed). Custom: keep 4-digit versionCode above the standin, name tracks upstream.
-        versionCode = 1087
-        versionName = "1.83"
+        versionCode = 1088
+        versionName = "1.84"
         // `./gradlew -Pdiag ...`: a build for one reporter's TV whose logcat shows no app lines;
         // see system/DiagLog.kt.
         val diag = project.hasProperty("diag")
