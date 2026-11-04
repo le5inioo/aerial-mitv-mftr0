@@ -607,6 +607,55 @@ fun HomeScreen(
         }
 
         val ambientApp = apps.getOrNull(focusedIndex) ?: apps.firstOrNull()
+        // "Each App" (Personalize): the picture chosen for the tile in focus, by the tile's place —
+        // 1 is the leftmost — so it stays when the owner puts another app there. Only the first
+        // row's tiles have one, up to six of them: the tiles that fall to the second row (the fifth
+        // and sixth on a four-a-row Home, the sixth on a five-a-row one) leave the picture where it
+        // was and Home keeps showing it, rather than taking the focused app's own light — the owner
+        // asked the background not to follow the app there (MiTV-MFTR0). The first row bakes as
+        // soon as Home has it, so moving along it finds each picture ready.
+        val perAppSlots = minOf(columns, Wallpapers.PER_APP_SLOTS)
+        val perAppSlot = focusedIndex.takeIf { it in 0 until perAppSlots }?.plus(1)
+        // Tile 1 is where Home opens, so it is what shows before any tile has had the focus.
+        var shownSlot by remember { mutableStateOf(1) }
+        LaunchedEffect(perAppSlot) {
+            if (perAppSlot != null) {
+                shownSlot = perAppSlot
+                Wallpapers.notePerAppShown(perAppSlot)
+            }
+        }
+        // A narrower row (four a row, say) moves tiles 5 and 6 to the second row, where they have no
+        // picture of their own: the last first-row tile's picture stands in until the focus leaves
+        // the row, and stays when it does.
+        LaunchedEffect(perAppSlots) {
+            if (shownSlot > perAppSlots) {
+                shownSlot = perAppSlots
+                Wallpapers.notePerAppShown(perAppSlots)
+            }
+        }
+        LaunchedEffect(Wallpapers.selectedId, apps, perAppSlots) {
+            if (Wallpapers.selectedId == Wallpapers.PER_APP) {
+                Wallpapers.preparePerApp((1..perAppSlots).toList())
+            }
+        }
+        LaunchedEffect(Wallpapers.selectedId, perAppSlot) {
+            if (Wallpapers.selectedId == Wallpapers.PER_APP) perAppSlot?.let { Wallpapers.preparePerApp(listOf(it)) }
+        }
+        // Pictures kept by package name before this build: moved to the tiles their apps hold now.
+        LaunchedEffect(apps, perAppSlots) {
+            Wallpapers.adoptPerAppByPackage(apps.take(perAppSlots).map { it.packageName })
+        }
+        val perAppPicture = Wallpapers.perAppBackdrop(shownSlot)
+        val perAppGlass = Wallpapers.perAppFrosted(shownSlot)
+        // A tile whose picture is one of the owner's videos: it plays behind Home while the tile
+        // is in focus, as the video wallpaper does (VideoWallpaper).
+        val slotVideoId = if (Wallpapers.selectedId == Wallpapers.PER_APP) {
+            Wallpapers.perAppChoice(shownSlot)?.takeIf { Wallpapers.isVideo(it) }
+        } else null
+        // Personalize and Control Center leave the video playing under them, rather than stopping
+        // it on a frame (the owner asked for it: the background went black under the sheet).
+        val filmHolds = (Wallpapers.isVideo() || slotVideoId != null) &&
+            (overlay is Overlay.Wallpaper || overlay is Overlay.ControlCenter)
 
         val dragState = rememberDraggableState { delta ->
             dragged = true
@@ -642,12 +691,15 @@ fun HomeScreen(
                 live = liveFilm,
             )
             // Anew for each choice, so another of the owner's videos does not keep the last one's player.
-            Wallpapers.isVideo() -> key(Wallpapers.selectedId) {
+            // In "Each App" the focused tile's own video plays instead, if it has one.
+            Wallpapers.isVideo() || slotVideoId != null -> key(Wallpapers.selectedId to slotVideoId) {
                 VideoWallpaper(
                     moving = filmMoves,
                     keep = vm.filmFront && !vm.screensaverVisible,
+                    hold = filmHolds,
                     lastInputAt = vm.lastInputAt,
                     cover = filmCover,
+                    filmsId = slotVideoId ?: Wallpapers.selectedId,
                 )
             }
             sourceInput != null -> SourceWallpaper(sourceInput, show = vm.resumed && !vm.screensaverVisible, cover = filmCover)
@@ -694,8 +746,10 @@ fun HomeScreen(
                     (metrics.topRowY + metrics.tileH + PlatePadV + metrics.firstGap + second).toPx(),
                 )
             }
-            // Another wallpaper chosen: nothing shows through until the new one has a frame.
-            LaunchedEffect(Wallpapers.selectedId) { filmCover.snapTo(0f) }
+            // Another wallpaper chosen, or the focus left a tile whose video was playing: the film
+            // plane is gone with it, so the picture shows at once rather than a black window until
+            // a new film's first frame (the slot's video comes and goes without a new wallpaper).
+            LaunchedEffect(Wallpapers.selectedId, slotVideoId) { filmCover.snapTo(0f) }
             // The aerial film's own glass for the grid: the one playing or stopped, else the one
             // the picture was taken from.
             val pictureClip = remember(Wallpapers.backdrop) { Wallpapers.livePictureSpot()?.first }
@@ -703,9 +757,11 @@ fun HomeScreen(
             LaunchedEffect(clip) { Wallpapers.showClipGlass(clip) }
             val clipGlass = Wallpapers.clipGlass?.takeIf { it.first == clip }?.second
             HomeBackground(
-                // The chosen wallpaper; in "Follow App" mode, light from the focused app.
-                backdrop = Wallpapers.backdrop ?: ambientApp?.art?.backdrop,
-                frosted = Wallpapers.frosted.takeIf { Wallpapers.backdrop != null },
+                // The chosen wallpaper; in "Each App" the focused tile's own picture, and in
+                // "Follow App" mode, light from the focused app.
+                backdrop = perAppPicture ?: Wallpapers.backdrop ?: ambientApp?.art?.backdrop,
+                frosted = if (perAppPicture != null) perAppGlass
+                else Wallpapers.frosted.takeIf { Wallpapers.backdrop != null },
                 plate = plate,
                 scroll = { scroll.value },
                 collapse = collapsePx,
@@ -721,7 +777,7 @@ fun HomeScreen(
                 saverReveal = { saverReveal.value },
                 saverPush = { saverPush.value },
                 lift = { lift },
-                wallpaper = Wallpapers.selectedId,
+                wallpaper = if (perAppPicture != null) "perapp:$shownSlot" else Wallpapers.selectedId,
                 glassAwaitsStop = Wallpapers.selectedId == Wallpapers.LIVE && clipGlass == null,
                 gridGlass = clipGlass,
             )
@@ -1084,6 +1140,9 @@ fun HomeScreen(
             warm = sheetWarm,
             onDismiss = { vm.overlay = Overlay.ControlCenter() },
             hiddenCount = vm.hiddenApps.size,
+            // "Each App" offers the tiles of Home's first row, by place — 1 at the left — since only
+            // they change the picture: a narrower row gives fewer of them (Wallpapers.PER_APP_SLOTS).
+            tiles = apps.take(perAppSlots).map { it.packageName to it.label },
             onHiddenApps = { vm.whenUnlocked { vm.overlay = Overlay.HiddenApps } },
             onKids = vm::setUpKidsMode,
             onStartScreensaver = {

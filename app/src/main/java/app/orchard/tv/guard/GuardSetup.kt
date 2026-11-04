@@ -253,6 +253,32 @@ object GuardSetup {
         if (keep) ensureAdb(context)
     }
 
+    /** Whether Android lists Home Guard among the enabled accessibility services. */
+    fun guardEnabled(context: Context): Boolean = runCatching {
+        val me = ComponentName(context, HomeGuardService::class.java)
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+            .split(':').any { ComponentName.unflattenFromString(it) == me }
+    }.getOrDefault(false)
+
+    /**
+     * Switches Home Guard on or off by writing Android's list of enabled accessibility services,
+     * which needs WRITE_SECURE_SETTINGS (tools/install.sh grants it over ADB; no other way).
+     * Returns false where that permission is missing: only the system's own page can do it then.
+     */
+    fun setGuardEnabled(context: Context, on: Boolean): Boolean {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) return false
+        val me = ComponentName(context, HomeGuardService::class.java).flattenToString()
+        val resolver = context.contentResolver
+        return runCatching {
+            val entries = Settings.Secure.getString(resolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+                .split(':').filter { it.isNotBlank() }
+            val others = entries.filter { ComponentName.unflattenFromString(it)?.flattenToString() != me }
+            Settings.Secure.putString(resolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, (if (on) others + me else others).joinToString(":"))
+            if (on) Settings.Secure.putInt(resolver, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
+            true
+        }.getOrDefault(false)
+    }
+
     /**
      * Home Guard is bound before the user is unlocked (Direct Boot). Until then the preferences
      * below, in credential storage, cannot be read; the guard catches up on unlock.

@@ -86,6 +86,12 @@
     <string name="wx_snow">雪</string>
     <string name="wx_thunder">雷雨</string>
     <string name="wp_daily_latest">每日一图</string>
+    <string name="wp_per_app_hint">第一排每个磁贴各用一张壁纸：焦点移到哪个磁贴，背景就换成它的那张；挪到第二排的磁贴保持第一排最后那张。按序号记住，换了 App 也保留，随时可改。</string>
+    <string name="wp_per_app_row">第 %1$d 号 · %2$s</string>
+    <string name="wp_per_app_inherit">默认</string>
+    <string name="wp_per_app_change">选择</string>
+    <string name="wp_per_app_title">第 %1$d 号磁贴的壁纸</string>
+    <string name="wp_per_app_pick_hint">按返回键关闭；手机上上传的图片和视频也会出现在这里。</string>
     <string name="wp_live">动态航拍。在主屏幕第一排（双排时前两排）一直播放，再往下进入其余 App 时停在当前画面并留作壁纸，下次从这一帧接着播。</string>
     <string name="wp_photos_rotate">我的照片 · 每天换</string>
     <string name="wp_daily_note">必应每日一图，每天自动换成当天的。</string>
@@ -164,6 +170,11 @@
     <string name="st_effects_lite">流畅</string>
     <string name="st_effects_hint">流畅：面板用纯色，选中的 App 不加高光和视差，屏幕保持 60Hz，给会卡顿的电视用。</string>
     <string name="st_effects_auto_lite_hint">这台电视内存较小或系统较旧，「自动」用的是流畅。</string>
+    <string name="st_tv_system">电视（系统）</string>
+    <string name="st_guard">桌面守护</string>
+    <string name="st_guard_hint">系统把 Home 交给原厂桌面时，立刻把 Aerial 接回来。已经用 Aerial 当默认桌面时一般用不到。</string>
+    <string name="st_keep_adb">ADB 常开</string>
+    <string name="st_keep_adb_hint">电视重启后自动把 ADB 调试重新打开，不用再进设置里手动开。</string>
     <string name="cc_inputs_settings">信号源设置</string>
     <string name="cc_inputs_pin">显示在主屏幕（可多选）</string>
     <string name="cc_inputs_boot">开机时打开（选一个）</string>
@@ -240,6 +251,9 @@
     <string name="tile_kids">儿童</string>
     <string name="ss_videos">视频</string>
     <string name="ss_videos_hint">扫码从手机添加 MP4 或 MOV 视频，离线轮播；没有可播放的视频时显示照片。</string>
+    <string name="ss_saver_video">屏保视频</string>
+    <string name="ss_saver_video_hint">选择其中一个视频循环播放，代替全部轮播。</string>
+    <string name="ss_saver_video_all">全部轮播</string>
     <string name="ss_system">系统内置</string>
     <string name="ss_system_hint">用电视自带的屏保（比如小米的那些画面），Aerial 不再显示自己的屏保。</string>
     <string name="wp_videos_note">你从手机发来的视频，静音、一个接一个播放。和航拍一样会动，按键时停在当前画面。</string>

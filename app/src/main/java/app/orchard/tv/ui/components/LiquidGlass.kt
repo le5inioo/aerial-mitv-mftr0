@@ -74,7 +74,10 @@ fun Modifier.liquidGlass(corner: Dp, bottomCorners: Boolean = true, seeThroughFi
     // a plate the film shows through (seen on Xiaomi MiTV-MFFU1 while a slow copy kept it from
     // the film's frames, 2026-11-01; TCL MT5879 is such a TV for good).
     val solid = Wallpapers.moves() && Wallpapers.filmGlassless
-    val latest = Wallpapers.frosted.takeIf { Wallpapers.backdrop != null }
+    // The wallpaper's frosted picture; in "Each App" the shown tile's, which is what lies behind
+    // Home there. Without it the panels were one flat colour and the Effects setting changed
+    // nothing, where the owner expects the same glass as with any other wallpaper.
+    val latest = Wallpapers.panelFrost
     val held = remember(Wallpapers.selectedId, latest == null) { latest }
     val (frost, under, swap) = rememberFrostSwap(held)
     var at by remember { mutableStateOf(Offset.Zero) }

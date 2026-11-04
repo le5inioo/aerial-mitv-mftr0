@@ -38,10 +38,13 @@ import kotlinx.coroutines.withContext
 
 /** A local, silent playlist, shared by Home and AerialDream. An empty or broken set falls back. */
 @Composable
-internal fun VideoSaver(steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
+internal fun VideoSaver(steps: SharedFlow<Int>, onUnavailable: () -> Unit, only: String? = null) {
     val context = LocalContext.current
-    val films by produceState<List<ScreensaverVideo>?>(null) {
-        value = withContext(Dispatchers.IO) { ScreensaverVideos.all(context).shuffled() }
+    val films by produceState<List<ScreensaverVideo>?>(null, only) {
+        val all = withContext(Dispatchers.IO) { ScreensaverVideos.all(context) }
+        // One film picked to loop (Personalize); gone from the TV, all of them in turn again.
+        value = (only?.takeIf { id -> all.any { it.id == id } }?.let { id -> all.filter { it.id == id } }
+            ?: all).shuffled()
     }
     LocalFilms(films, steps, onUnavailable)
 }

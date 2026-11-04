@@ -49,8 +49,12 @@ fun VideoWallpaper(
     moving: Boolean,
     /** False once the screensaver is up or Home is behind an app: the decoder goes at once. */
     keep: Boolean,
+    /** A panel is over Home (Personalize, Control Center): the video goes on playing under it. */
+    hold: Boolean = false,
     lastInputAt: Long,
     cover: Animatable<Float, *>,
+    /** Which films to play: the wallpaper's own, or one "Each App" tile's choice. */
+    filmsId: String = Wallpapers.selectedId,
 ) {
     val context = LocalContext.current
     var player by remember { mutableStateOf<ExoPlayer?>(null) }
@@ -63,19 +67,24 @@ fun VideoWallpaper(
         delay(START_AFTER_MS)
         idle = true
     }
-    val play = moving && (idle || AerialSettings.wallpaperAlwaysMoves)
+    val play = (moving && (idle || AerialSettings.wallpaperAlwaysMoves)) || hold
     val keepNow by rememberUpdatedState(keep)
     val scope = rememberCoroutineScope()
+    // Bumped whenever the player is let go: with the video set to keep moving (or a panel holding
+    // it) play stays true, and without this the effect never ran again to open a new player, and
+    // the wallpaper stayed on the last frame for good.
+    var released by remember { mutableStateOf(0) }
 
     fun release() {
         player?.release()
         player = null
         showing = false
         Wallpapers.dropFilmFrost()
+        released++
     }
 
     suspend fun open(): ExoPlayer? {
-        val films = withContext(Dispatchers.IO) { Wallpapers.videoFilms() }
+        val films = withContext(Dispatchers.IO) { Wallpapers.videoFilms(filmsId) }
         if (films.isEmpty()) return null
         // Where the picture on screen came from, so moving again does not cut to another place.
         val spot = Wallpapers.videoSpot()
@@ -146,7 +155,7 @@ fun VideoWallpaper(
         true
     }
 
-    LaunchedEffect(play, stops) {
+    LaunchedEffect(play, stops, released) {
         if (play) {
             val p = player ?: open()?.also { player = it } ?: return@LaunchedEffect
             DiagLog.i("video wallpaper starts (${p.currentMediaItem?.mediaId} at ${p.currentPosition} ms, idle $idle)")
@@ -190,7 +199,12 @@ fun VideoWallpaper(
     LaunchedEffect(keep) {
         if (!keep && !play && player != null && cover.value == 0f) release()
     }
-    DisposableEffect(Unit) { onDispose { release() } }
+    DisposableEffect(Unit) {
+        onDispose {
+            DiagLog.i("video wallpaper view gone (${filmsId.takeLast(8)})")
+            release()
+        }
+    }
 
     AndroidView(
         modifier = Modifier.fillMaxSize(),

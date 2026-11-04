@@ -79,6 +79,12 @@
     <string name="wx_snow">Қар</string>
     <string name="wx_thunder">Нөсер</string>
     <string name="wp_daily_latest">Әрқашан бүгінгісі</string>
+    <string name="wp_per_app_hint">Бірінші қатардағы әр тақташаға өз суреті: фокус қозғалғанда фон да өзгереді; екінші қатарға өткен тақташа бірінші қатардың соңғы суретін сақтайды. Тақташа нөмірі бойынша сақталады, қолданба ауысса да қалады.</string>
+    <string name="wp_per_app_row">%1$d · %2$s</string>
+    <string name="wp_per_app_inherit">Әдепкі</string>
+    <string name="wp_per_app_change">Таңдау</string>
+    <string name="wp_per_app_title">%1$d-тақташа үшін тұсқағаз</string>
+    <string name="wp_per_app_pick_hint">Артқа жабады. Телефоннан жіберілген фото мен бейне де осында пайда болады.</string>
     <string name="wp_live">Аэрожиын · басты экранның жоғарғы қатарында ойнайды (екі қатарлы көріністе — екі қатарда да)</string>
     <string name="wp_photos_rotate">Күніне біреуі</string>
     <string name="wp_daily_note">Bing күн суреті, күн сайын жаңасына ауысады.</string>
@@ -157,6 +163,11 @@
     <string name="st_effects_lite">Жеңіл</string>
     <string name="st_effects_hint">Жеңіл: панельдер қарапайым, таңдалған қолданбада жылтыр жоқ, экран 60 Гц-те қалады. Кідіретін теледидарларға арналған.</string>
     <string name="st_effects_auto_lite_hint">Бұл теледидарда жад аз немесе Android ескі, сондықтан «Авто» жеңілді таңдайды.</string>
+    <string name="st_tv_system">Теледидар (жүйе)</string>
+    <string name="st_guard">Жұмыс үстелін қорғау</string>
+    <string name="st_guard_hint">Жүйе жұмыс үстелін өз лаунчеріне бергенде Aerial-ды бірден қайтарады. Aerial әдепкі болса, қажет емес.</string>
+    <string name="st_keep_adb">ADB әрдайым қосулы</string>
+    <string name="st_keep_adb_hint">Қайта қосылғаннан кейін ADB жөндеуді қайта қосады: компьютер параметрлер бетінсіз қосылады.</string>
     <string name="cc_inputs_settings">Көздер параметрлері</string>
     <string name="cc_inputs_pin">Басты экранда көрсету (кез келген саны)</string>
     <string name="cc_inputs_boot">Теледидар қосылғанда (біреу)</string>
@@ -233,6 +244,9 @@
     <string name="tile_kids">Балаларға</string>
     <string name="ss_videos">Бейне</string>
     <string name="ss_videos_hint">Телефон бетінен MP4 немесе MOV қосыңыз. Интернетсіз ойнатылады; бейне болмаса, фотолар көрсетіледі.</string>
+    <string name="ss_saver_video">Экран сақтағыш бейнесі</string>
+    <string name="ss_saver_video_hint">Барлығының орнына бір бейнені циклмен ойнату.</string>
+    <string name="ss_saver_video_all">Барлығы кезекпен</string>
     <string name="ss_system">Жүйелік</string>
     <string name="ss_system_hint">Теледидардың өз экран сақтағышы (мысалы, Xiaomi суреттері). Aerial өзінікін көрсетпейді.</string>
     <string name="wp_videos_note">Телефоннан жіберілген өз бейнелеріңіз: дыбыссыз, бірінен соң бірі. Аэрожиын сияқты қозғалады және ағымдағы кадрда тоқтайды.</string>

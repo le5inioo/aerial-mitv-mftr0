@@ -89,6 +89,16 @@ object Wallpapers {
     const val VIDEOS = "videos:mine"
     const val VIDEO_PREFIX = "video:"
     const val SOURCE_PREFIX = "source:"
+    /**
+     * Each app its own picture: the top row's tiles take a wallpaper each, and Home's background
+     * follows the tile the focus is on. The assignments live in [perApp].
+     */
+    const val PER_APP = "perapp"
+    /**
+     * How many of Home's first tiles can have a picture each: 1 to 6, by place. Past these, a tile
+     * follows the app's own light as in "Follow App".
+     */
+    const val PER_APP_SLOTS = 6
     /** The picture under a TV input's, for the glass and while the input has nothing to show. */
     private const val SOURCE_PICTURE = "hills_night"
     private const val FOLLOW = "follow"
@@ -116,6 +126,48 @@ object Wallpapers {
 
     var items by mutableStateOf<List<Wallpaper>>(emptyList()); private set
     var selectedId by mutableStateOf(LATEST_DAILY); private set
+
+    /**
+     * The pictures chosen for Home's first tiles, by the tile's place in the row (1 is the
+     * leftmost). By place, not by app: a tile keeps its picture when another app is put in it.
+     * Compose state: Home recomposes as one is chosen and its picture is baked.
+     */
+    var perApp by mutableStateOf<Map<Int, String>>(emptyMap()); private set
+
+    /** The baked pictures for [perApp], by tile: switching tiles must not wait for a bake. */
+    private var perAppPictures by mutableStateOf<Map<Int, ImageBitmap>>(emptyMap())
+    private var perAppGlass by mutableStateOf<Map<Int, ImageBitmap>>(emptyMap())
+    private val perAppJobs = HashMap<Int, Job>()
+
+    /**
+     * The tile Home is showing. In "Each App" there is no wallpaper of its own to frost, so panels
+     * (Personalize, Control Center) and the plate take their glass from this tile's picture
+     * ([panelFrost]): without it they were one flat colour, and the Effects setting changed nothing.
+     */
+    private var shownPerApp by mutableStateOf(1)
+
+    /** The frosted picture panels are made of: the wallpaper's, or in "Each App" the shown tile's. */
+    val panelFrost: ImageBitmap?
+        get() = frosted?.takeIf { backdrop != null } ?: perAppGlass[shownPerApp]
+
+    /** Home tells which tile it shows, for [panelFrost]. */
+    fun notePerAppShown(slot: Int) {
+        if (slot in 1..PER_APP_SLOTS) shownPerApp = slot
+    }
+
+    /**
+     * The pictures kept for the next start, by tile. Baking one takes about two seconds on
+     * MiTV-MFTR0 and Home showed the app's light until it was in; read back from disk it takes tens
+     * of milliseconds, so Home's first frame at boot already has the picture of its first tile.
+     */
+    private val perBakedDir by lazy { File(app.filesDir, "per-backdrop").apply { mkdirs() } }
+
+    /**
+     * Pictures an earlier build kept by package name (1.81 test builds): [adoptPerAppByPackage]
+     * moves each to the tile its app now holds, so a picture chosen then is not lost.
+     */
+    private var legacyPerApp: Map<String, String> = emptyMap()
+
     /** The screensaver the owner chose; null while it follows the wallpaper ([screensaver]). */
     private var chosenScreensaver by mutableStateOf<ScreensaverMode?>(ScreensaverMode.Aerial)
 
@@ -127,7 +179,8 @@ object Wallpapers {
     val screensaver: ScreensaverMode
         get() = chosenScreensaver ?: when {
             isVideo(selectedId) -> ScreensaverMode.Videos
-            selectedId == LIVE || selectedId == AUTO || isSource(selectedId) -> ScreensaverMode.Aerial
+            // "Each App" has no picture of its own for a photo screensaver to start from.
+            selectedId == LIVE || selectedId == AUTO || selectedId == PER_APP || isSource(selectedId) -> ScreensaverMode.Aerial
             else -> ScreensaverMode.Photos
         }
 
@@ -204,14 +257,32 @@ object Wallpapers {
         selectedId = (prefs.getString("selected", LATEST_DAILY) ?: LATEST_DAILY)
             // A built-in wallpaper from before the Mac-style set: its nearest one now.
             .let { if (it.startsWith("grad:")) "grad:" + Gradients.currentKey(it.removePrefix("grad:")) else it }
+        runCatching {
+            val json = prefs.getString("per_app", null) ?: return@runCatching
+            val o = JSONObject(json)
+            val slots = HashMap<Int, String>()
+            val byPackage = HashMap<String, String>()
+            for (key in o.keys().asSequence()) {
+                val id = o.getString(key)
+                val slot = key.toIntOrNull()
+                // An earlier build kept the pictures by package name; Home moves those to their
+                // tiles once it knows which app holds which (adoptPerAppByPackage).
+                if (slot != null && slot in 1..PER_APP_SLOTS) slots[slot] = id else byPackage[key] = id
+            }
+            perApp = slots
+            legacyPerApp = byPackage
+        }
         chosenScreensaver = when (val key = prefs.getString("screensaver", null)) {
             null -> firstScreensaver()
             // "wallpaper" was a fourth kind in test builds of 1.38, for what following now is.
             FOLLOW, "wallpaper" -> null
             else -> ScreensaverMode.of(key)
         }
+        screensaverVideo = prefs.getString("saver_video", null)?.takeIf { it.isNotEmpty() }
         rebuildList()
+        sanitizePerApp()
         loadBaked()
+        loadPerAppBaked()
         rebuildBackdrop()
         scope.launch { refreshDaily() }
         scope.launch(Dispatchers.IO) { clearStaleUploads() }
@@ -237,6 +308,193 @@ object Wallpapers {
         selectedId = id
         prefs.edit { putString("selected", id) }
         rebuildBackdrop()
+    }
+
+    // ---- a picture for each tile ----
+
+    /**
+     * A tile whose picture is gone (a photo or film deleted from the phone page) takes a built-in
+     * one, by its place among [FEATURED_BUILTINS]: the six choices of Personalize are always there.
+     */
+    private fun sanitizePerApp() {
+        val featured = FEATURED_BUILTINS.toList()
+        val next = perApp.toMutableMap()
+        var changed = false
+        for ((slot, id) in perApp) {
+            if (resolve(id) != null) continue
+            next[slot] = featured.getOrNull((slot - 1).mod(featured.size)) ?: DEFAULT_FALLBACK
+            changed = true
+            perAppJobs.remove(slot)?.cancel()
+            perAppPictures = perAppPictures - slot
+            perAppGlass = perAppGlass - slot
+            clearPerBaked(slot)
+        }
+        if (changed) {
+            perApp = next
+            savePerApp()
+            if (selectedId == PER_APP) preparePerApp(next.keys.toList())
+        }
+    }
+
+    /**
+     * The picture chosen for the tile in [slot] (1 is the leftmost), or null when it follows the
+     * wallpaper as the tiles past the sixth do.
+     */
+    fun perAppChoice(slot: Int): String? = perApp[slot]
+
+    /** The picture Home shows for the tile in [slot] in [PER_APP] mode, once baked. */
+    fun perAppBackdrop(slot: Int?): ImageBitmap? = slot?.let { perAppPictures[it] }
+
+    /** Its frosted copy, for the plate and the grid. */
+    fun perAppFrosted(slot: Int?): ImageBitmap? = slot?.let { perAppGlass[it] }
+
+    /**
+     * Gives the tile in [slot] the picture [id], or takes its own away (null) so it follows the
+     * wallpaper again. The baked picture is made at once in [PER_APP] mode, so the tile shows it as
+     * soon as the owner goes back to Home.
+     */
+    fun setPerApp(slot: Int, id: String?) {
+        if (slot !in 1..PER_APP_SLOTS) return
+        val next = perApp.toMutableMap()
+        if (id == null) next.remove(slot) else next[slot] = id
+        perApp = next
+        savePerApp()
+        perAppJobs.remove(slot)?.cancel()
+        perAppPictures = perAppPictures - slot
+        perAppGlass = perAppGlass - slot
+        clearPerBaked(slot)
+        if (selectedId == PER_APP) preparePerApp(listOf(slot))
+    }
+
+    /** Writes [perApp] as {"1": "grad:…", "2": "photo:…"}, by tile. */
+    private fun savePerApp() {
+        val o = JSONObject()
+        perApp.forEach { (slot, id) -> o.put(slot.toString(), id) }
+        prefs.edit { putString("per_app", o.toString()) }
+    }
+
+    /**
+     * Moves the pictures an earlier build kept by package name to the tiles those apps hold now:
+     * [pkgs] are Home's tiles in order. Called with Home's apps, once, and the old map is let go.
+     */
+    fun adoptPerAppByPackage(pkgs: List<String>) {
+        // Home calls this as it composes, before its apps have loaded: wait for them.
+        if (legacyPerApp.isEmpty() || pkgs.isEmpty()) return
+        val moved = perApp.toMutableMap()
+        pkgs.take(PER_APP_SLOTS).forEachIndexed { i, pkg ->
+            val id = legacyPerApp[pkg] ?: return@forEachIndexed
+            // A picture already chosen for that tile by place wins over the one by name.
+            if (moved[i + 1] == null) moved[i + 1] = id
+        }
+        legacyPerApp = emptyMap()
+        perApp = moved
+        savePerApp()
+        for (slot in moved.keys) perAppJobs[slot]?.cancel()
+        perAppPictures = emptyMap()
+        perAppGlass = emptyMap()
+        if (selectedId == PER_APP) preparePerApp(moved.keys.toList())
+    }
+
+    /**
+     * Bakes the pictures of [slots] that have one. Called with Home's first tiles, so that moving
+     * the focus to a tile finds its picture ready instead of the bake's two seconds (MiTV-MFTR0).
+     */
+    fun preparePerApp(slots: List<Int>) {
+        if (!started || selectedId != PER_APP) return
+        for (slot in slots) {
+            val id = perApp[slot] ?: continue
+            if (perAppPictures.containsKey(slot) || perAppJobs[slot]?.isActive == true) continue
+            DiagLog.i("tile $slot: baking $id")
+            perAppJobs[slot] = scope.launch {
+                val baked = withContext(Dispatchers.Default) {
+                    val wp = resolve(id) ?: return@withContext null
+                    // The same treatment as the chosen wallpaper: shaded for Home, frosted for glass.
+                    val picture = picture(wp, screenW, screenH) ?: return@withContext null
+                    Images.shadeForHome(picture) to Images.frost(picture)
+                } ?: return@launch.also { DiagLog.i("tile $slot: no picture of $id") }
+                // Chosen again while it was baking: that choice bakes its own picture.
+                if (perApp[slot] != id) return@launch
+                DiagLog.i("tile $slot: baked")
+                perAppPictures = perAppPictures + (slot to baked.first.asImageBitmap())
+                perAppGlass = perAppGlass + (slot to baked.second.asImageBitmap())
+                savePerBaked(slot, id, baked.first, baked.second)
+            }
+        }
+    }
+
+    // ---- the tiles' pictures, kept for the next start ----
+
+    /** What a tile's picture was baked from: the picture, the tile, the screen and Aerial's version. */
+    private fun perBakedKey(slot: Int, id: String) = "$id|$slot|${screenW}x$screenH|${BuildConfig.VERSION_CODE}"
+
+    private fun perFiles(slot: Int) = Triple(
+        File(perBakedDir, "slot$slot.key"),
+        File(perBakedDir, "slot$slot-home.jpg"),
+        File(perBakedDir, "slot$slot-frost.png"),
+    )
+
+    /**
+     * Puts up the pictures kept for the next start. Tile 1 on the main thread, before Home's first
+     * frame, since that is the tile Home opens on; the rest off it, and then whatever no picture was
+     * kept for is baked. Reading six back is some hundreds of milliseconds of disk, not of Home.
+     */
+    private fun loadPerAppBaked() {
+        if (selectedId != PER_APP || perApp.isEmpty()) return
+        val first = if (perApp[1] != null) 1 else perApp.keys.min()
+        putBakedPerApp(first)
+        scope.launch(Dispatchers.IO) {
+            for ((slot, id) in perApp) {
+                if (perAppPictures.containsKey(slot)) continue
+                val baked = runCatching { readPerBaked(slot, id) }.getOrNull() ?: continue
+                withContext(Dispatchers.Main) {
+                    if (perApp[slot] == id && !perAppPictures.containsKey(slot)) {
+                        perAppPictures = perAppPictures + (slot to baked.first.asImageBitmap())
+                        perAppGlass = perAppGlass + (slot to baked.second.asImageBitmap())
+                    }
+                }
+            }
+            // The ones no picture was kept for (a picture just chosen, or a disk cleared): baked.
+            withContext(Dispatchers.Main) { preparePerApp(perApp.keys.toList()) }
+        }
+    }
+
+    /** Puts [slot]'s kept picture up, if there is one and it is of the picture the tile has now. */
+    private fun putBakedPerApp(slot: Int) {
+        val id = perApp[slot] ?: return
+        if (perAppPictures.containsKey(slot)) return
+        val baked = runCatching { readPerBaked(slot, id) }.getOrNull() ?: return
+        perAppPictures = perAppPictures + (slot to baked.first.asImageBitmap())
+        perAppGlass = perAppGlass + (slot to baked.second.asImageBitmap())
+    }
+
+    private fun readPerBaked(slot: Int, id: String): Pair<Bitmap, Bitmap>? {
+        val (key, homeFile, frostFile) = perFiles(slot)
+        if (!key.exists() || !homeFile.exists() || !frostFile.exists()) return null
+        if (key.readText() != perBakedKey(slot, id)) return null
+        val home = BitmapFactory.decodeFile(homeFile.path) ?: return null
+        val frost = BitmapFactory.decodeFile(frostFile.path) ?: return null
+        if (home.width != screenW || home.height != screenH) return null
+        return home to frost
+    }
+
+    private suspend fun savePerBaked(slot: Int, id: String, home: Bitmap, frost: Bitmap) {
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val (key, homeFile, frostFile) = perFiles(slot)
+                // The key last, so a write cut short is never taken for a good one.
+                key.delete()
+                homeFile.outputStream().use { home.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+                frostFile.outputStream().use { frost.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                key.writeText(perBakedKey(slot, id))
+            }.onFailure { Log.w(TAG, "could not keep tile $slot's picture", it) }
+        }
+    }
+
+    private fun clearPerBaked(slot: Int) {
+        val (key, homeFile, frostFile) = perFiles(slot)
+        key.delete()
+        homeFile.delete()
+        frostFile.delete()
     }
 
     /**
@@ -353,6 +611,11 @@ object Wallpapers {
 
     /** A 16:9 thumbnail for pickers and the phone page. Call off the main thread. */
     fun thumbnail(id: String): Bitmap? {
+        // "Each App" has no picture of its own: its card shows the first one chosen for an app.
+        if (id == PER_APP) {
+            return perApp.values.firstOrNull()?.let { thumbnail(it) }
+                ?: Gradients.render(Gradients.presets.first(), 384, 216)
+        }
         synchronized(thumbs) { thumbs[id] }?.let { return it }
         // A frame kept meanwhile (useLiveFrame) makes this one old: shown, not kept.
         val version = pictureVersion
@@ -371,7 +634,9 @@ object Wallpapers {
         backdropJob?.cancel()
         val id = selectedId
         backdropJob = scope.launch {
-            if (id == AUTO) {
+            // Neither follows a picture of its own: "Follow App" takes the focused app's light,
+            // "Each App" the picture chosen for that app ([perAppBackdrop]).
+            if (id == AUTO || id == PER_APP) {
                 backdrop = null
                 frosted = null
                 return@launch
@@ -424,7 +689,7 @@ object Wallpapers {
      * one crossfades in once baked. Not in "Follow App", which has no backdrop.
      */
     private fun loadBaked() {
-        if (selectedId == AUTO) return
+        if (selectedId == AUTO || selectedId == PER_APP) return
         runCatching {
             val key = File(bakedDir, "key").takeIf { it.exists() }?.readText() ?: return
             val home = BitmapFactory.decodeFile(File(bakedDir, "home.jpg").path) ?: return
@@ -463,7 +728,7 @@ object Wallpapers {
         val copy = lockedBootBackdrop(app) ?: return
         runCatching {
             val home = File(bakedDir, "home.jpg")
-            if (selectedId == AUTO || !home.exists()) { copy.delete(); return }
+            if (selectedId == AUTO || selectedId == PER_APP || !home.exists()) { copy.delete(); return }
             if (copy.exists() && copy.lastModified() >= home.lastModified()) return
             val part = File(copy.parentFile, copy.name + ".part")
             home.copyTo(part, overwrite = true)
@@ -566,10 +831,26 @@ object Wallpapers {
         return film to prefs.getLong("video_at", 0L)
     }
 
+    /**
+     * The one of the owner's films the screensaver plays on a loop, or null for all of them in
+     * turn. Kept beside the screensaver's kind ([ScreensaverMode.Videos]); a film deleted from the
+     * phone page clears it back.
+     */
+    var screensaverVideo by mutableStateOf<String?>(null); private set
+
+    fun chooseScreensaverVideo(id: String?) {
+        screensaverVideo = id?.takeIf { it.isNotEmpty() }
+        prefs.edit { putString("saver_video", screensaverVideo ?: "") }
+    }
+
     /** The owner's videos changed (sent or deleted from the phone): their cards come or go. */
     fun videosChanged() {
         synchronized(thumbs) { thumbs.keys.removeAll { isVideo(it) } }
         rebuildList()
+        sanitizePerApp()
+        // The film the screensaver looped gone: all of them in turn again.
+        val loop = screensaverVideo
+        if (loop != null && items.none { it.id == VIDEO_PREFIX + loop }) chooseScreensaverVideo(null)
         // The film the frame was taken from gone: so is the frame.
         val spot = prefs.getString("video_film", null)
         if (spot != null && items.none { it.id == VIDEO_PREFIX + spot }) {
@@ -685,6 +966,7 @@ object Wallpapers {
             .sortedByDescending { it.lastModified() }
             .map { Wallpaper("photo:${it.nameWithoutExtension}", WallpaperKind.Photo, if (zh) "我的照片" else "My Photo") }
         val auto = Wallpaper(AUTO, WallpaperKind.Auto, if (zh) "跟随 App" else "Follow App")
+        val perAppCard = Wallpaper(PER_APP, WallpaperKind.Builtin, if (zh) "每个 App 一张" else "Each App")
         val live = Wallpaper(LIVE, WallpaperKind.Live, if (zh) "航拍" else "Aerial")
         // All of them in turn, then each on its own (#762); the pickers show the first only for two or more.
         val films = ScreensaverVideos.all(app)
@@ -692,7 +974,7 @@ object Wallpapers {
             listOf(Wallpaper(VIDEOS, WallpaperKind.Video, if (zh) "我的视频 · 轮播" else "My Videos, In Turn")) +
                 films.map { Wallpaper(VIDEO_PREFIX + it.id, WallpaperKind.Video, it.name.substringBeforeLast('.').ifBlank { it.name }) }
         val inputs = sources.map { (id, name) -> Wallpaper(SOURCE_PREFIX + id, WallpaperKind.Source, name) }
-        items = listOf(live) + videos + daily + builtins + photos + auto + inputs
+        items = listOf(live) + videos + daily + builtins + photos + auto + perAppCard + inputs
     }
 
     // ---- daily photos ----
@@ -838,6 +1120,7 @@ object Wallpapers {
         fileFor(photo)?.delete()
         synchronized(thumbs) { thumbs.remove(id); thumbs.remove(ROTATE_PHOTOS) }
         rebuildList()
+        sanitizePerApp()
         if (selectedId == id) select(LATEST_DAILY)
         else if (selectedId == ROTATE_PHOTOS) rebuildBackdrop()
     }

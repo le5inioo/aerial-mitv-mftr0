@@ -111,16 +111,13 @@ object Updates {
      * release out an hour ago was not shown there for hours more (issue #301).
      */
     fun checkIfStale(
-        force: Boolean = false,
-        maxAgeMs: Long = UpdateCheck.MAX_AGE_MS,
-        networkCameUp: Boolean = false,
+        @Suppress("UNUSED_PARAMETER") force: Boolean = false,
+        @Suppress("UNUSED_PARAMETER") maxAgeMs: Long = UpdateCheck.MAX_AGE_MS,
+        @Suppress("UNUSED_PARAMETER") networkCameUp: Boolean = false,
     ) {
-        checker?.check(force, maxAgeMs, networkCameUp, when {
-            force -> "forced"
-            networkCameUp -> "network"
-            maxAgeMs == CONTROL_CENTER_MAX_AGE_MS -> "control center"
-            else -> "home"
-        })
+        // Not in the merged build: the releases published for Aerial carry app.orchard.tv, so
+        // "Download and Install" would add a second launcher beside this one (com.ts.launcher)
+        // instead of updating it, and the two would fight over Home.
     }
 
     fun diagnostics(): String = if (!started) "not initialized" else
@@ -204,11 +201,13 @@ object Updates {
         NotNewer,
     }
 
-    /** The official package. Copies renamed for one firmware (OPPO, see docs/devices) cannot update from the release. */
-    private const val PACKAGE = "app.orchard.tv"
-
-    /** Whether this copy can update itself from the release at all. */
-    fun canInstall(context: Context): Boolean = context.packageName == PACKAGE
+    /**
+     * Whether this copy can install an APK over itself at all: Aerial, under whatever name this
+     * build has (com.ts.launcher for Xiaomi's firmware, app.orchard.tv upstream). Read from the
+     * build, not a constant: under the merged name a constant made this false, and with it gone the
+     * self-compile row in Control Center ("Make Aerial Smoother") and the update page with it.
+     */
+    fun canInstall(context: Context): Boolean = context.packageName == BuildConfig.APPLICATION_ID
 
     /**
      * Downloads this flavor's APK of the latest release and installs it. Android 9 and later, a

@@ -87,6 +87,12 @@
     <string name="wx_snow">Snow</string>
     <string name="wx_thunder">Thunderstorm</string>
     <string name="wp_daily_latest">Daily Photo</string>
+    <string name="wp_per_app_hint">A picture for each tile of the first row: move the focus and the background changes with it; a tile that falls to the second row keeps the row\'s last picture. Kept by tile number, so it stays when another app moves in.</string>
+    <string name="wp_per_app_row">%1$d · %2$s</string>
+    <string name="wp_per_app_inherit">Default</string>
+    <string name="wp_per_app_change">Choose</string>
+    <string name="wp_per_app_title">Wallpaper for tile %1$d</string>
+    <string name="wp_per_app_pick_hint">Press Back to close. Pictures and videos sent from your phone show up here too.</string>
     <string name="wp_live">Moving aerial films. They play while Home is on the top row (either row in two rows) and stop on the frame showing when you go further down to the apps, which stays as the picture; the next film picks up from there.</string>
     <string name="wp_photos_rotate">My Photos, Daily</string>
     <string name="wp_daily_note">Bing\'s photo of the day, changing to the new one every day.</string>
@@ -165,6 +171,11 @@
     <string name="st_effects_lite">Lite</string>
     <string name="st_effects_hint">Lite draws plain panels and the selected app without its sheen, and keeps the screen at 60 Hz: for TVs that stutter.</string>
     <string name="st_effects_auto_lite_hint">This TV has little memory or an older Android, so Auto uses Lite.</string>
+    <string name="st_tv_system">TV (system)</string>
+    <string name="st_guard">Home Guard</string>
+    <string name="st_guard_hint">Brings Aerial straight back when the TV hands Home to its own launcher. Not needed where Aerial is the default launcher.</string>
+    <string name="st_keep_adb">Keep ADB On</string>
+    <string name="st_keep_adb_hint">Switches ADB debugging back on after a reboot, so a computer can reach the TV without the settings page.</string>
     <string name="cc_inputs_settings">Input Settings</string>
     <string name="cc_inputs_pin">Show on Home (any number)</string>
     <string name="cc_inputs_boot">When the TV Turns On (one)</string>
@@ -241,6 +252,9 @@
     <string name="tile_kids">Kids</string>
     <string name="ss_videos">Videos</string>
     <string name="ss_videos_hint">Add MP4 or MOV films from the phone page. Plays offline; photos are shown when no film can play.</string>
+    <string name="ss_saver_video">Screensaver video</string>
+    <string name="ss_saver_video_hint">Play one of the videos on a loop, instead of all of them in turn.</string>
+    <string name="ss_saver_video_all">All, in turn</string>
     <string name="ss_system">System</string>
     <string name="ss_system_hint">The TV\'s own screensaver, as it came with the TV (Xiaomi\'s pictures, for one). Aerial shows none of its own.</string>
     <string name="wp_videos_note">Your own videos, sent from the phone, silent and one after another. They move like the aerial films and stop on the frame showing.</string>

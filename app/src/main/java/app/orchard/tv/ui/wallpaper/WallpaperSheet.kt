@@ -14,6 +14,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.relocation.BringIntoViewResponder
 import androidx.compose.foundation.relocation.bringIntoViewResponder
 import androidx.compose.ui.geometry.Rect
@@ -70,6 +71,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.orchard.tv.R
+import app.orchard.tv.guard.GuardSetup
 import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.settings.Restricted
 import app.orchard.tv.settings.RestrictedKind
@@ -77,6 +79,7 @@ import app.orchard.tv.settings.FocusStyle
 import app.orchard.tv.settings.UiSounds
 import app.orchard.tv.settings.Effects
 import app.orchard.tv.system.Sounds
+import app.orchard.tv.system.SystemProbe
 import app.orchard.tv.ui.components.Pressable
 import app.orchard.tv.ui.components.consumeTaps
 import app.orchard.tv.ui.components.dismissOnTap
@@ -117,6 +120,11 @@ fun WallpaperSheet(
     visible: Boolean,
     onDismiss: () -> Unit,
     hiddenCount: Int,
+    /**
+     * The tiles of Home's first row (package name, label), in the order Home shows them: "Each App"
+     * gives each a picture, by its place there — at most [Wallpapers.PER_APP_SLOTS] of them.
+     */
+    tiles: List<Pair<String, String>> = emptyList(),
     onHiddenApps: () -> Unit,
     onStartScreensaver: () -> Unit,
     onPin: (on: Boolean) -> Unit,
@@ -130,6 +138,12 @@ fun WallpaperSheet(
     val context = LocalContext.current
     var phoneUrl by remember { mutableStateOf<String?>(null) }
     var qr by remember { mutableStateOf<ImageBitmap?>(null) }
+    // The tile whose picture is being chosen ("Each App"): its place and app, or null when closed.
+    var picking by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    // Home Guard and ADB kept on, as Android has them now: read again each time the sheet opens,
+    // since both can be changed elsewhere (the system's accessibility page, ADB itself).
+    var guardOn by remember { mutableStateOf(GuardSetup.guardEnabled(context)) }
+    var keepAdbOn by remember { mutableStateOf(GuardSetup.keepAdb(context)) }
 
     BackHandler(enabled = visible, onBack = onDismiss)
 
@@ -140,6 +154,13 @@ fun WallpaperSheet(
         val url = withContext(Dispatchers.IO) { PhoneServer.start(context) }
         phoneUrl = url
         qr = url?.let { withContext(Dispatchers.Default) { PhoneServer.qr(it).asImageBitmap() } }
+    }
+
+    // Guard and ADB may have been changed elsewhere since the sheet last opened.
+    LaunchedEffect(visible) {
+        if (!visible) return@LaunchedEffect
+        guardOn = GuardSetup.guardEnabled(context)
+        keepAdbOn = GuardSetup.keepAdb(context)
     }
 
     val shown = remember { MutableTransitionState(false) }
@@ -181,6 +202,17 @@ fun WallpaperSheet(
                 Spacer(Modifier.height(16.dp))
                 SectionTitle(R.string.wp_wallpaper)
                 WallpaperRows(takeFocus)
+                // "Each App": one row for each tile of the first row, by its place. Home's
+                // background swaps as the focus moves along that row; a tile keeps its picture when
+                // the app in it is changed, and one that falls to the second row (a narrower row)
+                // keeps the row's last picture.
+                if (Wallpapers.selectedId == Wallpapers.PER_APP) {
+                    Group(stringResource(R.string.wp_per_app_hint)) { note ->
+                        tiles.take(Wallpapers.PER_APP_SLOTS).forEachIndexed { i, (_, label) ->
+                            PerAppRow(i + 1, label, note, first = i == 0) { picking = (i + 1) to label }
+                        }
+                    }
+                }
                 // Only for the owner's videos: whether keys stop them. The aerial films always move.
                 if (Wallpapers.isVideo()) Group { note ->
                     Choices(
@@ -289,6 +321,31 @@ fun WallpaperSheet(
                         },
                         note, first = true,
                     ) { ScreensaverChoice(onStartScreensaver) }
+                    // The videos screensaver plays them all in turn; one of them may be picked to
+                    // loop instead, until another is picked or it is deleted.
+                    if (Wallpapers.screensaver == ScreensaverMode.Videos) {
+                        val films = remember(Wallpapers.items) {
+                            Wallpapers.items.filter { it.kind == WallpaperKind.Video && it.id != Wallpapers.VIDEOS }
+                        }
+                        if (films.isNotEmpty()) SettingRow(
+                            R.string.ss_saver_video, stringResource(R.string.ss_saver_video_hint), note,
+                        ) {
+                            Row(
+                                Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Chip(stringResource(R.string.ss_saver_video_all), on = Wallpapers.screensaverVideo == null) {
+                                    Wallpapers.chooseScreensaverVideo(null)
+                                }
+                                films.forEach { film ->
+                                    val id = film.id.removePrefix(Wallpapers.VIDEO_PREFIX)
+                                    Chip(film.title, on = Wallpapers.screensaverVideo == id) {
+                                        Wallpapers.chooseScreensaverVideo(id)
+                                    }
+                                }
+                            }
+                        }
+                    }
                     // Only the qualities this TV can play; a 1080p-only TV has nothing to choose.
                     val qualities = remember { AerialFormats.supported(context) }
                     if (qualities.size > 1) {
@@ -368,6 +425,35 @@ fun WallpaperSheet(
                         }
                     }
                 }
+                Spacer(Modifier.height(22.dp))
+                SectionTitle(R.string.st_tv_system)
+                Group { note ->
+                    // Both were only reachable over ADB once this build owned Home (the Setup page
+                    // shows when it does not): the owner asked for them back, on the TV.
+                    Choices(
+                        R.string.st_guard,
+                        stringResource(R.string.st_guard_hint),
+                        note,
+                        listOf(true to R.string.st_on, false to R.string.st_off),
+                        guardOn,
+                        { on ->
+                            // Written straight into Android's list, which needs WRITE_SECURE_SETTINGS
+                            // (tools/install-ts.sh grants it). Without it, the system's page, where
+                            // the owner can switch it by hand.
+                            if (GuardSetup.setGuardEnabled(context, on)) guardOn = on
+                            else SystemProbe.guardSettingsIntent(context)?.let { runCatching { context.startActivity(it) } }
+                        },
+                        first = true,
+                    )
+                    Choices(
+                        R.string.st_keep_adb,
+                        stringResource(R.string.st_keep_adb_hint),
+                        note,
+                        listOf(true to R.string.st_on, false to R.string.st_off),
+                        keepAdbOn,
+                        { on -> GuardSetup.setKeepAdb(context, on); keepAdbOn = on },
+                    )
+                }
                 Spacer(Modifier.height(24.dp))
             }
             Spacer(Modifier.width(28.dp))
@@ -388,6 +474,20 @@ fun WallpaperSheet(
         ) {
             sheet(true)
         }
+    }
+
+    // Over the sheet: the pictures one of the first tiles may take.
+    picking?.let { (slot, label) ->
+        PerAppPicker(
+            slot = slot,
+            label = label,
+            chosen = Wallpapers.perAppChoice(slot),
+            onDismiss = { picking = null },
+            onPick = { id ->
+                Wallpapers.setPerApp(slot, id)
+                picking = null
+            },
+        )
     }
 }
 
@@ -425,6 +525,8 @@ private fun WallpaperRows(takeFocus: Boolean) {
             addAll(photos)
             addAll(items.filter { it.kind == WallpaperKind.Builtin && (it.id in Wallpapers.FEATURED_BUILTINS || it.id == selected) })
             addAll(items.filter { it.kind == WallpaperKind.Auto })
+            // "Each App" after "Follow App": a wallpaper for every tile of the top row.
+            items.firstOrNull { it.id == Wallpapers.PER_APP }?.let { add(it) }
             // The inputs' pictures last: a choice for a home with a set-top box, not the usual one.
             addAll(items.filter { it.kind == WallpaperKind.Source })
         }
@@ -465,6 +567,7 @@ private fun wallpaperNote(wp: Wallpaper): String? = when {
     wp.id == Wallpapers.ROTATE_PHOTOS -> stringResource(R.string.wp_photos_rotate_note)
     wp.kind == WallpaperKind.Photo -> stringResource(R.string.wp_photo_note)
     wp.kind == WallpaperKind.Auto -> stringResource(R.string.wp_auto_note)
+    wp.id == Wallpapers.PER_APP -> stringResource(R.string.wp_per_app_hint)
     wp.kind == WallpaperKind.Daily -> wp.caption
     else -> null
 }
@@ -472,8 +575,13 @@ private fun wallpaperNote(wp: Wallpaper): String? = when {
 private val CardCorner = 12.dp
 
 @Composable
-private fun WallpaperCard(wp: Wallpaper, focusRequester: FocusRequester?, onFocused: () -> Unit) {
-    val selected = Wallpapers.selectedId == wp.id
+private fun WallpaperCard(
+    wp: Wallpaper,
+    focusRequester: FocusRequester?,
+    onFocused: () -> Unit,
+    selected: Boolean = Wallpapers.selectedId == wp.id,
+    onClick: () -> Unit = { Wallpapers.select(wp.id) },
+) {
     // A moving wallpaper's card is made again when the frame it stopped on changes, also while the
     // sheet is open: the film stopped as the sheet opened is decoded seconds later (Xiaomi MiTV-MFTR0).
     val picture = if (wp.kind == WallpaperKind.Live || wp.kind == WallpaperKind.Video) Wallpapers.pictureVersion else 0
@@ -488,7 +596,7 @@ private fun WallpaperCard(wp: Wallpaper, focusRequester: FocusRequester?, onFocu
             Wallpapers.thumbnail(wp.id)?.let { smoothCut(it, cardW, cardH, corner).asImageBitmap() }
         }
     }
-    Pressable(onClick = { Wallpapers.select(wp.id) }, focusRequester = focusRequester, focusedScale = 1.08f) { state ->
+    Pressable(onClick = onClick, focusRequester = focusRequester, focusedScale = 1.08f) { state ->
         LaunchedEffect(state.focused) { if (state.focused) onFocused() }
         Column(Modifier.width(168.dp)) {
             Box(
@@ -581,8 +689,7 @@ private fun Group(note: String? = null, rows: @Composable ColumnScope.(note: (St
 
 /** One row: the setting's name on the left, its control on the right, a hairline above all but the first. */
 @Composable
-private fun SettingRow(label: Int, hint: String?, note: (String?) -> Unit, first: Boolean = false, control: @Composable () -> Unit) {
-    if (!first) Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(1.dp).background(Palette.Hairline))
+private fun SettingRow(label: Int, hint: String?, note: (String?) -> Unit, first: Boolean = false, control: @Composable () -> Unit) {    if (!first) Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(1.dp).background(Palette.Hairline))
     Row(
         Modifier
             .fillMaxWidth()
@@ -754,6 +861,119 @@ private fun PhoneCard(url: String?, qr: ImageBitmap?) {
 
 private val SheetHeight = 360.dp
 private val SheetCorner = 30.dp
+
+/** "Each App": one of Home's first tiles, by its place, with the picture it has now. */
+@Composable
+private fun PerAppRow(slot: Int, label: String, note: (String?) -> Unit, first: Boolean, onPick: () -> Unit) {
+    if (!first) Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(1.dp).background(Palette.Hairline))
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .padding(start = 18.dp, end = 10.dp)
+            .onFocusChanged { if (it.hasFocus) note(null) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BasicText(
+            stringResource(R.string.wp_per_app_row, slot, label),
+            style = Type.Body,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        ActionChip(
+            if (Wallpapers.perAppChoice(slot) == null) stringResource(R.string.wp_per_app_inherit)
+            else stringResource(R.string.wp_per_app_change),
+            Glyph.ChevronRight,
+            onPick,
+        )
+    }
+}
+
+/**
+ * The pictures and films one of Home's first tiles may take. A film, too: behind Home it plays
+ * while its tile is in focus, and stops on its frame when the focus moves on.
+ */
+@Composable
+private fun PerAppPicker(slot: Int, label: String, chosen: String?, onDismiss: () -> Unit, onPick: (String?) -> Unit) {
+    val list = remember(Wallpapers.items) {
+        Wallpapers.items.filter {
+            (it.kind == WallpaperKind.Builtin && it.id != Wallpapers.PER_APP) ||
+                it.kind == WallpaperKind.Daily || it.kind == WallpaperKind.Photo || it.kind == WallpaperKind.Video
+        }
+    }
+    val first = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        runCatching { first.requestFocus() }
+    }
+    BackHandler(onBack = onDismiss)
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f))
+            .dismissOnTap(onDismiss)
+            .consumeTaps(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier
+                .width(780.dp)
+                .liquidGlass(24.dp)
+                .padding(horizontal = 26.dp, vertical = 20.dp),
+        ) {
+            BasicText(stringResource(R.string.wp_per_app_title, slot), style = Type.Headline)
+            Spacer(Modifier.height(2.dp))
+            // Which app sits in that tile just now: the picture stays with the tile, not the app.
+            BasicText(label, style = Type.Caption.copy(color = Palette.SecondaryLabel), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(4.dp))
+            BasicText(
+                stringResource(R.string.wp_per_app_pick_hint),
+                style = Type.Caption.copy(color = Palette.TertiaryLabel),
+            )
+            Spacer(Modifier.height(12.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                contentPadding = PaddingValues(start = 4.dp, end = 24.dp, top = 8.dp, bottom = 8.dp),
+            ) {
+                item(key = "inherit") {
+                    InheritCard(selected = chosen == null, focusRequester = first) { onPick(null) }
+                }
+                items(list, key = { it.id }) { wp ->
+                    WallpaperCard(wp, null, onFocused = {}, selected = wp.id == chosen) { onPick(wp.id) }
+                }
+            }
+        }
+    }
+}
+
+/** The card that takes an app's own picture away: it follows the wallpaper again. */
+@Composable
+private fun InheritCard(selected: Boolean, focusRequester: FocusRequester?, onClick: () -> Unit) {
+    Pressable(onClick = onClick, focusRequester = focusRequester, focusedScale = 1.08f) { state ->
+        Box(
+            Modifier
+                .width(168.dp)
+                .height(94.dp)
+                .smoothBackground(Palette.Fill, CardCorner)
+                .smoothBorder(
+                    if (state.focused || selected) 3.dp else 1.dp,
+                    when {
+                        state.focused -> Palette.Focus
+                        selected -> Palette.Focus.copy(alpha = 0.55f)
+                        else -> Palette.Hairline
+                    },
+                    CardCorner,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            BasicText(
+                stringResource(R.string.wp_per_app_inherit),
+                style = Type.Caption.copy(color = Palette.SecondaryLabel),
+            )
+        }
+    }
+}
 
 /**
  * How much of the screen's bottom the settled sheet hides whole: its height less its rounded top

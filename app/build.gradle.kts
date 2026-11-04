@@ -15,11 +15,16 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "app.orchard.tv"
+        // Xiaomi's firmware only trusts a few package names for Home; com.ts.launcher is the one
+        // this TV (MiTV-MFTR0) accepts (issue #901). The code namespace stays app.orchard.tv, so
+        // every class, resource and preference path is unchanged.
+        applicationId = "com.ts.launcher"
         // Android 5.0. Compose 1.10 and later need 6.0, so the Compose BOM below stays on 1.9.
         minSdk = 21
         targetSdk = 34
-        versionCode = 107
+        // Above homekey-standin's 102, which this package name held before (a clean update, no
+        // uninstall needed).
+        versionCode = 1000
         versionName = "1.81"
         // `./gradlew -Pdiag ...`: a build for one reporter's TV whose logcat shows no app lines;
         // see system/DiagLog.kt.

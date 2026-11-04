@@ -97,10 +97,26 @@ class PhoneServer private constructor(private val context: Context, private val 
                     onMain { Wallpapers.select(id) }
                     json(state())
                 }
+                session.method == Method.POST && path == "/api/perapp" -> {
+                    // One of Home's first tiles takes a picture or film, or follows the wallpaper again.
+                    val f = form(session)
+                    val slot = f["slot"]?.toIntOrNull() ?: 0
+                    val id = f["id"].orEmpty()
+                    val ok = slot in 1..Wallpapers.PER_APP_SLOTS && (id.isEmpty() || Wallpapers.items.any { it.id == id })
+                    if (ok) onMain { Wallpapers.setPerApp(slot, id.ifEmpty { null }) }
+                    json(state().put("saved", ok))
+                }
                 session.method == Method.POST && path == "/api/screensaver" -> {
                     val mode = ScreensaverMode.of(form(session)["mode"])
                     onMain { Wallpapers.chooseScreensaver(mode) }
                     json(state())
+                }
+                session.method == Method.POST && path == "/api/savervideo" -> {
+                    // The videos screensaver loops one of the films; an empty id is all of them in turn.
+                    val id = form(session)["id"].orEmpty()
+                    val known = id.isEmpty() || ScreensaverVideos.all(context).any { it.id == id }
+                    if (known) onMain { Wallpapers.chooseScreensaverVideo(id.ifEmpty { null }) }
+                    json(state().put("saved", known))
                 }
                 session.method == Method.POST && path == "/api/setting" -> {
                     // The few on/off settings the phone page shows, as Personalize does.
@@ -233,7 +249,10 @@ class PhoneServer private constructor(private val context: Context, private val 
             .put("selected", selected)
             .put("latestDaily", Wallpapers.LATEST_DAILY)
             .put("rotatePhotos", Wallpapers.ROTATE_PHOTOS)
+            .put("perApp", JSONObject().apply { Wallpapers.perApp.forEach { (slot, id) -> put(slot.toString(), id) } })
+            .put("perAppSlots", Wallpapers.PER_APP_SLOTS)
             .put("screensaver", Wallpapers.screensaver.key)
+            .put("saverVideo", Wallpapers.screensaverVideo ?: "")
             .put("screensaverFollows", Wallpapers.screensaverFollows)
             .put("videos", JSONArray().apply {
                 ScreensaverVideos.all(context).forEach { put(JSONObject().put("id", it.id).put("name", it.name)) }

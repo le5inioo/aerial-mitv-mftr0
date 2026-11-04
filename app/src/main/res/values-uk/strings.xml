@@ -79,6 +79,12 @@
     <string name="wx_snow">Сніг</string>
     <string name="wx_thunder">Гроза</string>
     <string name="wp_daily_latest">Завжди сьогоднішнє</string>
+    <string name="wp_per_app_hint">Своя картинка для кожної плитки першого ряду: тло змінюється разом із фокусом; плитка, що перейшла в другий ряд, зберігає останню картинку першого ряду. Запам’ятовується за номером плитки, тому лишається при зміні програми.</string>
+    <string name="wp_per_app_row">№%1$d · %2$s</string>
+    <string name="wp_per_app_inherit">За замовчуванням</string>
+    <string name="wp_per_app_change">Вибрати</string>
+    <string name="wp_per_app_title">Шпалери для плитки %1$d</string>
+    <string name="wp_per_app_pick_hint">Назад закриває. Фото та відео, надіслані з телефона, теж з\'являються тут.</string>
     <string name="wp_live">Аерозйомка · грає на верхньому ряду головного екрана (у дворядному вигляді — на обох рядах)</string>
     <string name="wp_photos_rotate">Одне на день</string>
     <string name="wp_daily_note">Фото дня від Bing, щодня нове.</string>
@@ -157,6 +163,11 @@
     <string name="st_effects_lite">Легкі</string>
     <string name="st_effects_hint">Легкі: прості панелі, вибраний застосунок без відблиску, екран лишається на 60 Гц. Для телевізорів, що пригальмовують.</string>
     <string name="st_effects_auto_lite_hint">У цього телевізора мало пам\'яті або старий Android, тому «Авто» вибирає легкі.</string>
+    <string name="st_tv_system">Телевізор (система)</string>
+    <string name="st_guard">Захист робочого столу</string>
+    <string name="st_guard_hint">Одразу повертає Aerial, коли система віддає робочий стіл своєму лаунчеру. Не потрібен, якщо Aerial і так типовий.</string>
+    <string name="st_keep_adb">ADB завжди ввімкнено</string>
+    <string name="st_keep_adb_hint">Після перезавантаження знову вмикає налагодження ADB: комп’ютер підключається без сторінки налаштувань.</string>
     <string name="cc_inputs_settings">Налаштування джерел</string>
     <string name="cc_inputs_pin">Показувати на головному екрані (будь-яка кількість)</string>
     <string name="cc_inputs_boot">Під час вмикання телевізора (одне)</string>
@@ -233,6 +244,9 @@
     <string name="tile_kids">Дітям</string>
     <string name="ss_videos">Відео</string>
     <string name="ss_videos_hint">Додайте MP4 або MOV зі сторінки на телефоні. Перегляд без мережі; якщо відео недоступні, показуються фото.</string>
+    <string name="ss_saver_video">Відео заставки</string>
+    <string name="ss_saver_video_hint">Програвати одне відео по колу замість усіх по черзі.</string>
+    <string name="ss_saver_video_all">Усі по черзі</string>
     <string name="ss_system">Системна</string>
     <string name="ss_system_hint">Заставка самого телевізора, як задумав виробник (наприклад, картини Xiaomi). Aerial свою не показує.</string>
     <string name="wp_videos_note">Ваші відео, надіслані з телефона: без звуку, одне за одним. Рухаються як аерозйомка і зупиняються на поточному кадрі.</string>
