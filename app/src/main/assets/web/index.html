@@ -414,7 +414,7 @@ let state = null, stateJson = '';
 
 // The language: ?lang=ru in the address, else the one picked under More (kept on the phone), else the
 // first of the phone's preferred languages that has a table, else English. Keys are in KEYS, one array of texts per language.
-const KEYS = ["screensaver", "screensaver_short", "ss_aerial", "ss_photos", "ss_clock", "focus", "focus_high", "focus_standard", "weather", "city_ph", "set", "upload_label", "feedback_h", "feedback_hint", "diag_show", "diag_copy", "diag_github", "hint_aerial", "hint_photos", "hint_clock", "g_live", "g_live_sub", "g_daily", "g_daily_sub", "g_photo", "g_builtin", "g_auto", "toast_wallpaper", "aria_delete", "confirm_delete", "wx_clear", "wx_partlycloudy", "wx_cloudy", "wx_fog", "wx_rain", "wx_snow", "wx_thunder", "wx_chosen", "wx_auto_btn", "toast_auto", "wx_guessed", "wx_none", "tag_source", "aria_rename", "toast_renamed", "toast_name_reset", "toast_rename_fail", "aria_reset_icon", "toast_icon_reset", "focus_hint_standard", "focus_hint_high", "daily_title", "daily_caption", "rotate_title", "rotate_caption", "empty_photos", "add_second", "toast_tv_updated", "sending_n", "toast_added", "toast_no_photos", "toast_send_fail", "toast_city_set", "toast_city_nf", "toast_set_fail", "toast_sending_icon", "toast_icon_set", "toast_icon_bad", "diag_collecting", "toast_diag_fail", "toast_copied", "toast_copy_manual", "language", "hint_follows", "ss_videos", "hint_videos", "videos_h", "videos_upload", "videos_hint", "videos_empty", "confirm_video_delete", "toast_videos_added", "toast_video_bad", "sending_video", "hint_system", "tab_home", "tab_more", "current_wp", "cancel", "save", "name_ph", "rename_hint", "change_icon", "this_tv", "folder_count", "folder_ph", "inputs_h", "inputs_hint", "rename_hint_app", "was_named", "arrange_hint", "arrange_unready", "hidden_h", "hidden_none", "hidden_locked", "show_app", "hide_app", "to_folder", "new_folder", "out_of_folder", "ungroup", "ungroup_confirm", "folder_hint", "toast_hidden", "toast_shown", "toast_in_folder", "toast_out_folder", "toast_ungrouped", "tab_looks", "looks_title", "show_on_home", "source_device", "source_plain", "source_device_hint", "tv_model", "sw_always", "sw_always_sub", "sw_weather", "sw_saver_time", "sw_saver_time_sub", "g_source_sub", "icon_h", "icon_library", "icon_own", "icon_custom", "toast_icon_picked", "drop_hint", "drop_sub", "drop_none", "toast_diag_paste", "kids_h", "elders_h", "kids_used", "kids_left", "kids_nolimit", "kids_allowed", "kids_lock_day", "kids_lock_late", "kids_lock_break", "kids_pin_ph", "kids_unlock", "kids_wrong", "kids_need_pin", "kids_locked_foot", "kids_add", "kids_day", "kids_leave_k", "kids_leave_e", "kids_paused", "kids_resume", "kids_min", "kids_hm", "kids_erase", "kids_hr", "kids_both", "kids_off_line", "kids_settings", "kids_no_pin", "kids_pin_foot", "ks_meta", "ks_on", "ks_on_sub", "ks_block", "ks_block_sub", "ks_block_noguard", "ks_time_h", "ks_weekday", "ks_weekend", "ks_minutes", "ks_nolimit", "ks_window", "ks_from", "ks_to", "ks_break", "ks_break_every", "ks_break_len", "ks_time_foot", "ks_apps", "ks_apps_sub", "ks_input", "ks_save", "ks_saved", "ks_invalid", "ks_for", "per_app_h", "per_app_hint", "per_app_inherit", "saver_loop", "per_app_apply", "per_app_auto_on", "g_webhost"];
+const KEYS = ["screensaver", "screensaver_short", "ss_aerial", "ss_photos", "ss_clock", "focus", "focus_high", "focus_standard", "weather", "city_ph", "set", "upload_label", "feedback_h", "feedback_hint", "diag_show", "diag_copy", "diag_github", "hint_aerial", "hint_photos", "hint_clock", "g_live", "g_live_sub", "g_daily", "g_daily_sub", "g_photo", "g_builtin", "g_auto", "toast_wallpaper", "aria_delete", "confirm_delete", "wx_clear", "wx_partlycloudy", "wx_cloudy", "wx_fog", "wx_rain", "wx_snow", "wx_thunder", "wx_chosen", "wx_auto_btn", "toast_auto", "wx_guessed", "wx_none", "tag_source", "aria_rename", "toast_renamed", "toast_name_reset", "toast_rename_fail", "aria_reset_icon", "toast_icon_reset", "focus_hint_standard", "focus_hint_high", "daily_title", "daily_caption", "rotate_title", "rotate_caption", "empty_photos", "add_second", "toast_tv_updated", "sending_n", "toast_added", "toast_no_photos", "toast_send_fail", "toast_city_set", "toast_city_nf", "toast_set_fail", "toast_sending_icon", "toast_icon_set", "toast_icon_bad", "diag_collecting", "toast_diag_fail", "toast_copied", "toast_copy_manual", "language", "hint_follows", "ss_videos", "hint_videos", "videos_h", "videos_upload", "videos_hint", "videos_empty", "confirm_video_delete", "toast_videos_added", "toast_video_bad", "sending_video", "hint_system", "tab_home", "tab_more", "current_wp", "cancel", "save", "name_ph", "rename_hint", "change_icon", "this_tv", "folder_count", "folder_ph", "inputs_h", "inputs_hint", "rename_hint_app", "was_named", "arrange_hint", "arrange_unready", "hidden_h", "hidden_none", "hidden_locked", "show_app", "hide_app", "to_folder", "new_folder", "out_of_folder", "ungroup", "ungroup_confirm", "folder_hint", "toast_hidden", "toast_shown", "toast_in_folder", "toast_out_folder", "toast_ungrouped", "tab_looks", "looks_title", "show_on_home", "source_device", "source_plain", "source_device_hint", "tv_model", "sw_always", "sw_always_sub", "sw_weather", "sw_saver_time", "sw_saver_time_sub", "g_source_sub", "icon_h", "icon_library", "icon_own", "icon_custom", "toast_icon_picked", "drop_hint", "drop_sub", "drop_none", "toast_diag_paste", "kids_h", "elders_h", "kids_used", "kids_left", "kids_nolimit", "kids_allowed", "kids_lock_day", "kids_lock_late", "kids_lock_break", "kids_pin_ph", "kids_unlock", "kids_wrong", "kids_need_pin", "kids_locked_foot", "kids_add", "kids_day", "kids_leave_k", "kids_leave_e", "kids_paused", "kids_resume", "kids_min", "kids_hm", "kids_erase", "kids_hr", "kids_both", "kids_off_line", "kids_settings", "kids_no_pin", "kids_pin_foot", "ks_meta", "ks_on", "ks_on_sub", "ks_block", "ks_block_sub", "ks_block_noguard", "ks_time_h", "ks_weekday", "ks_weekend", "ks_minutes", "ks_nolimit", "ks_window", "ks_from", "ks_to", "ks_break", "ks_break_every", "ks_break_len", "ks_time_foot", "ks_apps", "ks_apps_sub", "ks_input", "ks_save", "ks_saved", "ks_invalid", "ks_for", "per_app_h", "per_app_hint", "per_app_inherit", "saver_loop", "per_app_apply", "per_app_auto_on", "g_webhost", "wh_url_hint", "toast_webhost_set", "toast_webhost_bad"];
 const TEXTS = {
  "zh": [
   "屏幕保护程序",
@@ -617,7 +617,10 @@ const TEXTS = {
   "屏保循环",
   "启用「每个 App 一张」",
   "已应用「每个 App 一张」，电视已更新",
-  "个人图床"
+  "个人图床",
+  "每次回到桌面从图床取一张新图；修改地址后立即生效。",
+  "图床地址已保存",
+  "这个地址不能作为网址使用"
  ],
  "en": [
   "Screensaver",
@@ -820,7 +823,10 @@ const TEXTS = {
   "Screensaver loop",
   "Turn on \"A picture for each app\"",
   "Set to \"A picture for each app\"; the TV is updated",
-  "My Image Host"
+  "My Image Host",
+  "A new picture is fetched from your image host each time Home comes back; a new address applies at once.",
+  "Image host address saved",
+  "That address cannot be used as a web address"
  ],
  "ru": [
   "Заставка",
@@ -1017,7 +1023,16 @@ const TEXTS = {
   "Сохранено, телевизор обновлён",
   "Не сохранено: конец должен быть позже начала, минуты — от 0 до 1440, а для включения нужно хотя бы одно приложение.",
   "Для кого",
-  "Личный фотохостинг"
+  "Каждому приложению — своя картинка",
+  "Первым шести плиткам главного экрана — своя картинка, по их месту: плитка, ушедшая во второй ряд, оставляет картинку, с которой ушла.",
+  "Как у обоев",
+  "Цикл заставки",
+  "Включить «каждому приложению — своя картинка»",
+  "«Каждому приложению — своя картинка» включено; телевизор обновлён",
+  "Личный фотохостинг",
+  "Новая картинка берётся с фотохостинга при каждом возврате на главный экран; новый адрес применяется сразу.",
+  "Адрес фотохостинга сохранён",
+  "Этот адрес не похож на веб-адрес"
  ],
  "uk": [
   "Заставка",
@@ -1214,7 +1229,16 @@ const TEXTS = {
   "Збережено, телевізор оновлено",
   "Не збережено: кінець має бути пізніше за початок, хвилини — від 0 до 1440, а для ввімкнення потрібен хоча б один застосунок.",
   "Для кого",
-  "Особистий фотохостинг"
+  "Кожному застосунку — своє зображення",
+  "Першим шести плиткам головного екрана — своє зображення, за місцем: плитка, що перейшла в другий ряд, лишає зображення, з яким пішла.",
+  "Як у шпалер",
+  "Цикл заставки",
+  "Увімкнути «кожному застосунку — своє зображення»",
+  "«Кожному застосунку — своє зображення» увімкнено; телевізор оновлено",
+  "Особистий фотохостинг",
+  "Нове зображення береться з фотохостингу щоразу при поверненні на головний екран; нова адреса застосовується одразу.",
+  "Адресу фотохостингу збережено",
+  "Ця адреса не схожа на веб-адресу"
  ],
  "kk": [
   "Экран қорғаушы",
@@ -1411,7 +1435,16 @@ const TEXTS = {
   "Сақталды, теледидар жаңартылды",
   "Сақталмады: соңы басынан кеш болуы керек, минуттар 0–1440 аралығында, ал қосу үшін кемінде бір қолданба керек.",
   "Кімге",
-  "Жеке сурет хостингі"
+  "Әр қолданбаға — жеке сурет",
+  "Басты экранның алғашқы алты плиткасына — өз суреті, орны бойынша: екінші қатарға көшкен плитка кеткен суретін сақтайды.",
+  "Тұсқағазбен бірге",
+  "Экран қорғаушы циклі",
+  "«Әр қолданбаға — жеке сурет» қосулы",
+  "«Әр қолданбаға — жеке сурет» қолданылды; теледидар жаңарды",
+  "Жеке сурет хостингі",
+  "Басты экранға әр оралу сайын сурет хостингінен жаңа сурет алынады; жаңа мекенжай бірден қолданылады.",
+  "Сурет хостингінің мекенжайы сақталды",
+  "Бұл мекенжай веб-мекенжайға ұқсамайды"
  ]
 };
 const LANGS = Object.keys(TEXTS);
@@ -1452,7 +1485,7 @@ function applyI18n() {
 const hints = { aerial: t('hint_aerial'), photos: t('hint_photos'), clock: t('hint_clock'), videos: t('hint_videos'), system: t('hint_system') };
 const groups = [
   ['live', t('g_live'), t('g_live_sub')],
-  ['daily', t('g_daily'), t('g_daily_sub')],
+  ['perapp', t('per_app_h'), ''],
   ['photo', t('g_photo'), ''],
   ['builtin', t('g_builtin'), ''],
   ['webhost', t('g_webhost'), ''],
@@ -1632,6 +1665,10 @@ function renderWallpapers() {
   for (const [kind, title, sub] of groups) {
     // Moving: the aerial films and the owner's videos.
     let list = state.wallpapers.filter(w => w.kind === kind || (kind === 'live' && w.kind === 'video'));
+    // "Each app" has a section of its own, ahead of the owner's photos, rather than a place among the
+    // built-ins (the owner, 2026-11-04).
+    if (kind === 'perapp') list = state.wallpapers.filter(w => w.id === 'perapp');
+    if (kind === 'builtin') list = list.filter(w => w.id !== 'perapp');
     // Each video on its own; the card that plays them in turn only for two or more (#762), as on the TV.
     if (kind === 'live' && list.filter(w => w.kind === 'video').length < 3 && state.selected !== 'videos:mine') list = list.filter(w => w.id !== 'videos:mine');
     if (kind === 'daily' && list.length) list = [{ id: state.latestDaily, kind: 'daily', title: t('daily_title'), caption: t('daily_caption') }, ...list];
@@ -1651,6 +1688,30 @@ function renderWallpapers() {
     const g = el('div', 'grid');
     list.forEach(w => g.appendChild(card(w)));
     root.appendChild(g);
+    // The picture host's address, to change servers without a new build (the owner, 2026-11-04).
+    if (kind === 'webhost') {
+      const l = el('div', 'list');
+      const f = el('form', 'item field');
+      const inp = el('input'); inp.type = 'text'; inp.id = 'webhostUrl'; inp.value = state.webhostUrl || '';
+      inp.placeholder = 'http://192.168.2.7:5678/';
+      inp.setAttribute('autocomplete', 'off'); inp.setAttribute('autocapitalize', 'off');
+      inp.setAttribute('spellcheck', 'false'); inp.setAttribute('enterkeyhint', 'done');
+      const btn = el('button', 'link', t('set')); btn.type = 'submit';
+      f.append(inp, btn);
+      f.onsubmit = async e => {
+        e.preventDefault();
+        const url = inp.value.trim(); if (!url) return;
+        btn.disabled = true; inp.blur();
+        try {
+          const next = await api('api/webhost', { url });
+          take(next);
+          toast(next.saved ? t('toast_webhost_set') : t('toast_webhost_bad'));
+        } catch (err) { toast(t('toast_set_fail')); }
+        btn.disabled = false;
+      };
+      l.appendChild(f); root.appendChild(l);
+      root.appendChild(el('p', 'foot', t('wh_url_hint')));
+    }
     if (sub) root.appendChild(el('p', 'foot', sub));
     // The owner's videos play all the time, as on the TV: no "when still" to choose (2026-11-04).
     if (kind === 'photo' && list.length === 1) root.appendChild(el('p', 'foot', t('add_second')));
@@ -1788,7 +1849,9 @@ function perAppSheet(slot, label, current) {
       try { take(await api('api/perapp', { slot: slot, id: '' })); toast(t('toast_tv_updated')); } catch (e) { toast(t('toast_set_fail')); }
     });
     body.appendChild(l);
-    const opts = state.wallpapers.filter(w => w.id !== 'perapp' && ['daily', 'photo', 'builtin', 'webhost'].includes(w.kind));
+    // The owner's own pictures first, right after "默认", as on the TV (2026-11-04).
+    const pick = kind => state.wallpapers.filter(w => w.id !== 'perapp' && w.kind === kind);
+    const opts = [...pick('photo'), ...pick('webhost'), ...pick('daily'), ...pick('builtin')];
     const g = el('div', 'grid');
     for (const w of opts) {
       const b = el('button', 'wp');
@@ -2509,7 +2572,11 @@ applyI18n();
 show((location.hash || '').slice(1) || (() => { try { return localStorage.getItem('aerial-tab'); } catch (e) { return null; } })(), true);
 async function refresh() { try { state = await api('api/state'); render(); } catch (e) {} }
 refresh();
-setInterval(() => { if (!document.hidden && sheet.hidden && !arrDragging) refresh(); }, 6000);
+const typing = () => {
+  const a = document.activeElement;
+  return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && a.type !== 'checkbox' && a.type !== 'file';
+};
+setInterval(() => { if (!document.hidden && sheet.hidden && !arrDragging && !typing()) refresh(); }, 6000);
 </script>
 </body>
 </html>

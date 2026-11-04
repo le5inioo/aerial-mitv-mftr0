@@ -170,6 +170,8 @@
     <string name="st_guard_hint">Жүйе жұмыс үстелін өз лаунчеріне бергенде Aerial-ды бірден қайтарады. Aerial әдепкі болса, қажет емес.</string>
     <string name="st_keep_adb">ADB әрдайым қосулы</string>
     <string name="st_keep_adb_hint">Қайта қосылғаннан кейін ADB жөндеуді қайта қосады: компьютер параметрлер бетінсіз қосылады.</string>
+    <string name="st_dev_mode">Іске қосылуда әзірлеуші режимі</string>
+    <string name="st_dev_mode_hint">Әр іске қосылғаннан кейін әзірлеуші параметрлері мен ADB жөндеуін қайта қосады: прошивка кейде оларды өзі өшіреді (MiTV).</string>
     <string name="cc_inputs_settings">Көздер параметрлері</string>
     <string name="cc_inputs_pin">Басты экранда көрсету (кез келген саны)</string>
     <string name="cc_inputs_boot">Теледидар қосылғанда (біреу)</string>

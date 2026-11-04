@@ -108,6 +108,13 @@ class PhoneServer private constructor(private val context: Context, private val 
                     if (ok) onMain { Wallpapers.setPerApp(slot, id.ifEmpty { null }) }
                     json(state().put("saved", ok))
                 }
+                session.method == Method.POST && path == "/api/webhost" -> {
+                    // Where the image host is: the owner may move the server to another machine.
+                    var ok = false
+                    val url = form(session)["url"].orEmpty()
+                    if (url.isNotBlank()) onMain { ok = Wallpapers.setWebHostUrl(url) }
+                    json(state().put("saved", ok))
+                }
                 session.method == Method.POST && path == "/api/screensaver" -> {
                     val mode = ScreensaverMode.of(form(session)["mode"])
                     onMain { Wallpapers.chooseScreensaver(mode) }
@@ -253,6 +260,7 @@ class PhoneServer private constructor(private val context: Context, private val 
             .put("rotatePhotos", Wallpapers.ROTATE_PHOTOS)
             .put("perApp", JSONObject().apply { Wallpapers.perApp.forEach { (slot, id) -> put(slot.toString(), id) } })
             .put("perAppSlots", Wallpapers.PER_APP_SLOTS)
+            .put("webhostUrl", Wallpapers.webHostUrl())
             .put("screensaver", Wallpapers.screensaver.key)
             .put("saverVideo", Wallpapers.screensaverVideo ?: "")
             .put("screensaverFollows", Wallpapers.screensaverFollows)

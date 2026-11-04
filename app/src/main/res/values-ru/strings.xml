@@ -170,6 +170,8 @@
     <string name="st_guard_hint">Сразу возвращает Aerial, когда система отдаёт рабочий стол своему лаунчеру. Не нужна, если Aerial и так по умолчанию.</string>
     <string name="st_keep_adb">ADB всегда включён</string>
     <string name="st_keep_adb_hint">После перезагрузки снова включает отладку ADB: компьютер подключается без страницы настроек.</string>
+    <string name="st_dev_mode">Режим разработчика при загрузке</string>
+    <string name="st_dev_mode_hint">После каждой загрузки снова включает параметры разработчика и отладку ADB: прошивка иногда отключает их сама (MiTV).</string>
     <string name="cc_inputs_settings">Настройки источников</string>
     <string name="cc_inputs_pin">Показывать на главном экране (любое число)</string>
     <string name="cc_inputs_boot">При включении телевизора (один)</string>

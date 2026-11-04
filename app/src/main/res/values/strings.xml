@@ -178,6 +178,8 @@
     <string name="st_guard_hint">Brings Aerial straight back when the TV hands Home to its own launcher. Not needed where Aerial is the default launcher.</string>
     <string name="st_keep_adb">Keep ADB On</string>
     <string name="st_keep_adb_hint">Switches ADB debugging back on after a reboot, so a computer can reach the TV without the settings page.</string>
+    <string name="st_dev_mode">Developer Mode at Boot</string>
+    <string name="st_dev_mode_hint">Turns Developer options and ADB debugging back on after each boot: the firmware sometimes switches them off on its own (MiTV).</string>
     <string name="cc_inputs_settings">Input Settings</string>
     <string name="cc_inputs_pin">Show on Home (any number)</string>
     <string name="cc_inputs_boot">When the TV Turns On (one)</string>

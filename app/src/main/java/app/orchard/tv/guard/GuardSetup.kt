@@ -43,6 +43,8 @@ object GuardSetup {
 
     private const val REVIVAL_WINDOW_MS = 10 * 60 * 1000L
     private const val KEY_KEEP_ADB = "keep_adb"
+    /** Puts developer mode back after a boot (the owner, 2026-11-04). */
+    private const val KEY_BOOT_DEV_MODE = "boot_dev_mode"
 
     /** When [ensureAdbListening] may still act: only boot shows the lying setting (issue #454). */
     private const val ADB_BOOT_WINDOW_MS = 3 * 60_000L
@@ -252,6 +254,53 @@ object GuardSetup {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_KEEP_ADB, keep).apply()
         if (keep) ensureAdb(context)
     }
+
+    // ---- developer mode at boot ----
+
+    /** Whether developer mode is put back after each start (the ADB switch lives inside it). */
+    fun bootDevMode(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_BOOT_DEV_MODE, false)
+
+    fun setBootDevMode(context: Context, on: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_BOOT_DEV_MODE, on).apply()
+        // Off only stops the boot from putting it back: it does not switch developer mode off now,
+        // which would take ADB away from whoever is using it.
+        if (on) ensureDeveloperMode(context)
+    }
+
+    /**
+     * Xiaomi's firmware forgets developer mode now and then at a start — the settings page is gone
+     * with it, and with it the ADB switch keep_adb knows how to put back. Turning developer mode on
+     * needs three settings: Android's own flag, the firmware's, and ADB debugging itself. Called
+     * from [ensureEnabled] (boot, every start), and again a few seconds later: the firmware has
+     * been seen to write its own value over ours just after a boot.
+     */
+    fun ensureDeveloperMode(context: Context) {
+        if (!bootDevMode(context)) return
+        writeDeveloperMode(context)
+        devModeRecheck.removeCallbacksAndMessages(null)
+        for (delay in DEV_MODE_RECHECK_MS) {
+            devModeRecheck.postDelayed({ writeDeveloperMode(context.applicationContext) }, delay)
+        }
+    }
+
+    private fun writeDeveloperMode(context: Context) {
+        if (!isUserUnlocked(context)) return
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) return
+        val resolver = context.contentResolver
+        // Android's flag first: it is what shows the "Developer options" entry at all.
+        for (key in listOf(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, "developer_status", Settings.Global.ADB_ENABLED)) {
+            if (Settings.Global.getInt(resolver, key, -1) == 1) continue
+            runCatching {
+                Settings.Global.putInt(resolver, key, 1)
+                Log.i(TAG, "developer mode: $key is now 1")
+            }.onFailure { Log.w(TAG, "could not write $key", it) }
+        }
+    }
+
+    private val devModeRecheck by lazy { Handler(Looper.getMainLooper()) }
+    /** A boot's first seconds, then the moment the firmware writes its own settings. */
+    private val DEV_MODE_RECHECK_MS = longArrayOf(8_000L, 25_000L, 60_000L)
 
     /** Whether Android lists Home Guard among the enabled accessibility services. */
     fun guardEnabled(context: Context): Boolean = runCatching {
@@ -571,6 +620,7 @@ object GuardSetup {
 
     /** Returns whether Home Guard had been switched off and was put back. */
     fun ensureEnabled(context: Context): Boolean {
+        ensureDeveloperMode(context)
         ensureAdb(context)
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) return false
         restoreReceivers(context)

@@ -177,6 +177,8 @@
     <string name="st_guard_hint">系统把 Home 交给原厂桌面时，立刻把 Aerial 接回来。已经用 Aerial 当默认桌面时一般用不到。</string>
     <string name="st_keep_adb">ADB 常开</string>
     <string name="st_keep_adb_hint">电视重启后自动把 ADB 调试重新打开，不用再进设置里手动开。</string>
+    <string name="st_dev_mode">开机开启开发者模式</string>
+    <string name="st_dev_mode_hint">每次开机后自动重新打开「开发者选项」与 ADB 调试（小米电视偶尔会自行关闭）。</string>
     <string name="cc_inputs_settings">信号源设置</string>
     <string name="cc_inputs_pin">显示在主屏幕（可多选）</string>
     <string name="cc_inputs_boot">开机时打开（选一个）</string>

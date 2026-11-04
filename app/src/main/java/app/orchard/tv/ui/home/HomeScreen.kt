@@ -639,7 +639,12 @@ fun HomeScreen(
             }
         }
         LaunchedEffect(Wallpapers.selectedId, perAppSlot) {
-            if (Wallpapers.selectedId == Wallpapers.PER_APP) perAppSlot?.let { Wallpapers.preparePerApp(listOf(it)) }
+            if (Wallpapers.selectedId == Wallpapers.PER_APP) perAppSlot?.let {
+                Wallpapers.preparePerApp(listOf(it))
+                // A tile that takes the image host's picture deals a new one as the focus comes to
+                // it: stepping along the row changes the picture with the tile (the owner, 2026-11-04).
+                Wallpapers.refreshPerAppHost(it)
+            }
         }
         // Pictures kept by package name before this build: moved to the tiles their apps hold now.
         LaunchedEffect(apps, perAppSlots) {

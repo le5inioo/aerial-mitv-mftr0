@@ -146,6 +146,8 @@ fun WallpaperSheet(
     // since both can be changed elsewhere (the system's accessibility page, ADB itself).
     var guardOn by remember { mutableStateOf(GuardSetup.guardEnabled(context)) }
     var keepAdbOn by remember { mutableStateOf(GuardSetup.keepAdb(context)) }
+    // Developer mode put back after each boot, as the firmware sometimes forgets it (2026-11-04).
+    var bootDevModeOn by remember { mutableStateOf(GuardSetup.bootDevMode(context)) }
 
     BackHandler(enabled = visible, onBack = onDismiss)
 
@@ -163,6 +165,7 @@ fun WallpaperSheet(
         if (!visible) return@LaunchedEffect
         guardOn = GuardSetup.guardEnabled(context)
         keepAdbOn = GuardSetup.keepAdb(context)
+        bootDevModeOn = GuardSetup.bootDevMode(context)
     }
 
     val shown = remember { MutableTransitionState(false) }
@@ -442,6 +445,16 @@ fun WallpaperSheet(
                         keepAdbOn,
                         { on -> GuardSetup.setKeepAdb(context, on); keepAdbOn = on },
                     )
+                    // The firmware drops developer mode at some starts, and the ADB switch lives
+                    // inside it: put all of it back when that is on (the owner, 2026-11-04).
+                    Choices(
+                        R.string.st_dev_mode,
+                        stringResource(R.string.st_dev_mode_hint),
+                        note,
+                        listOf(true to R.string.st_on, false to R.string.st_off),
+                        bootDevModeOn,
+                        { on -> GuardSetup.setBootDevMode(context, on); bootDevModeOn = on },
+                    )
                 }
                 Spacer(Modifier.height(24.dp))
             }
@@ -511,6 +524,8 @@ private fun WallpaperRows(takeFocus: Boolean) {
             // "Each App" right after the aerial wallpaper. Not also further down, where the
             // built-ins are: it is one of those, and a card seen twice is a crash (LazyRow keys).
             items.firstOrNull { it.id == Wallpapers.PER_APP }?.let { add(it) }
+            // The image host's picture before the owner's own (the owner, 2026-11-04).
+            addAll(items.filter { it.kind == WallpaperKind.Webhost })
             // The owner's photos before their videos (the owner, 2026-11-04). With two or more
             // photos, one card takes turns through all of them, one a day (#27).
             val photos = items.filter { it.kind == WallpaperKind.Photo }
@@ -523,7 +538,6 @@ private fun WallpaperRows(takeFocus: Boolean) {
             if (items.any { it.kind == WallpaperKind.Daily }) add(Wallpaper(Wallpapers.LATEST_DAILY, WallpaperKind.Daily, dailyTitle))
             addAll(items.filter { it.kind == WallpaperKind.Daily && it.id == selected })
             addAll(items.filter { it.kind == WallpaperKind.Builtin && (it.id in Wallpapers.FEATURED_BUILTINS || (it.id == selected && it.id != Wallpapers.PER_APP)) })
-            addAll(items.filter { it.kind == WallpaperKind.Webhost })
             addAll(items.filter { it.kind == WallpaperKind.Auto })
             // The inputs' pictures last: a choice for a home with a set-top box, not the usual one.
             addAll(items.filter { it.kind == WallpaperKind.Source })
@@ -897,10 +911,14 @@ private fun PerAppRow(slot: Int, label: String, note: (String?) -> Unit, first: 
 @Composable
 private fun PerAppPicker(slot: Int, label: String, chosen: String?, onDismiss: () -> Unit, onPick: (String?) -> Unit) {
     val list = remember(Wallpapers.items) {
-        Wallpapers.items.filter {
-            (it.kind == WallpaperKind.Builtin && it.id != Wallpapers.PER_APP) ||
-                it.kind == WallpaperKind.Daily || it.kind == WallpaperKind.Photo || it.kind == WallpaperKind.Webhost
-        }
+        val all = Wallpapers.items
+        // Right after "默认" come the owner's own pictures — My Photos, then the image host
+        // (the owner, 2026-11-04) — and the day's photo and built-ins after them.
+        all.filter { it.kind == WallpaperKind.Photo } +
+            all.filter { it.kind == WallpaperKind.Webhost } +
+            all.filter {
+                (it.kind == WallpaperKind.Builtin && it.id != Wallpapers.PER_APP) || it.kind == WallpaperKind.Daily
+            }
     }
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) {

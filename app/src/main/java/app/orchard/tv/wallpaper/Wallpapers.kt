@@ -419,13 +419,16 @@ object Wallpapers {
      * Bakes the pictures of [slots] that have one. Called with Home's first tiles, so that moving
      * the focus to a tile finds its picture ready instead of the bake's two seconds (MiTV-MFTR0).
      */
-    fun preparePerApp(slots: List<Int>) {
+    fun preparePerApp(slots: List<Int>, force: Boolean = false) {
         if (!started || selectedId != PER_APP) return
         for (slot in slots) {
             val choice = perApp[slot]
             // "默认": no picture of its own — a random built-in for the day (inheritPicture).
             val id = choice ?: inheritPicture(slot)
-            if (perAppPictures.containsKey(slot) || perAppJobs[slot]?.isActive == true) continue
+            if (!force && (perAppPictures.containsKey(slot) || perAppJobs[slot]?.isActive == true)) continue
+            // [force]: a new picture is on its way for this tile — bake it over the old one, which
+            // stays on screen until the new one is in (no flash of the wallpaper underneath).
+            if (force) perAppJobs.remove(slot)?.cancel()
             DiagLog.i("tile $slot: baking $id")
             perAppJobs[slot] = scope.launch {
                 val baked = withContext(Dispatchers.Default) {
@@ -573,6 +576,45 @@ object Wallpapers {
 
     private const val WEBHOST_MIN_MS = 10_000L
 
+    /** One fetch at a time: the tiles can be stepped through faster than a picture arrives. */
+    @Volatile private var webhostFetching = false
+
+    /** The address the picture comes from: the owner's, or the one shipped with the build. */
+    fun webHostUrl(): String = prefs.getString("webhost_url", null)?.takeIf { it.isNotBlank() } ?: WEBHOST_URL
+
+    /**
+     * Points the image host somewhere else (the owner may change servers, 2026-11-04). The last
+     * picture stays until the new host answers, rather than Home going blank.
+     */
+    fun setWebHostUrl(url: String): Boolean {
+        val clean = normalizeHost(url) ?: return false
+        prefs.edit { putString("webhost_url", clean) }
+        DiagLog.i("image host set to $clean")
+        synchronized(thumbs) { thumbs.remove(WEBHOST) }
+        refreshWebHost(force = true)
+        return true
+    }
+
+    /** "192.168.2.7:5678" or "http://host/path" as a URL; null when it cannot be one. */
+    private fun normalizeHost(raw: String): String? {
+        var s = raw.trim()
+        if (s.isEmpty()) return null
+        if (!s.startsWith("http://") && !s.startsWith("https://")) s = "http://$s"
+        return runCatching {
+            val u = URL(s)
+            if (u.host.isNullOrBlank()) null else s.trimEnd()
+        }.getOrNull()
+    }
+
+    /**
+     * The tile in [slot] has the image host's picture: coming to that tile deals a new one (the
+     * owner, 2026-11-04), so stepping along the row changes the picture with the tile.
+     */
+    fun refreshPerAppHost(slot: Int) {
+        if (selectedId != PER_APP || perApp[slot] != WEBHOST) return
+        refreshWebHost(force = true)
+    }
+
     /**
      * Fetches a picture from the owner's image host ([WEBHOST_URL]) and shows it, when the host is
      * the wallpaper or one of the tiles'. Called each time Home comes back ([rotateIfDue]) — each
@@ -583,41 +625,46 @@ object Wallpapers {
         if (!started) return
         val wanted = selectedId == WEBHOST || perApp.containsValue(WEBHOST)
         if (!wanted && !force) return
+        if (webhostFetching) return
         val now = SystemClock.elapsedRealtime()
         if (!force && now - webhostAt < WEBHOST_MIN_MS) return
         webhostAt = now
+        webhostFetching = true
         scope.launch(Dispatchers.IO) {
-            val url = prefs.getString("webhost_url", null) ?: WEBHOST_URL
+            val url = webHostUrl()
             val tmp = File(app.cacheDir, "webhost.part")
-            val ok = runCatching {
-                val c = URL(url).openConnection() as HttpURLConnection
-                c.connectTimeout = 5_000
-                c.readTimeout = 20_000
-                c.instanceFollowRedirects = true
-                try {
-                    check(c.responseCode in 200..299) { "HTTP ${c.responseCode}" }
-                    c.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
-                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeFile(tmp.path, bounds)
-                    check(bounds.outWidth > 0) { "not a picture" }
-                    check(tmp.renameTo(webhostFile)) { "could not move it in" }
-                } finally {
-                    c.disconnect()
-                    if (tmp.exists()) tmp.delete()
+            try {
+                val ok = runCatching {
+                    val c = URL(url).openConnection() as HttpURLConnection
+                    c.connectTimeout = 5_000
+                    c.readTimeout = 20_000
+                    c.instanceFollowRedirects = true
+                    try {
+                        check(c.responseCode in 200..299) { "HTTP ${c.responseCode}" }
+                        c.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeFile(tmp.path, bounds)
+                        check(bounds.outWidth > 0) { "not a picture" }
+                        check(tmp.renameTo(webhostFile)) { "could not move it in" }
+                    } finally {
+                        c.disconnect()
+                        if (tmp.exists()) tmp.delete()
+                    }
+                }.isSuccess
+                DiagLog.i("image host ${if (ok) "fetched" else "failed"} ($url)")
+                if (!ok) return@launch
+                synchronized(thumbs) { thumbs.remove(WEBHOST) }
+                withContext(Dispatchers.Main) {
+                    rebuildBackdropIfNeeded(WEBHOST)
+                    perApp.forEach { (slot, id) -> if (id == WEBHOST) {
+                        // The tile keeps the picture it has until the new one is baked over it.
+                        perAppJobs.remove(slot)?.cancel()
+                        clearPerBaked(slot)
+                    } }
+                    if (selectedId == PER_APP) preparePerApp(perApp.filterValues { it == WEBHOST }.keys.toList(), force = true)
                 }
-            }.isSuccess
-            DiagLog.i("image host ${if (ok) "fetched" else "failed"} ($url)")
-            if (!ok) return@launch
-            synchronized(thumbs) { thumbs.remove(WEBHOST) }
-            withContext(Dispatchers.Main) {
-                rebuildBackdropIfNeeded(WEBHOST)
-                perApp.forEach { (slot, id) -> if (id == WEBHOST) {
-                    perAppJobs.remove(slot)?.cancel()
-                    perAppPictures = perAppPictures - slot
-                    perAppGlass = perAppGlass - slot
-                    clearPerBaked(slot)
-                } }
-                if (selectedId == PER_APP) preparePerApp(perApp.filterValues { it == WEBHOST }.keys.toList())
+            } finally {
+                webhostFetching = false
             }
         }
     }
