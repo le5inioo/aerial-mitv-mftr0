@@ -55,6 +55,7 @@ root 后把 `/system/pcfg/<型号目录>/config/general_config.xml` 里的 `DEFA
 - 70A9（7S70_A9，MStar m7221，Android 8，低内存）：`TvInputManager` 没有输入，信号源走 `com.skyworth.tv.sdk.provider`（查询必须带 projection，`displayName` 是实时的，HDMI 从 0 编号，AV、VOD 是 -1）；遥控器「信号源」键被固件截走，打开原桌面；待机唤醒先经过 `com.tianci.system/...WakeLockActivity` 10–12 秒再到 Aerial（#461）。
 - 7AA46_H5D、8A002_H5D（T963，Android 9）：Aerial 在前台、守护过滤按键时，音量键的抬起到不了守护，1.41–1.46 按一下音量就一直加到 100 或减到 0（#448 #451），1.47 修了（后来又出现，见下面「音量键连冲」）。把 Aerial 设为默认桌面（`cmd package set-home-activity`）后守护不过滤按键，音量正常，开机和主页键也正常（#449）。
 - 酷开 aigc 系（C10 投影仪 3H352_C10 Android 9 #487、P60 Android 11、7T863_N6E Android 10 #106）：主页键在 WindowManager 里变成创维热键广播，`com.tianci.system` 的 SLauncher 按组件拉起 `com.coocaa.aigc.home/.home.rootpage.HomeActivity`，不走 HOME 解析；这个桌面不声明任何 Home 类别。1.48 起守护把它算原桌面（未在真机验证）。7T863_N6E 上改 `persist.service.model.pkg/.cls`（加上 `homepage.*`）后主页键进 Aerial，但每次开机被固件写回。
+- 8H57_H5（#981，报告人的 logcat 和 `ps`）：酷开屏保开始时（`sky.action.dream.startSkyDream`），`com.skyworth.android.skyRMService`（system 用户）强停 Aerial，守护跟着停，之后按主页键先到酷开桌面。App 这边拦不住；变通是关掉电视自己的屏保 / 名画，只用 Aerial 的屏保。
 - 8R145_P3DM（Android 11）：`SkyProcManager` 会强停「不可见的非系统应用」，从 Aerial 打开别的 App 后 Aerial 就被杀，这时按主页键先到酷开桌面，等复活约 20–30 秒才回 Aerial（#106 的日志）。目前没有办法。
 - 创维/酷开 Whaley 55D2UK（helios，MStar，Android 5.0.2，arm64）：standard 版能装能接管，原桌面 `com.helios.guide` priority 1，设不成默认桌面，靠守护（主页键约 4 秒、先闪原桌面）；信号源走微鲸的 `com.whaley.tv.tvplayer.ui/.RootActivity`；亮度 `screen_brightness` 可调（#457）。
 
@@ -79,6 +80,10 @@ root 后把 `/system/pcfg/<型号目录>/config/general_config.xml` 里的 `DEFA
 1.80 之后（2026-11-03，#1113 C10 报告人的 system_server 日志、#937 A7D 的诊断）：
 - C10 的原因找到了：1.77 合入红米投影仪 Lite 的改动，装有 `com.cvte.factory.at`（CVTE 工厂测试）时，Aerial 是默认桌面也开按键过滤。C10 也是 CVTE 代工、同是 Hi3751V350，过滤开着时每次音量按下被固件分发两次（主线程 Local 一次、android.ui Broadcast 一次），抬起只回一次，另一条变成系统的自动重复，463 次重复每次一格。1.76 没有这个过滤，一按一格。main 上（未发版）有酷开的 `com.tianci.system` 时不再因 `com.cvte.factory.at` 过滤（e8f4155）。没有 C10 真机。
 - A7D：1.80 后不连冲了，但按住也只走一格。守护拿走按下、固件不动时自己补一格，等 300 ms；按住时遥控器每 200 ms 发一次新的按下，每次都取消了上一次的补格，最后只补一格。main 上（未发版）新按下先把上一次没补的补上（1dc3357），按住应恢复连续调。没有 A7D 真机。
+
+1.81 之后（2026-11-03 晚）：
+- 8R145_P3DM（#1091，报告人的 system_server 日志，1.80）：短按一格了，按住 6.3 秒只走一格：固件在过滤之前动了音量，守护不把按下传下去，Android 只给分发出去的按下补重复，于是固件再也收不到重复。这台的抬起能到守护（日志末尾有 `down=false`）。main 上（未发版，8f9d65f）：守护见过一次「没传下去的按下的抬起」之后，按住时自己按系统的重复节奏调（和 TCL 一样，最多 8 秒、抬起即停）；进程内第一次按住仍是一格。TCL MT5879 上用 `hid` 造的遥控器回归：单按一格、按住 1.5 秒连调、松手停。没有 8R145 真机。
+- A7D（#937，1.81 的诊断）：守护只记到按下、一条抬起都没有，按住期间也没有新的按下。守护分不清按住和短按，上面这条帮不了它；把按下传下去又会回到 1.76 的连冲。暂无办法；控制中心的音量条可以试（没在创维上验证）。
 
 ## 开机属性 `persist.service.model.*`（#1046 7AA49_D4 T963 安卓 9，#1096 65G650P / #1069 7S77_V40 sky848_9s60 安卓 8.0）
 

@@ -365,6 +365,7 @@ class HomeGuardService : AccessibilityService() {
             // FIRMWARE_HOMES_WITHOUT_FILTER lost it until Aerial restarted (MiTV-MOOQ0, Android 11).
             activityCache.clear()
             refreshStockHomes()
+            KidsWatch.start(this@HomeGuardService)
             checkMouseWithFilter(this@HomeGuardService)
             restartForegroundCheck()
             watchCecInput()
@@ -389,7 +390,8 @@ class HomeGuardService : AccessibilityService() {
             screenOff = intent.action == Intent.ACTION_SCREEN_OFF
             updateKeyFilter()
             if (screenOff) {
-                BootOpen.noteScreenOff(this@HomeGuardService)
+                // Credential storage, like the Home note below: not while locked.
+                if (GuardSetup.isUserUnlocked(this@HomeGuardService)) BootOpen.noteScreenOff(this@HomeGuardService)
                 if (GuardSetup.offInStandby(this@HomeGuardService)) GuardSetup.stepOutForStandby(this@HomeGuardService)
                 return
             }
@@ -426,7 +428,9 @@ class HomeGuardService : AccessibilityService() {
             if (SystemClock.uptimeMillis() - ownHomeAt < OWN_HOME_MS) return
             // On disk as well: in the boot window, answering Home here can end with accessibility
             // restarted (frontAfterHome), and the guard that starts then has to know of it too.
-            if (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS) BootOpen.noteHomeKey(this@HomeGuardService)
+            if (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS && GuardSetup.isUserUnlocked(this@HomeGuardService)) {
+                BootOpen.noteHomeKey(this@HomeGuardService)
+            }
             if (backOnPause) noteHomeInAerial()
             val front = lastWindow?.first
             if (front != null && front !in stockHomes) {
@@ -660,9 +664,16 @@ class HomeGuardService : AccessibilityService() {
 
     override fun onServiceConnected() {
         instance = this
-        KidsWatch.start(this)
+        // Both read credential storage: bound before unlock, the guard crashed here twice and the
+        // system put off its restart for 30 min, so nothing took Home at boot (1.79 to 1.81: Redmi
+        // Projector 4 mt5873, Android 13, issue #684; Formovie spiderman, Android 9, issue #1213;
+        // Haier HRA962X2, Android 9, issue #1205; all from the reporters' crash logs). The unlock
+        // receiver starts them instead.
+        if (GuardSetup.isUserUnlocked(this)) {
+            KidsWatch.start(this)
+            BootOpen.noteStartedInStandby(this)
+        }
         checkMouseWithFilter(this)
-        BootOpen.noteStartedInStandby(this)
         watchUiBoost()
         // The profile is in credential storage: only once unlocked.
         if (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS && GuardSetup.isUserUnlocked(this) &&
@@ -1270,7 +1281,7 @@ class HomeGuardService : AccessibilityService() {
                     KeyEvent.KEYCODE_VOLUME_DOWN -> -1
                     else -> 0
                 }
-                if (volumeRepeatDirection != 0 && repeatsHeldVolume) {
+                if (volumeRepeatDirection != 0 && (repeatsHeldVolume || takenVolumeLiftSeen)) {
                     volumeRepeatUntil = SystemClock.uptimeMillis() + VOLUME_REPEAT_MAX_MS
                     handler.postDelayed(volumeRepeat, ViewConfiguration.getKeyRepeatTimeout().toLong())
                 }
@@ -1284,6 +1295,10 @@ class HomeGuardService : AccessibilityService() {
             DiagLog.i("guard: ${KeyEvent.keyCodeToString(event.keyCode)} down at ${event.downTime}${if (taken) ", not passed on" else ""}")
         }
         if (event.action == KeyEvent.ACTION_UP) {
+            if (taken && stepKey && !takenVolumeLiftSeen) {
+                takenVolumeLiftSeen = true
+                DiagLog.i("guard: the lift of a volume press not passed on reached the filter; held keys step the volume from now on")
+            }
             volumeDownPassedAt = Long.MAX_VALUE
             volumeUps[event.keyCode] = event.eventTime
             DiagLog.i("guard: ${KeyEvent.keyCodeToString(event.keyCode)} up at ${event.eventTime}")
@@ -1315,6 +1330,16 @@ class HomeGuardService : AccessibilityService() {
         // Its own step is no change the firmware made: the next press must not look moved first.
         volumeSeen = volumeNow()
     }
+
+    /**
+     * A volume press not passed on gets no repeats from Android, so held it moved one step:
+     * Skyworth/Coocaa 8R145_P3DM (Android 11, issue #1091 on 1.80, the reporter's log: one step
+     * for a 6.3 s hold, the lift at the end). Where such a press's lift has reached the filter, the
+     * guard steps a held key as on TCL. Not before: on 7AA46_H5D and 8A002_H5D (issues #448 #451)
+     * and 8R134_A7D (issue #937, Aerial's log on 1.81) no lift ever came, and stepping until the
+     * cap would run the volume for seconds after every press.
+     */
+    private var takenVolumeLiftSeen = false
 
     private var volumeRepeatDirection = 0
     private var volumeRepeatUntil = 0L
@@ -1594,6 +1619,9 @@ class HomeGuardService : AccessibilityService() {
         stockHomes = (stockHomes.keys + unfiltered.keys).associateWith {
             stockHomes[it].orEmpty() + unfiltered[it].orEmpty()
         }
+        // Kept in the companion: a tile pressed while the guard is unbound still has to be
+        // recognised as the stock launcher (see knownStockHomes).
+        knownStockHomes = stockHomes
     }
 
     /**
@@ -2085,8 +2113,22 @@ class HomeGuardService : AccessibilityService() {
         /** The stock launchers the guard keeps away from the front, or null while it is not running. */
         fun stockHomes(): Map<String, Set<String>>? = instance?.stockHomes
 
+        /**
+         * The stock launchers the guard found last, kept in the companion so it outlives the
+         * service. The firmware may unbind the guard at any moment — Xiaomi kills Aerial's process
+         * and binds the service again — and a tile pressed in that gap must still be recognised as
+         * the stock launcher: [isStockHome] answered false without this, so Aerial took PatchWall
+         * for an ordinary app, the direct start threw for the signature permission and
+         * [MainActivity.startStockLauncher] opened the same screen from its fallback, which never
+         * calls [allowStockLauncher]; the guard then took Home back at once (MiTV-ANSP0, Android 9,
+         * issue #971).
+         */
+        @Volatile
+        private var knownStockHomes: Map<String, Set<String>> = emptyMap()
+
         /** True if [packageName] is a stock launcher the guard keeps away from the front. */
-        fun isStockHome(packageName: String): Boolean = instance?.stockHomes?.containsKey(packageName) == true
+        fun isStockHome(packageName: String): Boolean =
+            instance?.stockHomes?.containsKey(packageName) == true || knownStockHomes.containsKey(packageName)
 
         /**
          * Opens the stock launcher [pkg] on purpose (its tile in Aerial's grid). While Home still
@@ -2100,8 +2142,10 @@ class HomeGuardService : AccessibilityService() {
          * Returns false if neither opened it.
          */
         fun openStockLauncher(pkg: String, startDirectly: () -> Boolean): Boolean {
-            val s = instance ?: return startDirectly()
+            // Before the instance check: the allowance lives in the companion, so it counts even
+            // while the guard is unbound, and the guard reads it again as soon as it binds.
             allowStockLauncher()
+            val s = instance ?: return startDirectly()
             if (s.resolvedHome() == pkg && s.pressHomeForStock()) return true
             return startDirectly() || s.pressHomeForStock()
         }

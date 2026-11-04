@@ -96,6 +96,8 @@ fun VideoWallpaper(
             repeatMode = Player.REPEAT_MODE_ALL
             // Filled to the edges whatever its shape: a wallpaper has no bars.
             videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+            // Home is drawn over it: the display keeps its rate (see LiveWallpaper).
+            videoChangeFrameRateStrategy = C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF
             addListener(object : Player.Listener {
                 override fun onRenderedFirstFrame() {
                     rendered = true
@@ -115,6 +117,10 @@ fun VideoWallpaper(
                     scope.launch {
                         val poster = withContext(Dispatchers.IO) { Wallpapers.videoPoster(id, Wallpapers.screenW, Wallpapers.screenH) } ?: return@launch
                         Wallpapers.useLiveFrame(poster, id, 0L)
+                        // And the plate's glass while it moves, made once from the first film's picture
+                        // (sampleGlass): it kept that film's colours until Control Center was opened
+                        // (issue #1158 on 1.81, the reporter on MT9655).
+                        Wallpapers.useStillFilmFrost()
                     }
                 }
 
