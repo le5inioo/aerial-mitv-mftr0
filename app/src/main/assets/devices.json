@@ -9,7 +9,7 @@
     },
     {
       "models": ["MiTV_MFTR0", "MiTV-MFTR0"],
-      "note": "Registers a fourth HDMI input (HW8) with no connector behind it; tuners named by what they receive. Maintainer's TV.",
+      "note": "Registers a fourth HDMI input (HW8) with no connector behind it; tuners named by what they receive. Its panel ignores manual backlight while the light sensor's auto mode is on; Brightness turns the sensor off when the slider moves.",
       "hidden": [8],
       "labels": {"0": "DTMB", "1": "ATV", "2": "AV", "6": "HDMI 2 (eARC)"}
     },

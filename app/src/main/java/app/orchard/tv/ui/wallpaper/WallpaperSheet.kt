@@ -207,16 +207,13 @@ fun WallpaperSheet(
                 // "Each App": one row for each tile of the first row, by its place. Home's
                 // background swaps as the focus moves along that row; a tile keeps its picture when
                 // the app in it is changed, and one that falls to the second row (a narrower row)
-                // keeps the row's last picture. Shown always: choosing a tile's picture from
-                // another wallpaper turns "Each App" on, so the choice shows at once.
-                Group(
-                    stringResource(
-                        if (Wallpapers.selectedId == Wallpapers.PER_APP) R.string.wp_per_app_hint
-                        else R.string.wp_per_app_off_hint,
-                    )
-                ) { note ->
-                    tiles.take(Wallpapers.PER_APP_SLOTS).forEachIndexed { i, (_, label) ->
-                        PerAppRow(i + 1, label, note, first = i == 0) { picking = (i + 1) to label }
+                // keeps the row's last picture. Only while it is the wallpaper: otherwise the rows
+                // would sit there changing nothing.
+                if (Wallpapers.selectedId == Wallpapers.PER_APP) {
+                    Group(stringResource(R.string.wp_per_app_hint)) { note ->
+                        tiles.take(Wallpapers.PER_APP_SLOTS).forEachIndexed { i, (_, label) ->
+                            PerAppRow(i + 1, label, note, first = i == 0) { picking = (i + 1) to label }
+                        }
                     }
                 }
                 // Only for the owner's videos: whether keys stop them. The aerial films always move.
@@ -517,6 +514,9 @@ private fun WallpaperRows(takeFocus: Boolean) {
     val list = remember(items, selected, dailyTitle, rotateTitle, videosTitle) {
         buildList {
             addAll(items.filter { it.kind == WallpaperKind.Live })
+            // "Each App" right after the aerial wallpaper. Not also further down, where the
+            // built-ins are: it is one of those, and a card seen twice is a crash (LazyRow keys).
+            items.firstOrNull { it.id == Wallpapers.PER_APP }?.let { add(it) }
             // Each video on its own, and with two or more one card that plays them in turn (#762).
             val videos = items.filter { it.kind == WallpaperKind.Video && it.id != Wallpapers.VIDEOS }
             if (videos.size > 1 || selected == Wallpapers.VIDEOS) add(Wallpaper(Wallpapers.VIDEOS, WallpaperKind.Video, videosTitle))
@@ -527,10 +527,8 @@ private fun WallpaperRows(takeFocus: Boolean) {
             // With two or more, one card takes turns through all of them, one a day (#27).
             if (photos.size > 1) add(Wallpaper(Wallpapers.ROTATE_PHOTOS, WallpaperKind.Photo, rotateTitle))
             addAll(photos)
-            addAll(items.filter { it.kind == WallpaperKind.Builtin && (it.id in Wallpapers.FEATURED_BUILTINS || it.id == selected) })
+            addAll(items.filter { it.kind == WallpaperKind.Builtin && (it.id in Wallpapers.FEATURED_BUILTINS || (it.id == selected && it.id != Wallpapers.PER_APP)) })
             addAll(items.filter { it.kind == WallpaperKind.Auto })
-            // "Each App" after "Follow App": a wallpaper for every tile of the top row.
-            items.firstOrNull { it.id == Wallpapers.PER_APP }?.let { add(it) }
             // The inputs' pictures last: a choice for a home with a set-top box, not the usual one.
             addAll(items.filter { it.kind == WallpaperKind.Source })
         }
@@ -895,15 +893,16 @@ private fun PerAppRow(slot: Int, label: String, note: (String?) -> Unit, first: 
 }
 
 /**
- * The pictures and films one of Home's first tiles may take. A film, too: behind Home it plays
- * while its tile is in focus, and stops on its frame when the focus moves on.
+ * The pictures one of Home's first tiles may take: built-ins, the day's photo and the owner's
+ * own pictures. Films are not offered here: a tile's picture is a still (the wallpaper's own
+ * films keep playing behind Home).
  */
 @Composable
 private fun PerAppPicker(slot: Int, label: String, chosen: String?, onDismiss: () -> Unit, onPick: (String?) -> Unit) {
     val list = remember(Wallpapers.items) {
         Wallpapers.items.filter {
             (it.kind == WallpaperKind.Builtin && it.id != Wallpapers.PER_APP) ||
-                it.kind == WallpaperKind.Daily || it.kind == WallpaperKind.Photo || it.kind == WallpaperKind.Video
+                it.kind == WallpaperKind.Daily || it.kind == WallpaperKind.Photo
         }
     }
     val first = remember { FocusRequester() }

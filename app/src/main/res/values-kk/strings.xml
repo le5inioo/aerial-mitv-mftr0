@@ -80,12 +80,11 @@
     <string name="wx_thunder">Нөсер</string>
     <string name="wp_daily_latest">Әрқашан бүгінгісі</string>
     <string name="wp_per_app_hint">Бірінші қатардағы әр тақташаға өз суреті: фокус қозғалғанда фон да өзгереді; екінші қатарға өткен тақташа бірінші қатардың соңғы суретін сақтайды. Тақташа нөмірі бойынша сақталады, қолданба ауысса да қалады.</string>
-    <string name="wp_per_app_off_hint">Бірінші қатардағы әр тақташаға өз суреті немесе видеосы. Таңдау «Әр қолданбаға — өзі» тұқырламасын бірден қосады.</string>
     <string name="wp_per_app_row">%1$d · %2$s</string>
     <string name="wp_per_app_inherit">Әдепкі</string>
     <string name="wp_per_app_change">Таңдау</string>
     <string name="wp_per_app_title">%1$d-тақташа үшін тұсқағаз</string>
-    <string name="wp_per_app_pick_hint">Артқа жабады. Телефоннан жіберілген фото мен бейне де осында пайда болады.</string>
+    <string name="wp_per_app_pick_hint">Артқа жабады. Телефоннан жіберілген фото да осында пайда болады.</string>
     <string name="wp_live">Аэрожиын · басты экранның жоғарғы қатарында ойнайды (екі қатарлы көріністе — екі қатарда да)</string>
     <string name="wp_photos_rotate">Күніне біреуі</string>
     <string name="wp_daily_note">Bing күн суреті, күн сайын жаңасына ауысады.</string>

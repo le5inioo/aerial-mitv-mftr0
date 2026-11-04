@@ -97,10 +97,20 @@ object MitvPanel {
             // picture_backlight it does not honour (issues #284 and #335), and this path has not
             // been tried on it. A model whose panel transaction 42 turns out not to move goes into
             // devices.json the same way.
-            if (DeviceProfile.current(context).ignoresPictureBacklight) return@run false
-            if (!isAvailable(context)) return@run false
-            val before = readSettled(context) ?: return@run false
-            if (before !in 1..100) return@run false
+            if (DeviceProfile.current(context).ignoresPictureBacklight) {
+                Log.w(TAG, "probe skipped: picture_backlight ignored by profile")
+                return@run false
+            }
+            if (!isAvailable(context)) {
+                Log.d(TAG, "probe skipped: ${SETTING} absent")
+                return@run false
+            }
+            val before = readSettled(context)
+            if (before == null || before !in 1..100) {
+                Log.w(TAG, "probe: no panel reading (${before ?: "null"})")
+                return@run false
+            }
+            Log.i(TAG, "probe: panel reads $before")
             // Step up from the low end and down from the high end: the panel must never be asked
             // to go to 0, where Xiaomi turns the backlight off (issue #174).
             val step = if (before >= 50) -PROBE_STEP else PROBE_STEP

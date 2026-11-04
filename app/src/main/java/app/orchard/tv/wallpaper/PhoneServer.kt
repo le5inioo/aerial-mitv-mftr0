@@ -98,11 +98,13 @@ class PhoneServer private constructor(private val context: Context, private val 
                     json(state())
                 }
                 session.method == Method.POST && path == "/api/perapp" -> {
-                    // One of Home's first tiles takes a picture or film, or follows the wallpaper again.
+                    // One of Home's first tiles takes a picture, or follows the wallpaper again.
+                    // Films are not a tile's business: the wallpaper's own videos play behind Home.
                     val f = form(session)
                     val slot = f["slot"]?.toIntOrNull() ?: 0
                     val id = f["id"].orEmpty()
-                    val ok = slot in 1..Wallpapers.PER_APP_SLOTS && (id.isEmpty() || Wallpapers.items.any { it.id == id })
+                    val ok = slot in 1..Wallpapers.PER_APP_SLOTS &&
+                        (id.isEmpty() || Wallpapers.items.any { it.id == id && !Wallpapers.isVideo(it.id) })
                     if (ok) onMain { Wallpapers.setPerApp(slot, id.ifEmpty { null }) }
                     json(state().put("saved", ok))
                 }

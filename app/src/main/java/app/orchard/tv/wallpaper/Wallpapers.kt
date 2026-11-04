@@ -321,7 +321,9 @@ object Wallpapers {
         val next = perApp.toMutableMap()
         var changed = false
         for ((slot, id) in perApp) {
-            if (resolve(id) != null) continue
+            // A slot that names a film (an earlier build let them in) falls back too: tiles take
+            // pictures only now.
+            if (resolve(id) != null && !isVideo(id)) continue
             next[slot] = featured.getOrNull((slot - 1).mod(featured.size)) ?: DEFAULT_FALLBACK
             changed = true
             perAppJobs.remove(slot)?.cancel()
@@ -355,6 +357,8 @@ object Wallpapers {
      */
     fun setPerApp(slot: Int, id: String?) {
         if (slot !in 1..PER_APP_SLOTS) return
+        // A tile's picture is a still: videos are the wallpaper's own business, not a slot's.
+        if (id != null && isVideo(id)) return
         val next = perApp.toMutableMap()
         if (id == null) next.remove(slot) else next[slot] = id
         perApp = next

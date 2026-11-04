@@ -612,7 +612,7 @@ const TEXTS = {
   "保存失败：时段的结束要晚于开始，分钟数在 0–1440 之间；开启时至少选一个 App。",
   "给谁用",
   "每个 App 一张",
-  "给第一排的每个磁贴各选一张图片或视频，按位置记忆；磁贴挪到第二排后保持离开时的壁纸。",
+  "给第一排的每个磁贴各选一张图片，按位置记忆；磁贴挪到第二排后保持离开时的壁纸。",
   "跟随壁纸",
   "屏保循环",
   "启用「每个 App 一张」",
@@ -814,7 +814,7 @@ const TEXTS = {
   "Not saved: the hours must end after they start, minutes must be 0–1440, and the mode needs at least one app to be on.",
   "For",
   "A picture for each app",
-  "Give each tile of Home's first row its own picture or video, kept by its place in the row.",
+  "Give each tile of Home's first row its own picture, kept by its place in the row.",
   "Follow the wallpaper",
   "Screensaver loop",
   "Turn on \"A picture for each app\"",
@@ -1790,7 +1790,7 @@ function perAppSheet(slot, label, current) {
       try { take(await api('api/perapp', { slot: slot, id: '' })); toast(t('toast_tv_updated')); } catch (e) { toast(t('toast_set_fail')); }
     });
     body.appendChild(l);
-    const opts = state.wallpapers.filter(w => w.id !== 'perapp' && ['daily', 'photo', 'builtin', 'video'].includes(w.kind));
+    const opts = state.wallpapers.filter(w => w.id !== 'perapp' && ['daily', 'photo', 'builtin'].includes(w.kind));
     const g = el('div', 'grid');
     for (const w of opts) {
       const b = el('button', 'wp');

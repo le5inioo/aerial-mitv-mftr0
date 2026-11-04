@@ -647,14 +647,9 @@ fun HomeScreen(
         }
         val perAppPicture = Wallpapers.perAppBackdrop(shownSlot)
         val perAppGlass = Wallpapers.perAppFrosted(shownSlot)
-        // A tile whose picture is one of the owner's videos: it plays behind Home while the tile
-        // is in focus, as the video wallpaper does (VideoWallpaper).
-        val slotVideoId = if (Wallpapers.selectedId == Wallpapers.PER_APP) {
-            Wallpapers.perAppChoice(shownSlot)?.takeIf { Wallpapers.isVideo(it) }
-        } else null
         // Personalize and Control Center leave the video playing under them, rather than stopping
         // it on a frame (the owner asked for it: the background went black under the sheet).
-        val filmHolds = (Wallpapers.isVideo() || slotVideoId != null) &&
+        val filmHolds = Wallpapers.isVideo() &&
             (overlay is Overlay.Wallpaper || overlay is Overlay.ControlCenter)
 
         val dragState = rememberDraggableState { delta ->
@@ -691,15 +686,13 @@ fun HomeScreen(
                 live = liveFilm,
             )
             // Anew for each choice, so another of the owner's videos does not keep the last one's player.
-            // In "Each App" the focused tile's own video plays instead, if it has one.
-            Wallpapers.isVideo() || slotVideoId != null -> key(Wallpapers.selectedId to slotVideoId) {
+            Wallpapers.isVideo() -> key(Wallpapers.selectedId) {
                 VideoWallpaper(
                     moving = filmMoves,
                     keep = vm.filmFront && !vm.screensaverVisible,
                     hold = filmHolds,
                     lastInputAt = vm.lastInputAt,
                     cover = filmCover,
-                    filmsId = slotVideoId ?: Wallpapers.selectedId,
                 )
             }
             sourceInput != null -> SourceWallpaper(sourceInput, show = vm.resumed && !vm.screensaverVisible, cover = filmCover)
@@ -748,8 +741,8 @@ fun HomeScreen(
             }
             // Another wallpaper chosen, or the focus left a tile whose video was playing: the film
             // plane is gone with it, so the picture shows at once rather than a black window until
-            // a new film's first frame (the slot's video comes and goes without a new wallpaper).
-            LaunchedEffect(Wallpapers.selectedId, slotVideoId) { filmCover.snapTo(0f) }
+            // a new film's first frame.
+            LaunchedEffect(Wallpapers.selectedId) { filmCover.snapTo(0f) }
             // The aerial film's own glass for the grid: the one playing or stopped, else the one
             // the picture was taken from.
             val pictureClip = remember(Wallpapers.backdrop) { Wallpapers.livePictureSpot()?.first }

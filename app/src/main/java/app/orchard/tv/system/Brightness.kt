@@ -37,6 +37,23 @@ import androidx.core.content.ContextCompat
 object Brightness {
     private const val XIAOMI_BACKLIGHT = "picture_backlight"
 
+    /**
+     * The level the middleware's MiBackLightManager follows (writes to it fire its onchange), the
+     * same key the firmware's own picture branch writes (mitvmiddlewareimpl SystemControlManager).
+     */
+    private const val XIAOMI_BACKLIGHT_MIRROR = "xiaomi_picture_backlight"
+
+    /**
+     * The light sensor's auto backlight: while it is on, the panel is the sensor's to manage and
+     * manual levels are ignored (MiTV-MFTR0: the slider moved, the settings moved, the picture
+     * stayed as it was). A manual step is manual intent, so it turns the sensor off first, as the
+     * TV's own slider does.
+     */
+    private const val XIAOMI_AUTO_KEY = "tv_picture_light_sensor"
+
+    private fun xiaomiAutoOn(context: Context): Boolean =
+        Settings.Global.getInt(context.contentResolver, XIAOMI_AUTO_KEY, 0) == 1
+
     // MiTV-MFTP0 keeps picture_backlight without following it: DeviceProfile.ignoresPictureBacklight.
 
     private fun usesXiaomiBacklight(context: Context) =
@@ -172,7 +189,12 @@ object Brightness {
             if (isTcl(context)) {
                 TclPicture.setBacklight(context, next)
             } else if (usesXiaomiBacklight(context)) {
+                // The auto light sensor holds the panel while it is on: turn it off, then write
+                // both keys — the firmware reads picture_backlight and its MiBackLightManager
+                // follows xiaomi_picture_backlight's change (MiTV-MFTR0, watched over logcat).
+                Settings.Global.putInt(r, XIAOMI_AUTO_KEY, 0)
                 Settings.Global.putInt(r, XIAOMI_BACKLIGHT, next)
+                Settings.Global.putInt(r, XIAOMI_BACKLIGHT_MIRROR, next)
             } else {
                 // Reached only after the original native and picture-settings paths were ruled out.
                 val skyworth = SkyworthPicture.backlight(context)

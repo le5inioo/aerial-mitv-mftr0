@@ -80,12 +80,11 @@
     <string name="wx_thunder">Гроза</string>
     <string name="wp_daily_latest">Завжди сьогоднішнє</string>
     <string name="wp_per_app_hint">Своя картинка для кожної плитки першого ряду: тло змінюється разом із фокусом; плитка, що перейшла в другий ряд, зберігає останню картинку першого ряду. Запам’ятовується за номером плитки, тому лишається при зміні програми.</string>
-    <string name="wp_per_app_off_hint">Своє фото чи відео для кожної плитки першого ряду. Вибір одразу вмикає шпалери «Кожній програмі — своє».</string>
     <string name="wp_per_app_row">№%1$d · %2$s</string>
     <string name="wp_per_app_inherit">За замовчуванням</string>
     <string name="wp_per_app_change">Вибрати</string>
     <string name="wp_per_app_title">Шпалери для плитки %1$d</string>
-    <string name="wp_per_app_pick_hint">Назад закриває. Фото та відео, надіслані з телефона, теж з\'являються тут.</string>
+    <string name="wp_per_app_pick_hint">Назад закриває. Фото, надіслані з телефона, теж з\'являються тут.</string>
     <string name="wp_live">Аерозйомка · грає на верхньому ряду головного екрана (у дворядному вигляді — на обох рядах)</string>
     <string name="wp_photos_rotate">Одне на день</string>
     <string name="wp_daily_note">Фото дня від Bing, щодня нове.</string>
