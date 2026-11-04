@@ -1,10 +1,13 @@
 package app.orchard.tv.ui.wallpaper
 
 import android.os.Build
+import android.view.KeyEvent as NativeKeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -58,7 +61,10 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -222,6 +228,11 @@ fun WallpaperSheet(
                 }
                 // The owner's videos, like the aerial films, play all the time: there is no "when
                 // still" any more (the owner, 2026-11-04), so there is nothing to choose here.
+                // A video as the wallpaper (an aerial film or the owner's own): how fast it plays.
+                if (Wallpapers.selectedId == Wallpapers.LIVE || Wallpapers.isVideo()) {
+                    val speedHint = stringResource(R.string.wp_speed_hint)
+                    Group(speedHint) { note -> SpeedRow(note, speedHint, first = true) }
+                }
 
                 Spacer(Modifier.height(6.dp))
                 SectionTitle(R.string.st_home_layout)
@@ -341,6 +352,10 @@ fun WallpaperSheet(
                     }
                     // Only the qualities this TV can play; a 1080p-only TV has nothing to choose.
                     val qualities = remember { AerialFormats.supported(context) }
+                    // The screensaver is a video too (Apple's aerials or the owner's own): the same speed.
+                    if (Wallpapers.screensaver == ScreensaverMode.Aerial || Wallpapers.screensaver == ScreensaverMode.Videos) {
+                        SpeedRow(note, stringResource(R.string.wp_speed_hint))
+                    }
                     if (qualities.size > 1) {
                         // The films kept on the TV (AerialSet, AerialStream): how many, how much
                         // space at most, and how they change. In place of the quality's own note,
@@ -734,6 +749,73 @@ private fun <T> Choices(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             options.forEach { (value, text) ->
                 Chip(if (text is Int) stringResource(text) else text.toString(), on = current == value) { choose(value) }
+            }
+        }
+    }
+}
+
+/**
+ * How fast videos play (AerialSettings.videoSpeed): one setting for every video surface — the
+ * aerial film and the owner's videos as the wallpaper, either as the screensaver — so the slider
+ * is shown wherever one of them is in use. Focus the row, then Left and Right step it a tenth of
+ * a speed between 0.5× and 1.5×; the change reaches the playing film at once (VideoSpeed).
+ */
+@Composable
+private fun SpeedRow(note: (String?) -> Unit, hint: String, first: Boolean = false) {
+    if (!first) Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(1.dp).background(Palette.Hairline))
+    Pressable(
+        onClick = {},
+        focusedScale = 1f,
+        modifier = Modifier.fillMaxWidth().height(58.dp),
+        onKey = { e ->
+            val code = e.nativeKeyEvent.keyCode
+            if (code != NativeKeyEvent.KEYCODE_DPAD_LEFT && code != NativeKeyEvent.KEYCODE_DPAD_RIGHT) return@Pressable false
+            if (e.type == KeyEventType.KeyDown) {
+                val next = AerialSettings.videoSpeed +
+                    (if (code == NativeKeyEvent.KEYCODE_DPAD_RIGHT) 1 else -1) * AerialSettings.VIDEO_SPEED_STEP
+                val kept = next < AerialSettings.MIN_VIDEO_SPEED - 0.001f || next > AerialSettings.MAX_VIDEO_SPEED + 0.001f
+                if (kept) Sounds.limit() else Sounds.step()
+                AerialSettings.chooseVideoSpeed(next)
+            }
+            true
+        },
+    ) { state ->
+        // Read here, not passed in: a step from the keys has the row and the film behind Home
+        // move at once, without a round trip through the sheet's state.
+        val atSpeed = AerialSettings.videoSpeed
+        val focused = state.focused
+        val fg = if (focused) Palette.OnFocus else Palette.Label
+        val track by animateColorAsState(if (focused) Palette.Focus else Palette.Fill, tween(140, easing = Motion.EaseOut), label = "speed-bg")
+        val fill by animateColorAsState(if (focused) Color.White else fg, tween(140, easing = Motion.EaseOut), label = "speed-fill")
+        val fraction by animateFloatAsState(
+            ((atSpeed - AerialSettings.MIN_VIDEO_SPEED) / (AerialSettings.MAX_VIDEO_SPEED - AerialSettings.MIN_VIDEO_SPEED)).coerceIn(0f, 1f),
+            spring(dampingRatio = 1f, stiffness = 700f),
+            label = "speed",
+        )
+        Row(
+            Modifier
+                .fillMaxSize()
+                .padding(start = 18.dp, end = 16.dp)
+                .onFocusChanged { if (it.hasFocus) note(hint) },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            BasicText(stringResource(R.string.wp_speed), style = Type.Body, modifier = Modifier.weight(1f), maxLines = 1)
+            Row(
+                Modifier.smoothBackground(track, 14.dp).height(40.dp).padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Canvas(Modifier.size(width = 180.dp, height = 6.dp)) {
+                    val r = CornerRadius(size.height / 2)
+                    drawRoundRect(fill.copy(alpha = 0.25f), cornerRadius = r)
+                    drawRoundRect(fill, size = Size(size.width * fraction, size.height), cornerRadius = r)
+                }
+                BasicText(
+                    String.format(java.util.Locale.US, "%.1f×", atSpeed),
+                    style = Type.Body.copy(color = fg),
+                    modifier = Modifier.width(46.dp),
+                )
             }
         }
     }

@@ -439,6 +439,7 @@ private fun AerialSaver(
     val firstAtMs = remember { startAt?.takeIf { (id, _) -> films.first().id == id }?.second ?: 0L }
     // Its decoder starts on the film's own surface, not ExoPlayer's placeholder (AerialStream.player).
     val player = remember { AerialStream.player(context, quality, decodeOnScreen = true) }
+    VideoSpeed(player)
     var index by remember { mutableIntStateOf(0) }
     var failures by remember { mutableIntStateOf(0) }
     var playing by remember { mutableStateOf(false) }

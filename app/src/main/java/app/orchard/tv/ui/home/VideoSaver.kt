@@ -67,6 +67,7 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, o
             videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT
         }
     }
+    VideoSpeed(player)
     var attempt by remember { mutableIntStateOf(0) }
     var playing by remember { mutableStateOf(false) }
     var aspect by remember { mutableFloatStateOf(16f / 9f) }

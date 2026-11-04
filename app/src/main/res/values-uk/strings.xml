@@ -251,6 +251,8 @@
     <string name="ss_saver_video">Відео заставки</string>
     <string name="ss_saver_video_hint">Програвати одне відео по колу замість усіх по черзі.</string>
     <string name="ss_saver_video_all">Усі по черзі</string>
+    <string name="wp_speed">Швидкість відео</string>
+    <string name="wp_speed_hint">Швидкість відтворення відео як шпалер або заставки. «Ліворуч» і «праворуч» змінюють її на 0,1\u00d7.</string>
     <string name="ss_system">Системна</string>
     <string name="ss_system_hint">Заставка самого телевізора, як задумав виробник (наприклад, картини Xiaomi). Aerial свою не показує.</string>
     <string name="wp_videos_note">Ваші відео, надіслані з телефона: без звуку, одне за одним. Рухаються як аерозйомка і зупиняються на поточному кадрі.</string>

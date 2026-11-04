@@ -174,6 +174,7 @@ fun LiveWallpaper(
 ) {
     val context = LocalContext.current
     var player by remember { mutableStateOf<ExoPlayer?>(null) }
+    VideoSpeed(player)
     var surface by remember { mutableStateOf<SurfaceView?>(null) }
     // Frames are reaching the screen: the first one has been drawn and the film is not stopped.
     var showing by remember { mutableStateOf(false) }
@@ -204,7 +205,16 @@ fun LiveWallpaper(
         reader.close()
         // Let go somewhere past its picture with no frame taken (into an app, or the screensaver's
         // own films): the film goes on from there next time, and the picture catches up then.
-        player?.takeIf { live.moved }?.let { p -> p.currentMediaItem?.mediaId?.let { Wallpapers.leaveLiveFilm(it, p.currentPosition) } }
+        // Where it is let go still showing (the wallpaper changed away from the film), its last
+        // frame becomes the picture instead: the still that follows fades in from where the film
+        // was, not from one taken earlier (2026-11-04, the owner asked for the fade).
+        val film = player?.currentMediaItem?.mediaId
+        val frame = if (showing && cover.value > 0f) copyFrameNow(surface) else null
+        if (frame != null && live.moved && film != null && unreadable(frame) == null) {
+            Wallpapers.leaveBehind(frame, film, player?.currentPosition ?: 0L, video = false)
+        } else {
+            player?.takeIf { live.moved }?.let { p -> p.currentMediaItem?.mediaId?.let { Wallpapers.leaveLiveFilm(it, p.currentPosition) } }
+        }
         live.moved = false
         player?.release()
         player = null
@@ -715,7 +725,28 @@ private suspend fun glassReady(live: LiveFilm) {
 }
 
 /** Where PixelCopy calls back, off the main thread as the copy itself is. */
-private val copyCallbacks: Handler by lazy { Handler(android.os.HandlerThread("film-copy").apply { start() }.looper) }
+internal val copyCallbacks: Handler by lazy { Handler(android.os.HandlerThread("film-copy").apply { start() }.looper) }
+
+/** How long [copyFrameNow] waits for its copy: a wallpaper switch holds the main thread this long at most. */
+private const val LEAVE_COPY_MS = 250L
+
+/**
+ * The frame a film shows now, copied off its video plane and waited for a little. For a wallpaper
+ * switched away from, where the composable goes at once and no coroutine is left to wait for the
+ * copy. Null where this TV cannot read the plane (copyGlassPossible), the view is already gone, or
+ * the copy does not come back in [LEAVE_COPY_MS].
+ */
+internal fun copyFrameNow(view: SurfaceView?): Bitmap? {
+    if (view == null || !copyGlassPossible || Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return null
+    if (view.width <= 0 || view.height <= 0 || !view.holder.surface.isValid) return null
+    val bitmap = createBitmap(view.width, view.height)
+    val got = arrayOf(false)
+    val latch = java.util.concurrent.CountDownLatch(1)
+    val asked = runCatching {
+        PixelCopy.request(view.holder.surface, bitmap, { r -> got[0] = r == PixelCopy.SUCCESS; latch.countDown() }, copyCallbacks)
+    }.isSuccess
+    return bitmap.takeIf { asked && latch.await(LEAVE_COPY_MS, java.util.concurrent.TimeUnit.MILLISECONDS) && got[0] }
+}
 
 /** Whether a copy of the film has taken longer than [COPY_SLOW_MS] here: PixelCopy is then not used again. */
 private var copySlow = false
@@ -1380,8 +1411,7 @@ private class RangedHttpSource(private val url: String) : android.media.MediaDat
  * except that red comes back in the brightest parts (Y above 180), which a test for red under 12
  * missed on bright films. Leaves and grass stay well short of 60 between green and the others.
  */
-private fun unreadable(b: Bitmap): String? {
-    var lit = 0
+internal fun unreadable(b: Bitmap): String? {    var lit = 0
     var green = 0
     var lo = 255
     var hi = 0

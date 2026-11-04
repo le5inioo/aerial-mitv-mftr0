@@ -127,6 +127,13 @@ object AerialSettings {
      */
     var wallpaperAlwaysMoves by mutableStateOf(false); private set
 
+    /**
+     * How fast videos play as the wallpaper or the screensaver (2026-11-04, the owner's request):
+     * 0.5 to 1.5 of their own pace, in tenths. One player reads it per surface — the wallpaper's
+     * film, the owner's videos, either screensaver — so one slider moves them all.
+     */
+    var videoSpeed by mutableStateOf(DEFAULT_VIDEO_SPEED); private set
+
     /** The weather beside the clock; off for those who want the time alone (issue #472). */
     var showWeather by mutableStateOf(true); private set
 
@@ -187,6 +194,12 @@ object AerialSettings {
     val HOME_COLUMNS = 4..6
     private const val DEFAULT_HOME_COLUMNS = 5
 
+    /** The slowest and the fastest videos play, and one step of the slider between them. */
+    const val MIN_VIDEO_SPEED = 0.5f
+    const val MAX_VIDEO_SPEED = 1.5f
+    const val VIDEO_SPEED_STEP = 0.1f
+    private const val DEFAULT_VIDEO_SPEED = 1f
+
     fun init(context: Context) {
         if (started) return
         started = true
@@ -207,6 +220,9 @@ object AerialSettings {
         homePlate = prefs.getBoolean("home_plate", true)
         chosenAllNames = prefs.getBoolean("show_all_names", false)
         wallpaperAlwaysMoves = prefs.getBoolean("wallpaper_always_moves", false)
+        // A float kept by an older build of the phone page, or a hand-edited one, is brought in range.
+        videoSpeed = prefs.getFloat("video_speed", DEFAULT_VIDEO_SPEED)
+            .takeUnless { it.isNaN() }?.coerceIn(MIN_VIDEO_SPEED, MAX_VIDEO_SPEED) ?: DEFAULT_VIDEO_SPEED
         showWeather = prefs.getBoolean("show_weather", true)
         screensaverClock = prefs.getBoolean("screensaver_clock", true)
         // Before 1.28 this was on or off; on meant whichever sounds Aerial played.
@@ -308,6 +324,14 @@ object AerialSettings {
     fun chooseWallpaperAlwaysMoves(on: Boolean) {
         wallpaperAlwaysMoves = on
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("wallpaper_always_moves", on) }
+    }
+
+    /** Sets the video speed to [speed], rounded to a tenth and kept within [MIN_VIDEO_SPEED]..[MAX_VIDEO_SPEED]. */
+    fun chooseVideoSpeed(speed: Float) {
+        val next = (Math.round(speed * 10f) / 10f).coerceIn(MIN_VIDEO_SPEED, MAX_VIDEO_SPEED)
+        if (next == videoSpeed) return
+        videoSpeed = next
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putFloat("video_speed", next) }
     }
 
     fun chooseShowWeather(on: Boolean) {

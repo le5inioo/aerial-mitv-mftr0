@@ -953,6 +953,37 @@ object Wallpapers {
     }
 
     /**
+     * The last frame of a film or a video the wallpaper has just been switched away from, as the
+     * picture where it was (2026-11-04, the owner asked for the switch to fade): the still the new
+     * wallpaper fades in from is where the film was, not a poster taken earlier. Unlike
+     * [useLiveFrame] it does not mind that the selection has moved on — that is the point — and
+     * its glass is left as it was: the new wallpaper's bake makes a fresh one. Its file and the
+     * spot are written apart, so choosing this kind again goes on from the frame.
+     */
+    fun leaveBehind(frame: Bitmap, film: String, atMs: Long, video: Boolean) {
+        // Not cancelled and restarted rather than trusted: the new wallpaper's bake, started when
+        // it was chosen, may already have put its picture up before this frame was copied — then
+        // the frame must go over it and the bake again, or the switch would end on the old film.
+        backdropJob?.cancel()
+        bakedKey = null
+        backdrop = frame.asImageBitmap()
+        leftHere = null
+        val target = if (video) videoFrame else liveFrame
+        val key = if (video) "video" else "live"
+        prefs.edit {
+            putString("${key}_film", film).putLong("${key}_at", atMs)
+            remove("${key}_left_film").remove("${key}_left_at")
+        }
+        scope.launch(Dispatchers.IO) {
+            val part = File(target.path + ".part")
+            runCatching { part.outputStream().use { frame.compress(Bitmap.CompressFormat.JPEG, 90, it) } }
+                .onFailure { Log.w(TAG, "could not keep the frame the film left on", it) }
+            if (part.exists() && !part.renameTo(target)) part.delete()
+        }
+        rebuildBackdrop()
+    }
+
+    /**
      * Where the aerial film goes on from: where it was let go without a frame taken ([leftLiveSpot]),
      * else the moment the wallpaper's picture was taken from, so the film starts again on the
      * picture on screen rather than cutting to another place. Null until one has stopped on a frame.

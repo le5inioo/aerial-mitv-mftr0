@@ -57,6 +57,7 @@ fun VideoWallpaper(
 ) {
     val context = LocalContext.current
     var player by remember { mutableStateOf<ExoPlayer?>(null) }
+    VideoSpeed(player)
     var surface by remember { mutableStateOf<SurfaceView?>(null) }
     var showing by remember { mutableStateOf(false) }
     val play = moving || hold
@@ -200,6 +201,14 @@ fun VideoWallpaper(
     DisposableEffect(Unit) {
         onDispose {
             DiagLog.i("video wallpaper view gone (${filmsId.takeLast(8)})")
+            // Gone while it showed — the wallpaper changed away from the video, or Aerial stopped
+            // over it: its last frame becomes the picture, so what follows fades in from where
+            // the video was rather than cutting to the poster of an earlier moment (2026-11-04).
+            // A copy that cannot be read here leaves the picture as it was.
+            val frame = if (showing && cover.value > 0f) copyFrameNow(surface) else null
+            if (frame != null && unreadable(frame) == null) {
+                player?.currentMediaItem?.mediaId?.let { Wallpapers.leaveBehind(frame, it, player?.currentPosition ?: 0L, video = true) }
+            }
             release()
         }
     }

@@ -314,7 +314,10 @@ private fun Pictures(
     }
     Dissolve(
         targetState = backdrop,
-        durationMs = 450,
+        // 450 ms read as a cut from the sofa (2026-11-04, the owner asked for a visible fade on
+        // every wallpaper change). Two full-screen draws for the fade's length, but a wallpaper
+        // changes by hand, not a few times a minute.
+        durationMs = 650,
         easing = Motion.EaseOut,
         modifier = Modifier.fillMaxSize(),
         label = "ambient",
