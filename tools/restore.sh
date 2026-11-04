@@ -3,7 +3,8 @@
 #
 #   TV=<tv-ip> tools/restore.sh              # stop taking over Home, keep Aerial installed
 #   TV=<tv-ip> tools/restore.sh --uninstall  # and remove Aerial (and Aerial Lite)
-# If you disabled the stock launcher by hand, also: adb shell pm enable <its package>
+# A stock launcher that was disabled on purpose (install-ts.sh's DISABLE_STOCK_HOME=1, or by hand)
+# is switched back on here: Home cannot be handed to a disabled package.
 set -euo pipefail
 : "${TV:?set TV to the TV IP address}"
 PKG=app.orchard.tv
@@ -76,8 +77,16 @@ adb shell cmd role remove-role-holder --user 0 android.app.role.HOME "$PKG" >/de
 # Home goes back to PatchWall; the fix takes a reboot.
 if adb shell pm path com.mitv.tvhome 2>/dev/null | grep -q package: &&
    adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME -c android.intent.category.DEFAULT 2>/dev/null | tail -n 1 | grep -q "^$PKG/"; then
-  adb shell cmd package set-home-activity --user 0 com.mitv.tvhome/.MainActivityUserMode >/dev/null 2>&1 &&
-    echo "Xiaomi: Home is PatchWall again; restart the TV once."
+  # Enabled first: with PatchWall disabled (install-ts.sh's DISABLE_STOCK_HOME=1), set-home-activity
+  # reports failure and Home keeps resolving to Aerial, so `--uninstall` left the TV with no Home at
+  # all once Aerial went — the black screen issue #901's reporter and #562 both warn about. A no-op
+  # on a TV that never disabled it.
+  adb shell pm enable --user 0 com.mitv.tvhome >/dev/null 2>&1 || true
+  if adb shell cmd package set-home-activity --user 0 com.mitv.tvhome/.MainActivityUserMode >/dev/null 2>&1; then
+    echo "Xiaomi: PatchWall is back on and Home returns to it; restart the TV once."
+  else
+    echo "Xiaomi: PatchWall is back on; press Home on the remote and pick the TV's launcher."
+  fi
 fi
 
 # Aerial Lite (Android 4.x) takes over only as the home app the owner chose; nothing else to undo.

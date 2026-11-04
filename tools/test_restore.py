@@ -86,5 +86,68 @@ esac
         self.assertNotIn('shell settings delete secure enabled_notification_listeners', calls)
 
 
+class XiaomiStockHomeTest(unittest.TestCase):
+    """#901: a disabled PatchWall takes no Home back, so restore must switch it on first.
+
+    Until this was fixed, set-home-activity failed silently on a TV installed with
+    DISABLE_STOCK_HOME=1 and `--uninstall` then left it with no Home at all (black screen).
+    """
+
+    def run_restore(self, set_home_ok=True):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            log = root / 'calls'
+            adb = root / 'adb'
+            adb.write_text('''#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$CALL_LOG"
+case "$*" in
+  connect*) echo connected ;;
+  'shell cmd notification disallow_listener '*) exit 127 ;;
+  'shell settings get secure enabled_notification_listeners') echo null ;;
+  'shell settings get secure screensaver_components') echo org.example/.Screensaver ;;
+  'shell settings get secure screensaver_default_component') echo org.example/.Screensaver ;;
+  'shell settings get secure enabled_accessibility_services') echo null ;;
+  'shell settings get global aerial_vt_home_pkg') echo null ;;
+  'shell settings get global aerial_boot_app_componentname') echo null ;;
+  'shell settings get system boot_app_componentname') echo null ;;
+  'shell getprop persist.vt.use_home_pkg') ;;
+  'shell pm path com.mitv.tvhome') echo package:/data/app/com.mitv.tvhome/base.apk ;;
+  'shell pm path app.orchard.tv.lite') exit 1 ;;
+  'shell cmd package resolve-activity '*) echo app.orchard.tv/.MainActivity ;;
+  'shell cmd package set-home-activity '*) exit "$SET_HOME_STATUS" ;;
+  'shell pm enable --user 0 com.mitv.tvhome') ;;
+  'shell cmd role remove-role-holder '*) exit 0 ;;
+  'shell am broadcast '*|'shell pm revoke '*|'shell appops set '*|'shell am force-stop '*|\
+  'shell settings delete '*|'shell settings put '*|'shell input keyevent KEYCODE_HOME') ;;
+  *) echo "unexpected adb: $*" >&2; exit 99 ;;
+esac
+''')
+            adb.chmod(0o755)
+            env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ['PATH'],
+                       TV='example.invalid', CALL_LOG=str(log), SET_HOME_STATUS=str(0 if set_home_ok else 1))
+            for name in ('SHELLOPTS', 'BASHOPTS', 'BASH_ENV', 'POSIXLY_CORRECT'):
+                env.pop(name, None)
+            result = subprocess.run(['bash', str(SCRIPT)], env=env,
+                                    capture_output=True, text=True, timeout=5)
+            return result, log.read_text().splitlines()
+
+    def test_patchwall_is_enabled_before_home_goes_back_to_it(self):
+        result, calls = self.run_restore()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn('unexpected adb:', result.stderr)
+        enable = 'shell pm enable --user 0 com.mitv.tvhome'
+        set_home = 'shell cmd package set-home-activity --user 0 com.mitv.tvhome/.MainActivityUserMode'
+        self.assertIn(enable, calls)
+        self.assertIn(set_home, calls)
+        self.assertLess(calls.index(enable), calls.index(set_home))
+        self.assertIn('PatchWall is back on and Home returns to it', result.stdout)
+
+    def test_no_cmd_set_home_leaves_the_remote_a_way_back(self):
+        result, calls = self.run_restore(set_home_ok=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('shell pm enable --user 0 com.mitv.tvhome', calls)
+        self.assertIn('press Home on the remote and pick the TV', result.stdout)
+
+
 if __name__ == '__main__':
     unittest.main()
