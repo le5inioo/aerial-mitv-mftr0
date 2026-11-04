@@ -2,6 +2,7 @@ package app.orchard.tv.wallpaper
 
 import android.content.Context
 import android.os.Build
+import android.os.SystemClock
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
@@ -30,6 +31,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import kotlin.random.Random
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -37,7 +39,7 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-enum class WallpaperKind { Daily, Builtin, Photo, Auto, Live, Video, Source }
+enum class WallpaperKind { Daily, Builtin, Photo, Auto, Live, Video, Source, Webhost }
 
 data class Wallpaper(
     val id: String,
@@ -95,6 +97,13 @@ object Wallpapers {
      */
     const val PER_APP = "perapp"
     /**
+     * The owner's own image host on the home network: a picture is fetched from it each time Home
+     * comes back (the owner, 2026-11-04), so the wallpaper turns as often as the server deals one
+     * out. The address is the owner's server; kept in a preference so it can move.
+     */
+    const val WEBHOST = "webhost"
+    const val WEBHOST_URL = "http://192.168.2.7:5678/"
+    /**
      * How many of Home's first tiles can have a picture each: 1 to 6, by place. Past these, a tile
      * follows the app's own light as in "Follow App".
      */
@@ -116,6 +125,7 @@ object Wallpapers {
     private val prefs by lazy { app.getSharedPreferences("wallpaper", Context.MODE_PRIVATE) }
     private val dailyDir by lazy { File(app.filesDir, "daily").apply { mkdirs() } }
     private val photoDir by lazy { File(app.filesDir, "photos").apply { mkdirs() } }
+    private val webhostFile by lazy { File(app.filesDir, "webhost.jpg") }
     private val liveFrame by lazy { File(app.filesDir, "live-frame.jpg") }
     private val videoFrame by lazy { File(app.filesDir, "video-frame.jpg") }
 
@@ -285,6 +295,7 @@ object Wallpapers {
         loadPerAppBaked()
         rebuildBackdrop()
         scope.launch { refreshDaily() }
+        scope.launch { refreshWebHost() }
         scope.launch(Dispatchers.IO) { clearStaleUploads() }
         // Installs from before 1.42 have a baked picture but no copy yet.
         scope.launch(Dispatchers.IO) { keepForLockedBoot() }
@@ -308,23 +319,27 @@ object Wallpapers {
         selectedId = id
         prefs.edit { putString("selected", id) }
         rebuildBackdrop()
+        // The image host's picture is fetched as Home comes back to it, but a first choice should
+        // show one at once rather than wait for the next refresh of the screen.
+        if (id == WEBHOST) refreshWebHost(force = true)
     }
 
     // ---- a picture for each tile ----
 
     /**
-     * A tile whose picture is gone (a photo or film deleted from the phone page) takes a built-in
-     * one, by its place among [FEATURED_BUILTINS]: the six choices of Personalize are always there.
+     * A tile whose picture is gone (a photo deleted from the phone page) goes back to the "默认"
+     * choice of its picker — it follows the wallpaper again (the owner, 2026-11-04). Home gives a
+     * tile in that state a random built-in ([inheritPicture]), so nothing is assigned here that
+     * would stick in the tile's settings.
      */
     private fun sanitizePerApp() {
-        val featured = FEATURED_BUILTINS.toList()
         val next = perApp.toMutableMap()
         var changed = false
         for ((slot, id) in perApp) {
             // A slot that names a film (an earlier build let them in) falls back too: tiles take
             // pictures only now.
             if (resolve(id) != null && !isVideo(id)) continue
-            next[slot] = featured.getOrNull((slot - 1).mod(featured.size)) ?: DEFAULT_FALLBACK
+            next.remove(slot)
             changed = true
             perAppJobs.remove(slot)?.cancel()
             perAppPictures = perAppPictures - slot
@@ -367,6 +382,7 @@ object Wallpapers {
         perAppPictures = perAppPictures - slot
         perAppGlass = perAppGlass - slot
         clearPerBaked(slot)
+        if (id == WEBHOST) refreshWebHost(force = true)
         if (selectedId == PER_APP) preparePerApp(listOf(slot))
     }
 
@@ -406,7 +422,9 @@ object Wallpapers {
     fun preparePerApp(slots: List<Int>) {
         if (!started || selectedId != PER_APP) return
         for (slot in slots) {
-            val id = perApp[slot] ?: continue
+            val choice = perApp[slot]
+            // "默认": no picture of its own — a random built-in for the day (inheritPicture).
+            val id = choice ?: inheritPicture(slot)
             if (perAppPictures.containsKey(slot) || perAppJobs[slot]?.isActive == true) continue
             DiagLog.i("tile $slot: baking $id")
             perAppJobs[slot] = scope.launch {
@@ -417,7 +435,7 @@ object Wallpapers {
                     Images.shadeForHome(picture) to Images.frost(picture)
                 } ?: return@launch.also { DiagLog.i("tile $slot: no picture of $id") }
                 // Chosen again while it was baking: that choice bakes its own picture.
-                if (perApp[slot] != id) return@launch
+                if (perApp[slot] != choice) return@launch
                 DiagLog.i("tile $slot: baked")
                 perAppPictures = perAppPictures + (slot to baked.first.asImageBitmap())
                 perAppGlass = perAppGlass + (slot to baked.second.asImageBitmap())
@@ -542,8 +560,71 @@ object Wallpapers {
 
     /** Moves "My Photos, rotating" on to today's photo; Aerial calls it whenever Home comes back. */
     fun rotateIfDue() {
-        if (!started || selectedId != ROTATE_PHOTOS || rotatedOn == today()) return
+        if (!started) return
+        refreshWebHost()
+        if (selectedId != ROTATE_PHOTOS || rotatedOn == today()) return
         rebuildBackdrop()
+    }
+
+    // ---- the owner's image host ----
+
+    /** When a picture was last fetched from the image host, so Home's bounces fetch once. */
+    private var webhostAt = 0L
+
+    private const val WEBHOST_MIN_MS = 10_000L
+
+    /**
+     * Fetches a picture from the owner's image host ([WEBHOST_URL]) and shows it, when the host is
+     * the wallpaper or one of the tiles'. Called each time Home comes back ([rotateIfDue]) — each
+     * refresh of the screen deals a new picture, as the server sends a different one per request.
+     * A fetch that fails keeps the last picture.
+     */
+    fun refreshWebHost(force: Boolean = false) {
+        if (!started) return
+        val wanted = selectedId == WEBHOST || perApp.containsValue(WEBHOST)
+        if (!wanted && !force) return
+        val now = SystemClock.elapsedRealtime()
+        if (!force && now - webhostAt < WEBHOST_MIN_MS) return
+        webhostAt = now
+        scope.launch(Dispatchers.IO) {
+            val url = prefs.getString("webhost_url", null) ?: WEBHOST_URL
+            val tmp = File(app.cacheDir, "webhost.part")
+            val ok = runCatching {
+                val c = URL(url).openConnection() as HttpURLConnection
+                c.connectTimeout = 5_000
+                c.readTimeout = 20_000
+                c.instanceFollowRedirects = true
+                try {
+                    check(c.responseCode in 200..299) { "HTTP ${c.responseCode}" }
+                    c.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeFile(tmp.path, bounds)
+                    check(bounds.outWidth > 0) { "not a picture" }
+                    check(tmp.renameTo(webhostFile)) { "could not move it in" }
+                } finally {
+                    c.disconnect()
+                    if (tmp.exists()) tmp.delete()
+                }
+            }.isSuccess
+            DiagLog.i("image host ${if (ok) "fetched" else "failed"} ($url)")
+            if (!ok) return@launch
+            synchronized(thumbs) { thumbs.remove(WEBHOST) }
+            withContext(Dispatchers.Main) {
+                rebuildBackdropIfNeeded(WEBHOST)
+                perApp.forEach { (slot, id) -> if (id == WEBHOST) {
+                    perAppJobs.remove(slot)?.cancel()
+                    perAppPictures = perAppPictures - slot
+                    perAppGlass = perAppGlass - slot
+                    clearPerBaked(slot)
+                } }
+                if (selectedId == PER_APP) preparePerApp(perApp.filterValues { it == WEBHOST }.keys.toList())
+            }
+        }
+    }
+
+    /** Bakes the wallpaper again when [id] is what Home shows under it now. */
+    private fun rebuildBackdropIfNeeded(id: String) {
+        if (selectedId == id || selectedId.startsWith(id)) rebuildBackdrop()
     }
 
     // ---- pictures ----
@@ -564,6 +645,7 @@ object Wallpapers {
             ?: Gradients.render(Gradients.presets.first(), w, h)
         WallpaperKind.Video -> videoPicture(wp.id, w, h) ?: Gradients.render(Gradients.presets.first(), w, h)
         WallpaperKind.Source -> Gradients.byKey(SOURCE_PICTURE)?.let { Gradients.render(it, w, h) }
+        WallpaperKind.Webhost -> webhostFile.takeIf { it.exists() }?.let { Images.decodeCover(it, w, h) }
     }
 
     /** The frame one of [id]'s films last stopped on, else the first film's poster or opening frame. */
@@ -680,6 +762,7 @@ object Wallpapers {
             WallpaperKind.Daily, WallpaperKind.Photo -> fileFor(wp)?.lastModified() ?: 0L
             WallpaperKind.Live -> liveFrame.lastModified()
             WallpaperKind.Video -> if (videoFrameIsOf(wp.id)) videoFrame.lastModified() else 0L
+            WallpaperKind.Webhost -> webhostFile.lastModified()
             else -> 0L
         }
         // "clear": a film's picture baked unshaded, not one kept from when it was shaded.
@@ -978,7 +1061,18 @@ object Wallpapers {
             listOf(Wallpaper(VIDEOS, WallpaperKind.Video, if (zh) "我的视频 · 轮播" else "My Videos, In Turn")) +
                 films.map { Wallpaper(VIDEO_PREFIX + it.id, WallpaperKind.Video, it.name.substringBeforeLast('.').ifBlank { it.name }) }
         val inputs = sources.map { (id, name) -> Wallpaper(SOURCE_PREFIX + id, WallpaperKind.Source, name) }
-        items = listOf(live) + videos + daily + builtins + photos + auto + perAppCard + inputs
+        val webhost = Wallpaper(WEBHOST, WallpaperKind.Webhost, if (zh) "个人图床" else "My Image Host")
+        items = listOf(live) + videos + daily + builtins + photos + auto + perAppCard + listOf(webhost) + inputs
+    }
+
+    /**
+     * The picture a tile without its own choice ("默认" in the tile's picker) shows: a random one
+     * of the built-ins, drawn anew each day per tile (the owner, 2026-11-04 — a deleted tile
+     * picture falls back to this rather than to a built-in picked by the tile's place).
+     */
+    fun inheritPicture(slot: Int): String {
+        val pool = FEATURED_BUILTINS.sorted()
+        return pool[Random(slot * 31 + today()).nextInt(pool.size)]
     }
 
     // ---- daily photos ----
@@ -1112,7 +1206,8 @@ object Wallpapers {
         if (id != null) {
             synchronized(thumbs) { thumbs.remove(ROTATE_PHOTOS) }
             rebuildList()
-            select(id)
+            // Not selected here: an upload joins the photos, and the wallpaper the owner chose
+            // stays (the owner, 2026-11-04 — an upload used to take the wallpaper's place).
         }
         id
     }

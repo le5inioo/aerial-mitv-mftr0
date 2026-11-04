@@ -92,6 +92,7 @@
     <string name="wp_photos_rotate_note">Каждый день другое из ваших фото.</string>
     <string name="wp_photo_note">Ваше фото. Отсканируйте код справа, чтобы прислать ещё с телефона.</string>
     <string name="wp_auto_note">Свет берётся из обложки выбранного приложения.</string>
+    <string name="wp_webhost_note">Картинка берётся с вашего фотохостинга (192.168.2.7:5678) при каждом возврате на главный экран.</string>
     <string name="wp_screensaver">Заставка</string>
     <string name="ss_follow_hint">Пока не выбрано, поэтому следует за обоями: аэросъёмка с обоями аэросъёмки, фото с картинкой, начиная с неё. Выберите, чтобы закрепить.</string>
     <string name="ss_aerial">Аэросъёмка</string>

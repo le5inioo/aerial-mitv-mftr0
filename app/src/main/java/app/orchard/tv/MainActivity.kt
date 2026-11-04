@@ -930,6 +930,9 @@ class MainActivity : ComponentActivity() {
         // Aerial back several times a minute, so each bounce cost a full rebuild.
         Wallpapers.refreshDailyIfStale()
         Wallpapers.rotateIfDue()
+        // The image host deals a new picture each time Home comes back, wherever the refresh
+        // starts from (an app, the screensaver, or Home again); it throttles itself.
+        Wallpapers.refreshWebHost()
         Weather.refreshIfStale()
         Updates.checkIfStale()
     }
@@ -956,6 +959,8 @@ class MainActivity : ComponentActivity() {
         HomeGuardService.onAerialResumed()
         Updates.onHomeResumed()
         vm.refreshSystem()
+        // Same as startWork: Home is in front again, so the image host may deal a new picture.
+        Wallpapers.refreshWebHost()
         if (!resumedInProcess) {
             resumedInProcess = true
             val age = if (Build.VERSION.SDK_INT >= 24) SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime() else -1L

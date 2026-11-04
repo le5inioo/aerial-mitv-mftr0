@@ -92,6 +92,7 @@
     <string name="wp_photos_rotate_note">Щодня інше з ваших фото.</string>
     <string name="wp_photo_note">Ваше фото. Відскануйте код праворуч, щоб надіслати ще з телефона.</string>
     <string name="wp_auto_note">Світло береться з обкладинки вибраного застосунку.</string>
+    <string name="wp_webhost_note">Зображення береться з вашого фотохостингу (192.168.2.7:5678) щоразу при поверненні на головний екран.</string>
     <string name="wp_screensaver">Заставка</string>
     <string name="ss_follow_hint">Ще не вибрано, тож відповідає шпалерам: аерозйомка зі шпалерами аерозйомки, фото з картинкою, починаючи з неї. Виберіть, щоб закріпити.</string>
     <string name="ss_aerial">Аерозйомка</string>

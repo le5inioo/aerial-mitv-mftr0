@@ -92,6 +92,7 @@
     <string name="wp_photos_rotate_note">Күн сайын фотоларыңыздың басқасы.</string>
     <string name="wp_photo_note">Сіздің фотоңыз. Телефоннан тағы жіберу үшін оң жақтағы кодты сканерлеңіз.</string>
     <string name="wp_auto_note">Жарық таңдалған қолданбаның суретінен алынады.</string>
+    <string name="wp_webhost_note">Басты экранға әр оралу сайын сурет сіздің сурет хостингінен (192.168.2.7:5678) алынады.</string>
     <string name="wp_screensaver">Экран қорғаушы</string>
     <string name="ss_follow_hint">Әлі таңдалмаған, сондықтан түсқағазға ілеседі: аэрожиын түсқағазымен аэрожиын, сурет түсқағазымен фотолар, сол суреттен бастап. Бекіту үшін біреуін таңдаңыз.</string>
     <string name="ss_aerial">Аэрожиын</string>

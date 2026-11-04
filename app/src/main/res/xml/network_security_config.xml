@@ -24,4 +24,9 @@
         <domain includeSubdomains="false">ipwho.is</domain>
         <domain includeSubdomains="false">ipv4.icanhazip.com</domain>
     </domain-config>
+    <!-- The owner's image host on the home network (Wallpapers.WEBHOST): a plain-HTTP server
+         serving the wallpaper, one picture per request. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.2.7</domain>
+    </domain-config>
 </network-security-config>

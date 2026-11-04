@@ -511,17 +511,19 @@ private fun WallpaperRows(takeFocus: Boolean) {
             // "Each App" right after the aerial wallpaper. Not also further down, where the
             // built-ins are: it is one of those, and a card seen twice is a crash (LazyRow keys).
             items.firstOrNull { it.id == Wallpapers.PER_APP }?.let { add(it) }
+            // The owner's photos before their videos (the owner, 2026-11-04). With two or more
+            // photos, one card takes turns through all of them, one a day (#27).
+            val photos = items.filter { it.kind == WallpaperKind.Photo }
+            if (photos.size > 1) add(Wallpaper(Wallpapers.ROTATE_PHOTOS, WallpaperKind.Photo, rotateTitle))
+            addAll(photos)
             // Each video on its own, and with two or more one card that plays them in turn (#762).
             val videos = items.filter { it.kind == WallpaperKind.Video && it.id != Wallpapers.VIDEOS }
             if (videos.size > 1 || selected == Wallpapers.VIDEOS) add(Wallpaper(Wallpapers.VIDEOS, WallpaperKind.Video, videosTitle))
             addAll(videos)
             if (items.any { it.kind == WallpaperKind.Daily }) add(Wallpaper(Wallpapers.LATEST_DAILY, WallpaperKind.Daily, dailyTitle))
             addAll(items.filter { it.kind == WallpaperKind.Daily && it.id == selected })
-            val photos = items.filter { it.kind == WallpaperKind.Photo }
-            // With two or more, one card takes turns through all of them, one a day (#27).
-            if (photos.size > 1) add(Wallpaper(Wallpapers.ROTATE_PHOTOS, WallpaperKind.Photo, rotateTitle))
-            addAll(photos)
             addAll(items.filter { it.kind == WallpaperKind.Builtin && (it.id in Wallpapers.FEATURED_BUILTINS || (it.id == selected && it.id != Wallpapers.PER_APP)) })
+            addAll(items.filter { it.kind == WallpaperKind.Webhost })
             addAll(items.filter { it.kind == WallpaperKind.Auto })
             // The inputs' pictures last: a choice for a home with a set-top box, not the usual one.
             addAll(items.filter { it.kind == WallpaperKind.Source })
@@ -563,6 +565,7 @@ private fun wallpaperNote(wp: Wallpaper): String? = when {
     wp.id == Wallpapers.ROTATE_PHOTOS -> stringResource(R.string.wp_photos_rotate_note)
     wp.kind == WallpaperKind.Photo -> stringResource(R.string.wp_photo_note)
     wp.kind == WallpaperKind.Auto -> stringResource(R.string.wp_auto_note)
+    wp.kind == WallpaperKind.Webhost -> stringResource(R.string.wp_webhost_note)
     wp.id == Wallpapers.PER_APP -> stringResource(R.string.wp_per_app_hint)
     wp.kind == WallpaperKind.Daily -> wp.caption
     else -> null
@@ -896,7 +899,7 @@ private fun PerAppPicker(slot: Int, label: String, chosen: String?, onDismiss: (
     val list = remember(Wallpapers.items) {
         Wallpapers.items.filter {
             (it.kind == WallpaperKind.Builtin && it.id != Wallpapers.PER_APP) ||
-                it.kind == WallpaperKind.Daily || it.kind == WallpaperKind.Photo
+                it.kind == WallpaperKind.Daily || it.kind == WallpaperKind.Photo || it.kind == WallpaperKind.Webhost
         }
     }
     val first = remember { FocusRequester() }
