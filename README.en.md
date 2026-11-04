@@ -1,3 +1,7 @@
+> **This is a personal fork of [Aerial](https://github.com/pengchujin/aerial-tv), targeting one TV: the Xiaomi MiTV-MFTR0 (HyperOS TV, Android 14).**
+> The package is renamed to `com.ts.launcher` — it is one of the few names that firmware's Home whitelist accepts — and it adds an ADB keeper, a black-screen rescue script and a restore script.
+> What changed and what went wrong along the way is written down (in Chinese) in [docs/devices/xiaomi-mitv-mftr0.md](docs/devices/xiaomi-mitv-mftr0.md); the sections below come from upstream and mostly still apply.
+
 <div align="center">
 
 <img src="docs/brand/icon.png" width="96" alt="Aerial icon">

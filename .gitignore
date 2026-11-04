@@ -24,3 +24,6 @@ __pycache__/
 
 # What tools/rescue.sh wrote down on the machine it ran on (screen black, TV unreachable).
 tools/rescue-*.log
+
+# Build products kept next to the source while testing, never committed
+*.apk

@@ -1,3 +1,8 @@
+> **这是 [Aerial](https://github.com/pengchujin/aerial-tv) 的一条个人定制分支，目标机型是小米电视 MiTV-MFTR0（HyperOS TV / Android 14）。**
+> 包名改为 `com.ts.launcher`（这台机器的白名单里只有它和少数几个包名能当桌面），另外加了开机守住 ADB、黑屏应急、还原脚本几件事。
+> 改了什么、踩过哪些坑见 [本分支改了什么](#本分支改了什么) 和 [docs/devices/xiaomi-mitv-mftr0.md](docs/devices/xiaomi-mitv-mftr0.md)。
+> 下面的功能、安装、还原说明来自上游，绝大多数照样适用。
+
 <div align="center">
 
 <img src="docs/brand/icon.png" width="96" alt="Aerial 图标">
@@ -12,10 +17,10 @@
 **中文** · [English](README.en.md)
 
 <a href="https://aerial.qust.me"><img alt="官网" src="https://img.shields.io/badge/%E5%AE%98%E7%BD%91-1f6feb?style=for-the-badge&logo=safari&logoColor=white"></a>
-<a href="https://github.com/pengchujin/aerial-tv/releases/latest"><img alt="下载 APK" src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%20APK-34a853?style=for-the-badge&logo=android&logoColor=white"></a>
+<a href="https://github.com/le5inioo/aerial-tv-mitv-mftr0/releases/latest"><img alt="下载 APK" src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%20APK-34a853?style=for-the-badge&logo=android&logoColor=white"></a>
 <a href="#安装"><img alt="安装" src="https://img.shields.io/badge/%E5%AE%89%E8%A3%85-d97757?style=for-the-badge&logo=gnubash&logoColor=white"></a>
 
-<a href="https://github.com/pengchujin/aerial-tv/releases/latest"><img alt="版本" src="https://img.shields.io/github/v/release/pengchujin/aerial-tv?style=flat-square&label=%E7%89%88%E6%9C%AC&color=2997ff"></a>
+<a href="https://github.com/le5inioo/aerial-tv-mitv-mftr0/releases/latest"><img alt="版本" src="https://img.shields.io/github/v/release/le5inioo/aerial-tv-mitv-mftr0?style=flat-square&label=%E7%89%88%E6%9C%AC&color=2997ff"></a>
 <a href="LICENSE"><img alt="许可证 MIT" src="https://img.shields.io/badge/%E8%AE%B8%E5%8F%AF%E8%AF%81-MIT-555555?style=flat-square"></a>
 <img alt="Android TV 5.0+" src="https://img.shields.io/badge/Android%20TV-5.0%2B-3ddc84?style=flat-square&logo=android&logoColor=white">
 <a href="#lite"><img alt="Lite 4.0–4.4 测试版" src="https://img.shields.io/badge/Lite-4.0%E2%80%934.4%20%E6%B5%8B%E8%AF%95%E7%89%88-f5a623?style=flat-square&logo=android&logoColor=white"></a>
@@ -298,6 +303,24 @@ curl -fsSL https://aerial.qust.me/install.sh | TV=192.168.1.20 bash -s restore
 **2. 用手机提交**：控制中心 → 个性化，扫二维码，手机页最下面「反馈问题 → 显示诊断信息 → 去 GitHub 反馈」。型号和版本会自动填进[机型适配模板](https://github.com/pengchujin/aerial-tv/issues/new?template=device.yml)，诊断信息自动复制，粘贴进去就行。
 
 电脑上也可以自己跑：`curl -fsSL https://aerial.qust.me/tools/report.sh | TV=<电视IP> bash`（只读）和 `curl -fsSL https://aerial.qust.me/tools/selftest.sh | TV=<电视IP> bash`（按主页键、打开设置，看 Aerial 能不能回来），把两份输出贴进模板。诊断信息不含账号、IP、Wi-Fi 名称和 App 列表。你的电视能正常用，也欢迎用[实测可用模板](https://github.com/pengchujin/aerial-tv/issues/new?template=works.yml)告诉大家。
+
+## 本分支改了什么
+
+只针对**小米 MiTV-MFTR0**（HyperOS TV，Android 14）这一台机器，改动集中在「让它能当桌面并且一直当得住」：
+
+| 改动 | 在哪里 | 说明 |
+|---|---|---|
+| 包名 `com.ts.launcher` | `app/build.gradle.kts` 的 `applicationId` | 这台机器的 HOME 白名单只认几个包名，`com.ts.launcher` 在名单里（[#901](https://github.com/pengchujin/aerial-tv/issues/901)）。代码里的组件名仍是 `app.orchard.tv` 命名空间，两者不一致是刻意的 |
+| 桌面守护 | `app/src/main/java/app/orchard/tv/guard/` | 停用 PatchWall 后 HOME 直接解析到 Aerial；守护负责待机被杀后复活、开机接管、按主页键时不让原桌面抢走 |
+| 守住开发者模式 / ADB | `guard/GuardSetup.kt` | 开机把 `development_settings_enabled`、`developer_status`（小米私有键）、`adb_enabled` 写回，之后用 `ContentObserver` 盯着，被关掉几秒内写回。开关状态同时镜像到设备加密存储，解锁前的空窗期也能补 |
+| 家长密码解锁 | `PinPad.kt` | 输对密码即记入 10 分钟宽限，退出儿童模式后进系统设置不再重复要密码 |
+| 黑屏应急 | `tools/rescue.sh`、`tools/rescue.bat` | 一条命令：连接 → 诊断 → 启用被停用的原桌面 → 交还 HOME → 唤醒。电视黑屏、遥控器没用时唯一的路 |
+| 还原脚本 | `tools/restore.sh` | `PKG=` 可覆盖包名；交还 HOME 前先 `pm enable` 原桌面，顺序反了会停在黑屏 |
+| 安装脚本 | `tools/install-ts.sh`、`tools/dev-mode.sh` | 装 `com.ts.launcher`、设成 HOME、按需停用 PatchWall，`KEEP_ADB=1` 在电视关掉 ADB 后自动打开 |
+
+**风险**：这些改动会写系统设置、停用系统桌面（`com.mitv.tvhome`）。停用之后如果没有装上本分支的 APK，开机会黑屏；`tools/rescue.sh` 就是为了这一步准备的，但请先确认 ADB 开着。所有实测结论、失败过的做法和原因都在 [docs/devices/xiaomi-mitv-mftr0.md](docs/devices/xiaomi-mitv-mftr0.md)。
+
+版本号：`versionName` 跟上游（当前 `1.84`），`versionCode` 走自己的四位数（当前 `1089`，从 1000 起往上加），这样每次覆盖安装都能盖过上一版，也不会和上游的两位数版本号互相干扰。
 
 ## 开发
 
