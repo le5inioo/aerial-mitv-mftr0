@@ -247,7 +247,7 @@ object AerialSettings {
 
     fun relock() { unlockedUntil = 0L }
 
-    /** Whether [pin] is the PIN, without unlocking anything: for leaving Kids mode and its time limits. */
+    /** Whether [pin] is the PIN, without unlocking anything: the phone page's check (the TV's PinPad unlocks). */
     fun pinMatches(pin: String): Boolean = pinHash != null && hash(pin) == pinHash
 
     /** Sets the PIN, digits or [arrows] (U, D, L, R), or turns it off with null. */

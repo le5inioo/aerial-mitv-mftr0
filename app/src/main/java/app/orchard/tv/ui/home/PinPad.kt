@@ -58,7 +58,7 @@ import app.orchard.tv.ui.theme.Motion
 import app.orchard.tv.ui.theme.Palette
 import app.orchard.tv.ui.theme.Type
 
-/** [Verify] checks the PIN without unlocking the rest for a while (Kids mode: leaving it, more time). */
+/** [Verify] checks the PIN for Kids mode (leaving it, more time); a right one also holds for a while. */
 enum class PinMode { Unlock, Verify, Create }
 
 private const val PIN_LENGTH = 4
@@ -109,7 +109,9 @@ private fun PinPanel(mode: PinMode, onDone: () -> Unit, onCancel: () -> Unit) {
     fun complete(pin: String) {
         when (mode) {
             PinMode.Unlock -> if (AerialSettings.unlock(pin)) onDone() else error = R.string.pin_wrong
-            PinMode.Verify -> if (AerialSettings.pinMatches(pin)) onDone() else error = R.string.pin_wrong
+            // Verify is a parent's PIN too (leaving Kids mode): one right entry holds for a while,
+            // so going into the system settings right after does not ask again (the owner, 2026-11-04).
+            PinMode.Verify -> if (AerialSettings.unlock(pin)) onDone() else error = R.string.pin_wrong
             PinMode.Create -> when (val earlier = first) {
                 null -> { first = pin; error = null }
                 pin -> { AerialSettings.choosePin(pin, arrows = arrows == true); onDone() }

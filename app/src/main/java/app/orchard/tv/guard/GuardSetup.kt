@@ -257,12 +257,25 @@ object GuardSetup {
 
     // ---- developer mode at boot ----
 
+    /** The boot switch mirrored in device-protected storage, where Direct Boot can read it: the
+     *  copy in credential storage stays unread until the user is unlocked, which cost the first
+     *  half minute after a boot (the owner found developer mode still off then, 2026-11-04). */
+    private const val DE_PREFS = "system_boot"
+
+    private fun dePrefs(context: Context): android.content.SharedPreferences? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return null
+        val de = runCatching { context.createDeviceProtectedStorageContext() }.getOrNull() ?: return null
+        return runCatching { de.getSharedPreferences(DE_PREFS, Context.MODE_PRIVATE) }.getOrNull()
+    }
+
     /** Whether developer mode is put back after each start (the ADB switch lives inside it). */
     fun bootDevMode(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_BOOT_DEV_MODE, false)
+        dePrefs(context)?.getBoolean(KEY_BOOT_DEV_MODE, false) == true ||
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_BOOT_DEV_MODE, false)
 
     fun setBootDevMode(context: Context, on: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_BOOT_DEV_MODE, on).apply()
+        dePrefs(context)?.edit()?.putBoolean(KEY_BOOT_DEV_MODE, on)?.apply()
         // Off only stops the boot from putting it back: it does not switch developer mode off now,
         // which would take ADB away from whoever is using it.
         if (on) ensureDeveloperMode(context)
@@ -273,19 +286,25 @@ object GuardSetup {
      * with it, and with it the ADB switch keep_adb knows how to put back. Turning developer mode on
      * needs three settings: Android's own flag, the firmware's, and ADB debugging itself. Called
      * from [ensureEnabled] (boot, every start), and again a few seconds later: the firmware has
-     * been seen to write its own value over ours just after a boot.
+     * been seen to write its own value over ours just after a boot. While the process lives, the
+     * keys are watched ([watchDeveloperKeys]): a firmware that flips one back to 0, however late,
+     * has it written back within a moment.
      */
     fun ensureDeveloperMode(context: Context) {
         if (!bootDevMode(context)) return
         writeDeveloperMode(context)
+        watchDeveloperKeys(context.applicationContext)
         devModeRecheck.removeCallbacksAndMessages(null)
         for (delay in DEV_MODE_RECHECK_MS) {
             devModeRecheck.postDelayed({ writeDeveloperMode(context.applicationContext) }, delay)
         }
     }
 
+    /**
+     * Global settings live in device-protected storage and are writable before the user is
+     * unlocked, so a boot receiver can put developer mode back at once, not half a minute later.
+     */
     private fun writeDeveloperMode(context: Context) {
-        if (!isUserUnlocked(context)) return
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) return
         val resolver = context.contentResolver
         // Android's flag first: it is what shows the "Developer options" entry at all.
@@ -295,6 +314,34 @@ object GuardSetup {
                 Settings.Global.putInt(resolver, key, 1)
                 Log.i(TAG, "developer mode: $key is now 1")
             }.onFailure { Log.w(TAG, "could not write $key", it) }
+        }
+    }
+
+    @Volatile private var devModeApp: Context? = null
+    @Volatile private var devKeysWatched = false
+
+    /** Watches the three keys; whatever turns 0 while Aerial lives is written back at once. */
+    private fun watchDeveloperKeys(context: Context) {
+        devModeApp = context
+        if (devKeysWatched) return
+        devKeysWatched = true
+        val resolver = context.contentResolver
+        for (key in listOf(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, "developer_status", Settings.Global.ADB_ENABLED)) {
+            runCatching { resolver.registerContentObserver(Settings.Global.getUriFor(key), false, devModeObserver) }
+                .onFailure { Log.w(TAG, "could not watch $key", it) }
+        }
+    }
+
+    private val devModeObserver = object : android.database.ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+            val app = devModeApp ?: return
+            // Switched off: the boot no longer puts it back, nor does the watching.
+            if (!bootDevMode(app)) return
+            // The ADB dance writes a 0 on purpose; nothing may undo it (see ensureAdbListening).
+            if (adbDancing) return
+            // One change of three keys fires three calls; write once when they have settled.
+            devModeRecheck.removeCallbacksAndMessages(null)
+            devModeRecheck.postDelayed({ writeDeveloperMode(app) }, 500)
         }
     }
 
