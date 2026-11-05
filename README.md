@@ -144,7 +144,7 @@ adb shell dumpsys window | grep mCurrentFocus  # 现在谁在前台
 adb shell dumpsys accessibility | grep -i filter  # 按键过滤有没有开
 ```
 
-所有实测结论、失败过的做法和原因（白名单机制、待机杀进程、CEC 抢信号源、FallbackHome 黑屏等）都在 [docs/devices/xiaomi-mitv-mftr0.md](docs/devices/xiaomi-mitv-mftr0.md)，那份比 README 细得多。
+所有实测结论、失败过的做法和原因（白名单机制、待机杀进程、CEC 抢信号源、FallbackHome 黑屏等）都在 [docs/devices/xiaomi-mitv-mftr0.md](docs/devices/xiaomi-mitv-mftr0.md)，那份比 README 细得多。注意那份是按日期记的流水，有些记录写于另一个固件代（文中标 `OS3.0.10x` / Android 14），版本号以实机 `getprop` 为准，文首有说明。
 
 ## 开发
 

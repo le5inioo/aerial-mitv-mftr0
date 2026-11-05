@@ -135,7 +135,7 @@ adb shell dumpsys window | grep mCurrentFocus
 adb shell dumpsys accessibility | grep -i filter
 ```
 
-Every measurement, dead end and reason — the whitelist mechanism, standby killing processes, CEC stealing the input, the FallbackHome black screen — is in [docs/devices/xiaomi-mitv-mftr0.md](docs/devices/xiaomi-mitv-mftr0.md) (Chinese, far more detailed than this file).
+Every measurement, dead end and reason — the whitelist mechanism, standby killing processes, CEC stealing the input, the FallbackHome black screen — is in [docs/devices/xiaomi-mitv-mftr0.md](docs/devices/xiaomi-mitv-mftr0.md) (Chinese, far more detailed than this file). It is a dated log, and some entries were written on another firmware generation (`OS3.0.10x` / Android 14); the version numbers there follow whatever `getprop` reported at the time, and the top of that file says so.
 
 ## Building
 

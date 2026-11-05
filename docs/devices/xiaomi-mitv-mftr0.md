@@ -1,10 +1,12 @@
 # 小米 MiTV-MFTR0（codename freeguy）
 
-- Android 14（SDK 34），HyperOS TV，固件 OS3.0.101.0.UFTMATV，MediaTek MT9653，32 位 ARM（armeabi-v7a），4 GB 内存。
+- 户主这台：小米电视 S65 Mini LED 臻享版（L65MA-SPL）。**Android 11（SDK 30）**，固件 `OS2.0.5.0.RFTMATV`，MediaTek MT9653（`ro.board.platform=mt5879`），32 位 ARM（armeabi-v7a），4 GB 内存（`MemTotal: 3,860,504 kB`）。
 - 1920×1080，320dpi（960×540dp），只有一个 60Hz 显示模式。GPU 很弱，见 ARCHITECTURE.md 的性能约束。1.15 导航帧耗时：第一排中位数 14ms、网格 18ms、第一排与网格之间切换的 90 分位 20ms（2026-10-21）。
 - 原桌面：`com.mitv.tvhome/.MainActivityUserMode`（PatchWall）。备用桌面：`com.xiaomi.mitv.settings/.entry.FallbackHome`（priority -1000）。
 - 安装的 flavor：`standard`。普通的 `adb install` 就能装。
-- 同平台的零售型号：**Redmi X65 2026** 也上报 `MiTV-MFTR0`。用户在 OS3.0.107.0.UFTMATV 上验证过一键安装和重启后自动进入 Aerial（GitHub #3）。
+- 同一个 codename 还有别的零售 SKU（例如 Redmi X65 2026）也上报 `MiTV-MFTR0`，那些机器跑的是 `OSx.x.x.x.UFTMATV` 一系固件；GitHub #3 的一键安装和「重启后自动进 Aerial」就是在其中一台（`OS3.0.107.0.UFTMATV`）上验证的。
+
+> **读之前：版本号以实机为准。** 2026-11-05 现场读这台：`ro.build.version.release=11`、`ro.build.version.sdk=30`、`ro.build.display.id=OS2.0.5.0.RFTMATV`。但下面有几处记录写的是 `OS3.0.101` / `OS3.0.106` / 「安卓 14（SDK 34）」「装包用 `31.dm`」，和这台现在报的对不上——同 codename 确实有多代固件（文中 MFFU1 那台就是 Android 14），差异是换过整机还是当初记错，没有查清。**看的时候，版本号、`.dm` 文件名、`getprop` 输出这类细节按当前固件重看；行为结论不受影响**：HOME 抢不过来、待机杀第三方 App、唤醒后 ADB 被关、小米屏保会盖上来、按键过滤的取舍，这几条在这台 Android 11 上都是现场确认过的。
 
 ## HOME 锁定
 
@@ -175,7 +177,7 @@
 
 - 小米显示器 MFFU1（安卓 14）和这台不同：PixelCopy 读得到影片，但 4K 时一次 0.7 秒、有时读出绿色。1.77 里一次慢复制按固件指纹记成慢（`copy_slow_read`），连带不读文件，户主切成杜比视界画质（壁纸随之换成 4K）后底板和面板的磨砂都没了，日志 `copy false, file frames stuck false`。现在慢复制只在有 TCL 解析器的电视上关文件（ARCHITECTURE 同一条 ⑦），这台日志 `TCL's extractor false`，从文件解帧，控制中心是磨砂玻璃。
 
-- 杜比视界屏保回首页（2026-11-04，#1238）：以前黑约 1.1 秒等壁纸影片；现在屏保期间在进程内用 `c2.android.avc.decoder` 解屏保影片的关键帧（不走 mediaserver，不碰屏保占着的那条视频通道），回来先显示它，影片从它接着放。实测按键进屏保时屏保第一帧有时从约 0.8 秒晚到 1.9 秒。这台现在是安卓 14（SDK 34），装包用 `31.dm`。
+- 杜比视界屏保回首页（2026-11-04，#1238）：以前黑约 1.1 秒等壁纸影片；现在屏保期间在进程内用 `c2.android.avc.decoder` 解屏保影片的关键帧（不走 mediaserver，不碰屏保占着的那条视频通道），回来先显示它，影片从它接着放。实测按键进屏保时屏保第一帧有时从约 0.8 秒晚到 1.9 秒。这台现在报 Android 11（SDK 30）、固件 `OS2.0.5.0.RFTMATV`（2026-11-05 现场读），按 SDK 命名的 `.dm` 装包文件要按当前固件重看（见文首那段说明）。
 
 ## 黑屏：一条命令救回来（2026-11-04）
 
