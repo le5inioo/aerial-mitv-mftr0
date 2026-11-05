@@ -88,6 +88,8 @@ Three of them are worth explaining:
 
 **Speed slider contrast.** Focused, the accent and the thumb were both white; the fill now inverts against the background.
 
+**Hand-made tile art.** [docs/tile-icons/](docs/tile-icons/) carries 69 hand-made 16:9 tile pictures (640×360 PNG): Bilibili, iQIYI, Youku, Mango, Migu, YouTube, Netflix, Emby, Kodi and more, most apps in several color variants. Upload one from the phone page to use it on a tile; file names name the apps, and the [preview sheet](docs/tile-icons/preview.jpg) shows everything at a glance.
+
 ## Install
 
 The TV needs ADB on (Settings → About → press the model row repeatedly, then Settings → Account & Security → ADB debugging), and must be on the same network as the computer.
