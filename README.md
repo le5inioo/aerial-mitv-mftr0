@@ -160,7 +160,7 @@ python tools/test_rescue.py && python tools/test_restore.py
 
 `versionName` 跟上游（当前 `1.84`），`versionCode` 走自己的四位数（当前 `1094`，从 1000 起递增），这样不会和上游的两位数版本号互相干扰。
 
-「检查更新」读本仓库的 Release：`api.github.com/repos/le5inioo/aerial-mitv-mftr0/releases/latest` 的 tag 当版本号（`v1.85-web1` → `1.85`），assets 里的 APK 当下载地址。所以发版时 tag 的版本要和 `versionName` 一致，只改 webNN 不升版本号时电视不会提示更新；再顺手把 APK 以 `ts-launcher.apk` 的名字传一份，接口读不到时用它兜底。仓库现在只有 `app` 一个模块（上游的 `lite/`、官网 `site/` 和其它机型笔记都已删除），`./gradlew` 只能构建完整版。
+「检查更新」不用 `api.github.com`：同一个出口 IP 每小时只有 60 次，2026-11-05 在电视上就撞到 403。改成请求 `github.com/le5inioo/aerial-mitv-mftr0/releases/latest`，跟一次 302 到 `/releases/tag/v1.85-web1`，从落地地址里取 tag 当版本号（`v1.85-web1` → `1.85`），APK 固定从 `.../releases/latest/download/ts-launcher.apk` 下载。所以发版时 tag 要和 `versionName` 一致（只改 webNN、不升版本号时电视不会提示更新），并且每次都把 APK 以 `ts-launcher.apk` 这个名字再传一份。仓库现在只有 `app` 一个模块（上游的 `lite/`、官网 `site/` 和其它机型笔记都已删除），`./gradlew` 只能构建完整版。
 
 ## 许可
 

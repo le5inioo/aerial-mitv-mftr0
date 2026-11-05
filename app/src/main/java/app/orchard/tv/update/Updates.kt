@@ -49,19 +49,19 @@ object Updates {
     private const val TAG = "AerialUpdates"
     private const val PREFS = "updates"
 
-    /** This fork's latest release, as JSON: tag_name is the version, assets hold the APK. */
-    private const val RELEASE_API = "https://api.github.com/repos/le5inioo/aerial-mitv-mftr0/releases/latest"
+    /**
+     * This fork's latest release. The API is not used on purpose: unauthenticated api.github.com
+     * answers 403 once the household IP has spent its 60 requests an hour, and this TV checked
+     * exactly that on 2026-11-05. `/releases/latest` redirects to `/releases/tag/v1.84-web18`
+     * instead, with no quota, so the tag is read off the final URL.
+     */
+    private const val LATEST_PAGE = "https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest"
 
     /** Every release of this fork also carries a copy of the APK under this stable name. */
     private const val APK_FALLBACK =
         "https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest/download/ts-launcher.apk"
 
-    private val TAG_NAME = Regex("\"tag_name\"\\s*:\\s*\"([^\"]+)\"")
-    private val APK_ASSET = Regex("\"browser_download_url\"\\s*:\\s*\"([^\"]+\\.apk)\"")
-
-    /** APK address read from the last successful check; null until one has run. */
-    @Volatile
-    private var fetchedApk: String? = null
+    private const val TAG_PATH = "/releases/tag/"
 
     /**
      * A source that delivers less than [STALL_BYTES] in [STALL_MS] is given up for the next one
@@ -103,11 +103,7 @@ object Updates {
             lastSuccess = { prefs.getLong("checked_at", 0) },
             read = { withContext(Dispatchers.IO) { readReleaseVersion() } },
             save = { latest, checkedAt ->
-                prefs.edit {
-                    putString("latest", latest)
-                    putLong("checked_at", checkedAt)
-                    fetchedApk?.let { putString("apk_url", it) } ?: remove("apk_url")
-                }
+                prefs.edit { putString("latest", latest); putLong("checked_at", checkedAt) }
                 available = latest.takeIf { newer(it, current) }
                 loadNotes()
             },
@@ -157,31 +153,36 @@ object Updates {
         return false
     }
 
-    private fun read(url: String): String {
-        val c = URL(url).openConnection() as HttpURLConnection
+    /**
+     * Reads the tag of this fork's latest release and returns it as a version, which is what
+     * [UpdateCheck] validates. The tag is "v1.84-web18": the build counter after the dash is not
+     * part of the version, so a fork release only counts as newer when versionName moved
+     * (1.84 -> 1.85).
+     */
+    private fun readReleaseVersion(): String {
+        val c = URL(LATEST_PAGE).openConnection() as HttpURLConnection
         LegacyUpdateTls.configure(appContext, c)
         c.connectTimeout = 8_000
         c.readTimeout = 10_000
-        // The GitHub API answers a request without a User-Agent with 403.
         c.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME}")
         return try {
-            c.inputStream.use { it.readBytes().decodeToString() }
+            // Reading the status line is enough: the redirect lands on the tag page, whose address
+            // names the release. The page itself is never downloaded.
+            val code = c.responseCode
+            val finalUrl = c.url.toString()
+            if (code !in 200..299) {
+                DiagLog.i("update: HTTP $code from ${URL(LATEST_PAGE).host}")
+                throw IOException("HTTP $code")
+            }
+            val tag = finalUrl.substringAfterLast(TAG_PATH, "")
+            if (tag.isEmpty()) {
+                DiagLog.i("update: no tag in the redirect, still at ${URL(LATEST_PAGE).host}")
+                throw IOException("no release tag")
+            }
+            tag.substringBefore('-').substringBefore('+')
         } finally {
             c.disconnect()
         }
-    }
-
-    /**
-     * Reads this fork's latest release and returns just the version, which is what [UpdateCheck]
-     * validates. The tag is "v1.84-web18": the build counter after the dash is not part of the
-     * version, so a fork release only counts as newer when versionName moved (1.84 -> 1.85).
-     * The APK address in the same answer is kept for [downloadFrom].
-     */
-    private fun readReleaseVersion(): String {
-        val body = read(RELEASE_API)
-        val tag = TAG_NAME.find(body)?.groupValues?.get(1) ?: throw IOException("release: no tag_name")
-        fetchedApk = APK_ASSET.find(body)?.groupValues?.get(1)
-        return tag.removePrefix("v").substringBefore('-').substringBefore('+')
     }
 
     // ---- Installing the new version from Control Center ----
@@ -579,7 +580,7 @@ object Updates {
             if (Build.VERSION.SDK_INT < 24) file.setReadable(true, false)
             return verify(context, file)
         }
-        val sources = listOfNotNull(prefs.getString("apk_url", null), APK_FALLBACK).distinct()
+        val sources = listOf(APK_FALLBACK)
         for (url in sources) {
             val ok = runCatching { download(url, file) }
                 .onFailure { Log.w(TAG, "could not download $url", it) }
