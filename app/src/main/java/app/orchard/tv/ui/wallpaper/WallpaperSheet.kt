@@ -155,6 +155,7 @@ fun WallpaperSheet(
     var keepAdbOn by remember { mutableStateOf(GuardSetup.keepAdb(context)) }
     // Developer mode put back after each boot, as the firmware sometimes forgets it (2026-11-04).
     var bootDevModeOn by remember { mutableStateOf(GuardSetup.bootDevMode(context)) }
+    var bootAnimOn by remember { mutableStateOf(AerialSettings.bootAnimation) }
 
     BackHandler(enabled = visible, onBack = onDismiss)
 
@@ -173,6 +174,7 @@ fun WallpaperSheet(
         guardOn = GuardSetup.guardEnabled(context)
         keepAdbOn = GuardSetup.keepAdb(context)
         bootDevModeOn = GuardSetup.bootDevMode(context)
+        bootAnimOn = AerialSettings.bootAnimation
     }
 
     val shown = remember { MutableTransitionState(false) }
@@ -472,6 +474,16 @@ fun WallpaperSheet(
                         listOf(true to R.string.st_on, false to R.string.st_off),
                         bootDevModeOn,
                         { on -> GuardSetup.setBootDevMode(context, on); bootDevModeOn = on },
+                    )
+                    // The splash between the TV starting up and Home (ported from DouYin-TV,
+                    // 2026-11-05); off for those who want Home at once.
+                    Choices(
+                        R.string.st_boot_anim,
+                        stringResource(R.string.st_boot_anim_hint),
+                        note,
+                        listOf(true to R.string.st_on, false to R.string.st_off),
+                        bootAnimOn,
+                        { on -> AerialSettings.chooseBootAnimation(on); bootAnimOn = on },
                     )
                 }
                 Spacer(Modifier.height(24.dp))
@@ -786,7 +798,9 @@ private fun SpeedRow(note: (String?) -> Unit, hint: String, first: Boolean = fal
         val focused = state.focused
         val fg = if (focused) Palette.OnFocus else Palette.Label
         val track by animateColorAsState(if (focused) Palette.Focus else Palette.Fill, tween(140, easing = Motion.EaseOut), label = "speed-bg")
-        val fill by animateColorAsState(if (focused) Color.White else fg, tween(140, easing = Motion.EaseOut), label = "speed-fill")
+        // The pill turns near-white under focus, so the fill must turn with it (dark on light) or
+        // white-on-white hides the notch — the owner, 2026-11-05.
+        val fill by animateColorAsState(if (focused) Palette.OnFocus else Color.White, tween(140, easing = Motion.EaseOut), label = "speed-fill")
         val fraction by animateFloatAsState(
             ((atSpeed - AerialSettings.MIN_VIDEO_SPEED) / (AerialSettings.MAX_VIDEO_SPEED - AerialSettings.MIN_VIDEO_SPEED)).coerceIn(0f, 1f),
             spring(dampingRatio = 1f, stiffness = 700f),
@@ -808,7 +822,7 @@ private fun SpeedRow(note: (String?) -> Unit, hint: String, first: Boolean = fal
             ) {
                 Canvas(Modifier.size(width = 180.dp, height = 6.dp)) {
                     val r = CornerRadius(size.height / 2)
-                    drawRoundRect(fill.copy(alpha = 0.25f), cornerRadius = r)
+                    drawRoundRect(fill.copy(alpha = 0.3f), cornerRadius = r)
                     drawRoundRect(fill, size = Size(size.width * fraction, size.height), cornerRadius = r)
                 }
                 BasicText(

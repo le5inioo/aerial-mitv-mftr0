@@ -261,6 +261,9 @@
     <string name="ss_saver_video_all">All, in turn</string>
     <string name="wp_speed">Playback Speed</string>
     <string name="wp_speed_hint">How fast videos play as the wallpaper or the screensaver. Left and Right step it by 0.1\u00d7.</string>
+    <string name="boot_hint">Starting up…</string>
+    <string name="st_boot_anim">Boot animation</string>
+    <string name="st_boot_anim_hint">The splash between the TV starting up and Home. Off, Home appears at once.</string>
     <string name="ss_system">System</string>
     <string name="ss_system_hint">The TV\'s own screensaver, as it came with the TV (Xiaomi\'s pictures, for one). Aerial shows none of its own.</string>
     <string name="wp_videos_note">Your own videos, sent from the phone, silent and one after another. They move like the aerial films and stop on the frame showing.</string>

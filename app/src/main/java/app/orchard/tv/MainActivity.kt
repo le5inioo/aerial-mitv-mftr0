@@ -34,10 +34,13 @@ import androidx.core.content.getSystemService
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
@@ -59,6 +62,7 @@ import app.orchard.tv.apps.TileArtFactory
 import app.orchard.tv.apps.rewritesLauncher
 import app.orchard.tv.guard.GuardSetup
 import app.orchard.tv.guard.HomeGuardService
+import app.orchard.tv.ui.home.BootSplash
 import app.orchard.tv.ui.home.FilmAfterInput
 import app.orchard.tv.ui.home.HomeScreen
 import app.orchard.tv.ui.home.AerialStart
@@ -293,15 +297,19 @@ class MainActivity : ComponentActivity() {
                 fontScale = LocalDensity.current.fontScale,
             )
             CompositionLocalProvider(LocalReducedMotion provides reducedMotion, LocalDensity provides canvas) {
-                HomeScreen(
-                    vm = vm,
-                    onLaunch = ::launch,
-                    onOpen = ::open,
-                    onAppInfo = { open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", it, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) },
-                    onUninstall = { open(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", it, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) },
-                    // Posted so the key-up of the Back press that started it does not end it at once.
-                    onStartScreensaver = { idleHandler.postDelayed({ startScreensaver(asked = true) }, 150) },
-                )
+                Box(Modifier.fillMaxSize()) {
+                    HomeScreen(
+                        vm = vm,
+                        onLaunch = ::launch,
+                        onOpen = ::open,
+                        onAppInfo = { open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", it, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) },
+                        onUninstall = { open(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", it, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) },
+                        // Posted so the key-up of the Back press that started it does not end it at once.
+                        onStartScreensaver = { idleHandler.postDelayed({ startScreensaver(asked = true) }, 150) },
+                    )
+                    // The boot splash, over everything, once per boot (the owner, 2026-11-05).
+                    BootSplash()
+                }
             }
         }
         if (Build.VERSION.SDK_INT >= 29 && uhd > 1f) {
