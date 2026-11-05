@@ -86,7 +86,31 @@
 
 **倍速滑块的对比度**。滑块聚焦时强调色和滑块都是白色，看不见档位；改成填充色随底色反转，聚焦时用深色填充。
 
-**自制磁贴图**。[docs/tile-icons/](docs/tile-icons/) 收了 69 张手作的 16:9 磁贴图（640×360 PNG）：B 站、爱奇艺、优酷、芒果、咪咕、YouTube、Netflix、Emby、Kodi 等，同一应用多带几个配色变体。用手机设置页给对应应用上传即可换上；文件名即应用名，[预览图](docs/tile-icons/preview.jpg)一图看全。
+## 磁贴图
+
+[docs/tile-icons/](docs/tile-icons/) 有 69 张手作的 16:9 磁贴图（640×360 PNG），常见电视应用基本都覆盖了，同一应用大多带 2–4 个配色变体。**文件名就是应用名**，末尾数字是变体（`NETFLIX`、`NETFLIX2`、`NETFLIX3`）。
+
+**怎么拿**
+
+- 逐张下载：打开 [`docs/tile-icons/`](https://github.com/le5inioo/aerial-mitv-mftr0/tree/main/docs/tile-icons)，点开要的那张，右上角 Download。
+- 单张直链：把下面的文件名换掉就行。`raw.githubusercontent.com` 在国内常被拦，打不开就走上面一条。
+  ```
+  https://raw.githubusercontent.com/le5inioo/aerial-mitv-mftr0/main/docs/tile-icons/BILIBILI.png
+  ```
+- 整批拿：
+  ```bash
+  git clone --depth 1 https://github.com/le5inioo/aerial-mitv-mftr0.git
+  ls aerial-mitv-mftr0/docs/tile-icons
+  ```
+
+**怎么用**
+
+- **手机设置页上传**（推荐）：控制中心 →「手机设置」，扫码打开手机页，给对应应用传这张图。按磁贴的 16:9 裁切、按包名记住，优先级高于应用自带图标和图标库（`CustomIcons`）。
+- **自建图标库**：`IconLibrary` 读 `<站点>/index.json`，格式 `{"icons": {"<包名>": "<相对路径>"}}`，把文件名对应到包名后可以多台电视共用。
+
+**收录范围**（`×N` = N 个变体，共 69 张）：AIDA64、ALBUM×2、ANDRTV×2、ANGRYBIRDDS、APPLETV、APPSTORE、BILIBILI×2、BOMBSQUAD、CALENDAR、CHILD×2、DOUYIN、EMBY×2、FEINIUTV、FILEMAN、FNMUSIC、GOUGOU、GUANJIA、HOME、HONGGUO×2、IPTV、IQIYI×3、JIGUANGTV×2、KANKEAPP、KEEP、KODI×2、MANGOTV×2、MIGUTV×2、MIHOME、MIJIA、MITUTU、NETEASY、NETFLIX×3、POSTER、QUARK、SETTINGS×2、SHADOWROCKET、SONGLOFT、TOUPING、USB×2、VIDHUB、WEATHER、WYBMH×2、XIAOAI、XIAOCAOZS、YIQIKANTV×2、YOUKU×2、YOUTUBE×4。
+
+图按本仓库的 MIT 提供；图中商标归各自权利人，只用来在桌面上认出对应应用，详见 [docs/tile-icons/README.md](docs/tile-icons/README.md)。
 
 ## 安装
 

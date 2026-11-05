@@ -88,7 +88,32 @@ Three of them are worth explaining:
 
 **Speed slider contrast.** Focused, the accent and the thumb were both white; the fill now inverts against the background.
 
-**Hand-made tile art.** [docs/tile-icons/](docs/tile-icons/) carries 69 hand-made 16:9 tile pictures (640×360 PNG): Bilibili, iQIYI, Youku, Mango, Migu, YouTube, Netflix, Emby, Kodi and more, most apps in several color variants. Upload one from the phone page to use it on a tile; file names name the apps, and the [preview sheet](docs/tile-icons/preview.jpg) shows everything at a glance.
+## Tile art
+
+[docs/tile-icons/](docs/tile-icons/) holds 69 hand-made 16:9 tile pictures (640×360 PNG) covering most apps a Chinese TV runs, usually in 2–4 colour variants. **The file name is the app**; a trailing digit is the variant (`NETFLIX`, `NETFLIX2`, `NETFLIX3`).
+
+**Getting them**
+
+- One at a time: open [`docs/tile-icons/`](https://github.com/le5inioo/aerial-mitv-mftr0/tree/main/docs/tile-icons) and use Download on the file you want.
+- Direct link, with the file name swapped in:
+  ```
+  https://raw.githubusercontent.com/le5inioo/aerial-mitv-mftr0/main/docs/tile-icons/BILIBILI.png
+  ```
+  (`raw.githubusercontent.com` is often blocked in mainland China; the page above is the fallback.)
+- All at once:
+  ```bash
+  git clone --depth 1 https://github.com/le5inioo/aerial-mitv-mftr0.git
+  ls aerial-mitv-mftr0/docs/tile-icons
+  ```
+
+**Using them**
+
+- **Upload from the phone page** (recommended): Control Center → phone settings, scan the code, upload the picture for an app. It is cropped to the tile's 16:9 and remembered by package name, ahead of the app's own art and of the icon library (`CustomIcons`).
+- **Serve them yourself**: `IconLibrary` reads `<site>/index.json`, shaped `{"icons": {"<package>": "<relative path>"}}`; map file names to packages and several TVs can share them.
+
+**What's inside** (`×N` = N variants, 69 files): AIDA64, ALBUM×2, ANDRTV×2, ANGRYBIRDDS, APPLETV, APPSTORE, BILIBILI×2, BOMBSQUAD, CALENDAR, CHILD×2, DOUYIN, EMBY×2, FEINIUTV, FILEMAN, FNMUSIC, GOUGOU, GUANJIA, HOME, HONGGUO×2, IPTV, IQIYI×3, JIGUANGTV×2, KANKEAPP, KEEP, KODI×2, MANGOTV×2, MIGUTV×2, MIHOME, MIJIA, MITUTU, NETEASY, NETFLIX×3, POSTER, QUARK, SETTINGS×2, SHADOWROCKET, SONGLOFT, TOUPING, USB×2, VIDHUB, WEATHER, WYBMH×2, XIAOAI, XIAOCAOZS, YIQIKANTV×2, YOUKU×2, YOUTUBE×4.
+
+The pictures are MIT, like the rest of the repo; the marks in them belong to their owners and are there only to identify the app on a tile — see [docs/tile-icons/README.md](docs/tile-icons/README.md).
 
 ## Install
 
