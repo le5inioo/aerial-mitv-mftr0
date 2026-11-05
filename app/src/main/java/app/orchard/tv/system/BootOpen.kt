@@ -21,6 +21,8 @@ object BootOpen {
     private const val SCREEN_OFF_ELAPSED = "screen_off_elapsed"
     private const val SCREEN_OFF_BOOT = "screen_off_boot"
     private const val OPENED_ASLEEP = "boot_open_asleep"
+    private const val WAKE_ARMED_ELAPSED = "wake_splash_armed"
+    private const val WAKE_ARMED_BOOT = "wake_splash_armed_boot"
     private const val HOME_ELAPSED = "home_key_elapsed"
     private const val HOME_BOOT = "home_key_boot"
 
@@ -33,8 +35,30 @@ object BootOpen {
 
     /** The screen went off: the next time it lights is a wake, and the target is due again. */
     fun noteScreenOff(context: Context) {
+        val now = SystemClock.elapsedRealtime()
+        val stamp = bootStamp()
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
-            putLong(SCREEN_OFF_ELAPSED, SystemClock.elapsedRealtime()).putLong(SCREEN_OFF_BOOT, bootStamp())
+            putLong(SCREEN_OFF_ELAPSED, now).putLong(SCREEN_OFF_BOOT, stamp)
+            // A wake splash is owed: Home's next appearance after this screen-off (2026-11-05).
+            putLong(WAKE_ARMED_ELAPSED, now).putLong(WAKE_ARMED_BOOT, stamp)
+        }
+    }
+
+    /**
+     * Whether the wake splash is owed: the screen went off in this boot and Home has not been
+     * seen since. A start owes none — nothing went off before it — and an owed one is consumed
+     * below, so coming back from an app later does not play it again.
+     */
+    fun wakeSplashOwed(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val armed = prefs.getLong(WAKE_ARMED_ELAPSED, -1L)
+        return armed >= 0 && thisBoot(armed, prefs.getLong(WAKE_ARMED_BOOT, 0L))
+    }
+
+    /** The wake has been shown for this screen-off; the next one arms it again. */
+    fun consumeWakeSplash(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+            remove(WAKE_ARMED_ELAPSED).remove(WAKE_ARMED_BOOT)
         }
     }
 

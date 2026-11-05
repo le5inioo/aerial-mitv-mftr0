@@ -155,6 +155,7 @@ fun WallpaperSheet(
     var keepAdbOn by remember { mutableStateOf(GuardSetup.keepAdb(context)) }
     // Developer mode put back after each boot, as the firmware sometimes forgets it (2026-11-04).
     var bootDevModeOn by remember { mutableStateOf(GuardSetup.bootDevMode(context)) }
+    var wakeAnimOn by remember { mutableStateOf(AerialSettings.wakeAnimation) }
 
     BackHandler(enabled = visible, onBack = onDismiss)
 
@@ -173,6 +174,7 @@ fun WallpaperSheet(
         guardOn = GuardSetup.guardEnabled(context)
         keepAdbOn = GuardSetup.keepAdb(context)
         bootDevModeOn = GuardSetup.bootDevMode(context)
+        wakeAnimOn = AerialSettings.wakeAnimation
     }
 
     val shown = remember { MutableTransitionState(false) }
@@ -472,6 +474,15 @@ fun WallpaperSheet(
                         listOf(true to R.string.st_on, false to R.string.st_off),
                         bootDevModeOn,
                         { on -> GuardSetup.setBootDevMode(context, on); bootDevModeOn = on },
+                    )
+                    // Three seconds of spinner when the TV wakes from standby (2026-11-05).
+                    Choices(
+                        R.string.st_wake_anim,
+                        stringResource(R.string.st_wake_anim_hint),
+                        note,
+                        listOf(true to R.string.st_on, false to R.string.st_off),
+                        wakeAnimOn,
+                        { on -> AerialSettings.chooseWakeAnimation(on); wakeAnimOn = on },
                     )
                 }
                 Spacer(Modifier.height(24.dp))

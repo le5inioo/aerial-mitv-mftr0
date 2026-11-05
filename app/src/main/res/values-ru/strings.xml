@@ -320,4 +320,6 @@
     <string name="kids_blocked">«%s» здесь недоступно</string>
     <string name="kids_warn">Осталось %d мин</string>
     <string name="kids_warn_break">Перерыв через %d мин</string>
+    <string name="st_wake_anim">Анимация пробуждения</string>
+    <string name="st_wake_anim_hint">Три секунды заставки при выходе из ожидания. При холодном запуске и перезагрузке остаётся анимация прошивки.</string>
 </resources>

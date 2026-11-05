@@ -320,4 +320,6 @@
     <string name="kids_blocked">«%s» мұнда қолжетімсіз</string>
     <string name="kids_warn">%d мин қалды</string>
     <string name="kids_warn_break">%d минуттан кейін үзіліс</string>
+    <string name="st_wake_anim">Ояту анимациясы</string>
+    <string name="st_wake_anim_hint">Күту режимінен оянғанда үш секунддық заставка. Суық қосу мен қайта жүктеуде прошивканың анимациясы қалады.</string>
 </resources>

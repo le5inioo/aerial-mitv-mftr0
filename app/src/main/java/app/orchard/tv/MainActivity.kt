@@ -21,6 +21,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.view.Choreographer
 import android.view.KeyEvent
@@ -38,6 +39,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.Modifier
@@ -64,6 +66,7 @@ import app.orchard.tv.guard.GuardSetup
 import app.orchard.tv.guard.HomeGuardService
 import app.orchard.tv.ui.home.FilmAfterInput
 import app.orchard.tv.ui.home.HomeScreen
+import app.orchard.tv.ui.home.WakeSplash
 import app.orchard.tv.ui.home.AerialStart
 import app.orchard.tv.ui.home.LiveFilm
 import app.orchard.tv.ui.home.asFocusedTile
@@ -306,6 +309,8 @@ class MainActivity : ComponentActivity() {
                         // Posted so the key-up of the Back press that started it does not end it at once.
                         onStartScreensaver = { idleHandler.postDelayed({ startScreensaver(asked = true) }, 150) },
                     )
+                    // Three seconds of spinner over Home, on a wake from standby only.
+                    WakeSplash(wakeSplash.intValue)
                 }
             }
         }
@@ -333,6 +338,9 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (fresh && firstStartSinceBoot()) openBootSource("boot")
+        // The other route to the wake splash: a wake that recreated the activity, or one whose
+        // process Aerial's guard revived in standby (the screen-on broadcast never reached it).
+        if (fresh) maybeWakeSplash("recreated on wake", inFront = false)
         if (intent.getBooleanExtra(EXTRA_WOKE, false)) openBootSource("brought back on wake")
         if (intent.getBooleanExtra(EXTRA_REOPEN_BOOT, false)) openBootSource("covered by the stock launcher", again = true)
         if (fromLocked) {
@@ -380,13 +388,52 @@ class MainActivity : ComponentActivity() {
 
     private var bootSourceOpenedAt = Long.MIN_VALUE / 2
 
+    /** Counts wakes from standby; WakeSplash replays the three-second splash on each new value. */
+    private val wakeSplash = mutableIntStateOf(0)
+
+    /**
+     * The three-second splash on a wake from standby (2026-11-05, the owner's request). A real
+     * start — cold power-on or the power menu's restart — keeps the firmware's own boot
+     * animation, which covers the whole start on this TV (Home is up 13 s in, that animation
+     * leaves at 15-17 s), so a splash there would only flash: nothing plays. Leaving an app for
+     * Home is no wake either. What is left is the panel lighting again, which happened straight
+     * into Home before this.
+     *
+     * Two routes, since a wake may only resume the activity (TCL keeps it in front) or recreate
+     * it (Xiaomi MFTR0); the screen-on broadcast lands about two seconds after the panel lights
+     * on MFTR0, so the resume is the route that actually covers the light-up. [BootOpen] keeps
+     * the owed splash across processes, one per screen-off. [inFront] is false where the
+     * activity is not resumed yet.
+     */
+    private fun maybeWakeSplash(reason: String, inFront: Boolean = true) {
+        if (!AerialSettings.wakeAnimation) return
+        if (inFront && !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
+        // A start: Home is up about half a minute in (MFTR0: 13 s), and nothing went off before it.
+        if (SystemClock.elapsedRealtime() < WAKE_MIN_UPTIME_MS) return
+        // Standing in for Home: an input or an app that opens at wake (Personalize).
+        if (AerialSettings.hasBootTarget) return
+        if (!BootOpen.wakeSplashOwed(this)) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - wakeSplashAt < WAKE_DEDUPE_MS) return
+        // One screen-off, one splash: the resume lands first, the screen-on broadcast follows.
+        BootOpen.consumeWakeSplash(this)
+        wakeSplashAt = now
+        DiagLog.i("wake splash ($reason)")
+        wakeSplash.intValue++
+    }
+
     /**
      * Woken with Aerial still in front (TCL keeps it through standby). Where the firmware killed
      * Aerial instead (Xiaomi), Home Guard brings it back with [EXTRA_WOKE].
      */
     private val screenOnReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == Intent.ACTION_SCREEN_OFF) { BootOpen.noteScreenOff(context); return }
+            if (intent.action == Intent.ACTION_SCREEN_OFF) {
+                DiagLog.i("screen off")
+                BootOpen.noteScreenOff(context)
+                return
+            }
+            maybeWakeSplash("screen on")
             idleHandler.postDelayed({
                 if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) openBootSource("screen on")
             }, 1500)
@@ -956,6 +1003,11 @@ class MainActivity : ComponentActivity() {
         idleHandler.removeCallbacks(endHomeBounce)
         vm.homeBounce = false
         DiagLog.i("onResume; screensaver after ${idleBeforeScreensaver() / 1000} s")
+        // Before anything else draws: a wake lights straight into Home otherwise (the screen-on
+        // broadcast lands ~2 s later on MFTR0, too late to cover it). Called from onResume, where
+        // the activity's lifecycle is still STARTED (fragments resume after the activity does),
+        // so the resumed check would refuse it: this route is in front by definition.
+        maybeWakeSplash("resumed", inFront = false)
         if (SystemClock.uptimeMillis() - dreamAskedAt < 1_000) {
             dreamChecking = true
             idleHandler.postDelayed(dreamCheck, 1_500)
@@ -1019,6 +1071,12 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         if (locked) return
         DiagLog.i("onStop")
+        // Standby may take the screen before Aerial stops, and the screen-off broadcast does not
+        // always arrive (Xiaomi stops Aerial on the way in): arm the wake splash here as well.
+        if (getSystemService<PowerManager>()?.isInteractive == false) {
+            DiagLog.i("screen off (onStop)")
+            BootOpen.noteScreenOff(this)
+        }
         SelfCompile.onHomeStopped()
         // Out of sight after all: no bounce to wait out (homeBounce).
         idleHandler.removeCallbacks(endHomeBounce)
@@ -1189,6 +1247,15 @@ class MainActivity : ComponentActivity() {
          * Apple on Xiaomi MiTV-MFTR0, after the index.
          */
         private const val SAVER_AHEAD_MS = 8_000L
+
+        /** A start has Home up 13-30 s in; a wake comes minutes later, and is no start. */
+        private const val WAKE_MIN_UPTIME_MS = 60_000L
+
+        /** One wake, two routes: the screen-on broadcast and a recreated activity arrive together. */
+        private const val WAKE_DEDUPE_MS = 5_000L
+
+        /** When the last splash was shown, across activity recreations in the same process. */
+        private var wakeSplashAt = 0L
 
         /**
          * The system's dream did not show when asked (see dreamCheck): for the rest of the process,

@@ -134,6 +134,12 @@ object AerialSettings {
      */
     var videoSpeed by mutableStateOf(DEFAULT_VIDEO_SPEED); private set
 
+    /**
+     * Three seconds of spinner over Home when the TV wakes from standby (2026-11-05, the
+     * owner's request): a real start keeps the firmware's own boot animation, a wake had none.
+     */
+    var wakeAnimation by mutableStateOf(true); private set
+
     /** The weather beside the clock; off for those who want the time alone (issue #472). */
     var showWeather by mutableStateOf(true); private set
 
@@ -219,6 +225,7 @@ object AerialSettings {
         homePlate = prefs.getBoolean("home_plate", true)
         chosenAllNames = prefs.getBoolean("show_all_names", false)
         wallpaperAlwaysMoves = prefs.getBoolean("wallpaper_always_moves", false)
+        wakeAnimation = prefs.getBoolean("wake_animation", true)
         // A float kept by an older build of the phone page, or a hand-edited one, is brought in range.
         videoSpeed = prefs.getFloat("video_speed", DEFAULT_VIDEO_SPEED)
             .takeUnless { it.isNaN() }?.coerceIn(MIN_VIDEO_SPEED, MAX_VIDEO_SPEED) ?: DEFAULT_VIDEO_SPEED
@@ -323,6 +330,11 @@ object AerialSettings {
     fun chooseWallpaperAlwaysMoves(on: Boolean) {
         wallpaperAlwaysMoves = on
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("wallpaper_always_moves", on) }
+    }
+
+    fun chooseWakeAnimation(on: Boolean) {
+        wakeAnimation = on
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("wake_animation", on) }
     }
 
     /** Sets the video speed to [speed], rounded to a tenth and kept within [MIN_VIDEO_SPEED]..[MAX_VIDEO_SPEED]. */

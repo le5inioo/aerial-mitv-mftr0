@@ -328,4 +328,6 @@
     <string name="kids_blocked">%s is not allowed here</string>
     <string name="kids_warn">%d min of TV left</string>
     <string name="kids_warn_break">A break in %d min</string>
+    <string name="st_wake_anim">Wake Animation</string>
+    <string name="st_wake_anim_hint">Three seconds of spinner over Home when the TV wakes from standby. Cold starts and restarts keep the firmware’s own boot animation.</string>
 </resources>
