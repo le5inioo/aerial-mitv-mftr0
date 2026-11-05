@@ -98,7 +98,7 @@ cd aerial-mitv-mftr0
 TV=<TV-IP> BUILD=1 KEEP_ADB=1 DISABLE_STOCK_HOME=1 tools/install-ts.sh
 ```
 
-Or grab `ts-launcher-1.84-web18.apk` from [Releases](https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest) and pass `APK_FILE=`.
+Or grab `ts-launcher-1.84-web19.apk` from [Releases](https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest) and pass `APK_FILE=`.
 
 `DISABLE_STOCK_HOME=1` disables `com.mitv.tvhome`. That buys an instant, flash-free Home key and costs a black screen if Aerial ever breaks — keep `tools/rescue.sh` at hand and ADB open. Without it the guard fights PatchWall for the Home key instead (brief flash). Upgrades are the same command; settings survive (`versionCode` counts up from 1000).
 
@@ -149,7 +149,7 @@ python tools/test_rescue.py && python tools/test_restore.py
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for structure and performance constraints, [docs/HANDOFF.md](docs/HANDOFF.md) for handover notes.
 
-`versionName` follows upstream (`1.84`); `versionCode` runs on its own four-digit line (`1094`, counting up from 1000) so the two never collide.
+`versionName` follows upstream (`1.84`); `versionCode` runs on its own four-digit line (`1095`, counting up from 1000) so the two never collide.
 
 "Check for updates" avoids `api.github.com` — 60 requests an hour per IP is easy to spend, and the TV hit a 403 there on 2026-11-05. It requests `github.com/le5inioo/aerial-mitv-mftr0/releases/latest` instead, follows the 302 to `/releases/tag/v1.85-web1`, and takes the tag off the landing URL as the version (`v1.85-web1` → `1.85`). The APK always comes from `.../releases/latest/download/ts-launcher.apk`. A release must therefore carry a tag matching `versionName` (bumping only the webNN counter will not prompt the TV), and the APK must be uploaded a second time under the name `ts-launcher.apk`. The repo has a single module now (`app`); upstream's `lite/`, `site/` and the other device notes are gone, so `./gradlew` only builds the full app.
 

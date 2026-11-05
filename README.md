@@ -98,7 +98,7 @@ cd aerial-mitv-mftr0
 TV=<电视IP> BUILD=1 KEEP_ADB=1 DISABLE_STOCK_HOME=1 tools/install-ts.sh
 ```
 
-装的是 release APK，也可以直接下 [Releases](https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest) 里的 `ts-launcher-1.84-web18.apk` 用 `APK_FILE=` 指定。
+装的是 release APK，也可以直接下 [Releases](https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest) 里的 `ts-launcher-1.84-web19.apk` 用 `APK_FILE=` 指定。
 
 `DISABLE_STOCK_HOME=1` 会停用 `com.mitv.tvhome`。**这一步换来的是不闪原桌面、按主页键即刻响应，代价是 Aerial 挂了就黑屏** —— 所以装之前先确认 ADB 开着，并且把 `tools/rescue.sh` 放在手边。不想动系统桌面就不加这个参数，改由守护抢主页键（会闪一下 PatchWall）。
 
@@ -158,7 +158,7 @@ python tools/test_rescue.py && python tools/test_restore.py
 
 架构和性能约束见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，接手说明见 [docs/HANDOFF.md](docs/HANDOFF.md)。
 
-`versionName` 跟上游（当前 `1.84`），`versionCode` 走自己的四位数（当前 `1094`，从 1000 起递增），这样不会和上游的两位数版本号互相干扰。
+`versionName` 跟上游（当前 `1.84`），`versionCode` 走自己的四位数（当前 `1095`，从 1000 起递增），这样不会和上游的两位数版本号互相干扰。
 
 「检查更新」不用 `api.github.com`：同一个出口 IP 每小时只有 60 次，2026-11-05 在电视上就撞到 403。改成请求 `github.com/le5inioo/aerial-mitv-mftr0/releases/latest`，跟一次 302 到 `/releases/tag/v1.85-web1`，从落地地址里取 tag 当版本号（`v1.85-web1` → `1.85`），APK 固定从 `.../releases/latest/download/ts-launcher.apk` 下载。所以发版时 tag 要和 `versionName` 一致（只改 webNN、不升版本号时电视不会提示更新），并且每次都把 APK 以 `ts-launcher.apk` 这个名字再传一份。仓库现在只有 `app` 一个模块（上游的 `lite/`、官网 `site/` 和其它机型笔记都已删除），`./gradlew` 只能构建完整版。
 
