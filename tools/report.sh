@@ -142,4 +142,4 @@ set +e
 cat "$OUT"
 echo
 command -v pbcopy >/dev/null && pbcopy < "$OUT" && echo "Copied to the clipboard." >&2
-echo "Saved to $OUT. Read it, then paste it into https://github.com/pengchujin/aerial-tv/issues/new?template=device.yml" >&2
+echo "Saved to $OUT. Read it, then paste it into an issue at https://github.com/le5inioo/aerial-mitv-mftr0/issues" >&2

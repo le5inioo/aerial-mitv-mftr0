@@ -1,6 +1,8 @@
 # Aerial 架构
 
-Android 应用（`app/`），Kotlin + Jetpack Compose（没有用 androidx.tv 和 Material，全部自绘）。包名 `app.orchard.tv`（产品名是 Aerial，包名沿用旧名 Orchard：改包名会让电视把它当成新 App，丢掉户主数据和全部授权），minSdk 21（Android 5.0），targetSdk 34，compileSdk 36。Compose 固定在 1.9.x（BOM 2025.11.01）：1.10 起要求 Android 6.0。比 Android 5.0 新的接口都要按 `Build.VERSION.SDK_INT` 判断，`./gradlew lintStandardRelease` 的 NewApi 检查能找出漏掉的地方。Android 4.0–4.4 的电视用另一个模块 `lite/`（Aerial Lite，原生 View，minSdk 14），见 `docs/LITE.md`。
+> **这份是从上游继承的技术说明。** 本仓库为了只服务一台小米电视（MiTV-MFTR0，Android 11），删掉了上游的 `lite/`（Android 4.x 的 Aerial Lite）、`site/` 官网、其它机型笔记、通用安装器 `tools/install.sh` 和官网/发版脚本。下面提到这些的地方保留原文，读的时候当作上游历史即可；现在能跑的只有 `app/` 模块和 `tools/install-ts.sh`、`rescue.sh`、`restore.sh`、`dev-mode.sh`、`perf.py`、`make-cities.py`。
+
+Android 应用（`app/`），Kotlin + Jetpack Compose（没有用 androidx.tv 和 Material，全部自绘）。包名 `app.orchard.tv`（产品名是 Aerial，包名沿用旧名 Orchard：改包名会让电视把它当成新 App，丢掉户主数据和全部授权），minSdk 21（Android 5.0），targetSdk 34，compileSdk 36。Compose 固定在 1.9.x（BOM 2025.11.01）：1.10 起要求 Android 6.0。比 Android 5.0 新的接口都要按 `Build.VERSION.SDK_INT` 判断，`./gradlew lintStandardRelease` 的 NewApi 检查能找出漏掉的地方。Android 4.0–4.4 的电视用另一个模块 `lite/`（Aerial Lite，原生 View，minSdk 14），见 `docs/LITE.md`（本仓库已删除）。
 
 ## 目录一览
 

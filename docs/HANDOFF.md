@@ -1,6 +1,8 @@
 # 交接说明
 
-写给接手 Aerial 的人或 AI。先读这份，再读 [ARCHITECTURE.md](ARCHITECTURE.md) 和 [devices/](devices/)。
+写给接手 Aerial 的人或 AI。先读这份，再读 [ARCHITECTURE.md](ARCHITECTURE.md) 和 [devices/xiaomi-mitv-mftr0.md](devices/xiaomi-mitv-mftr0.md)。
+
+> **这份是从上游继承的交接记录。** 本仓库只服务一台小米电视（MiTV-MFTR0，Android 11），已经删掉上游的 `lite/`（Android 4.x）、`site/` 官网、其它机型笔记、`tools/install.sh` 和官网/发版脚本。正文里提到的 `:lite:` 构建、`install.sh`、`deploy-site.sh`、`tcast-push.py`、多屏互动、TCL / 海信 / 酷开等机型都**不再适用**，当作上游历史看；现在的安装、还原、应急命令见 [README](../README.md)。
 
 ## 现状（2026-11-04）
 

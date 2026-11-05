@@ -30,17 +30,17 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.Locale
 
 /**
  * Whether a newer release is out (issues #24, #76). Most owners stay on the version they installed
- * and report bugs fixed long ago. Aerial reads the latest release's tag from the
- * website (reachable in China, unlike GitHub); Control Center then names the new version and says
- * how to update. Nothing is downloaded or installed in the background: only when the owner picks
- * "Download and Install" does Aerial fetch the new APK and hand it to the system installer
- * ([install]).
+ * and report bugs fixed long ago. This fork reads its own GitHub release (the upstream project's
+ * website is not ours): the tag gives the version, the asset list gives the APK. Control Center
+ * then names the new version and says how to update. Nothing is downloaded or installed in the
+ * background: only when the owner picks "Download and Install" does Aerial fetch the new APK and
+ * hand it to the system installer ([install]).
  *
  * Home and network events check at most every three hours; opening Control Center shortens that
  * to ten minutes. Failed checks retry while Home is in front (#912).
@@ -48,8 +48,20 @@ import java.util.Locale
 object Updates {
     private const val TAG = "AerialUpdates"
     private const val PREFS = "updates"
-    private const val VERSION_URL = "https://aerial.qust.me/download/version.txt"
-    private const val NOTES_URL = "https://aerial.qust.me/download/notes.json"
+
+    /** This fork's latest release, as JSON: tag_name is the version, assets hold the APK. */
+    private const val RELEASE_API = "https://api.github.com/repos/le5inioo/aerial-mitv-mftr0/releases/latest"
+
+    /** Every release of this fork also carries a copy of the APK under this stable name. */
+    private const val APK_FALLBACK =
+        "https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest/download/ts-launcher.apk"
+
+    private val TAG_NAME = Regex("\"tag_name\"\\s*:\\s*\"([^\"]+)\"")
+    private val APK_ASSET = Regex("\"browser_download_url\"\\s*:\\s*\"([^\"]+\\.apk)\"")
+
+    /** APK address read from the last successful check; null until one has run. */
+    @Volatile
+    private var fetchedApk: String? = null
 
     /**
      * A source that delivers less than [STALL_BYTES] in [STALL_MS] is given up for the next one
@@ -66,11 +78,10 @@ object Updates {
     var available by mutableStateOf<String?>(null); private set
 
     /**
-     * What the update brings: each release after this one up to [available], newest first. Empty
-     * until read, and when the website has no notes (sites deployed before notes.json).
+     * What the update brings. Always empty in this fork: the release has no notes.json, so the
+     * update page names the new version and stops there.
      */
     var notes by mutableStateOf<List<ReleaseNotes>>(emptyList()); private set
-    private var readingNotes = false
 
     /** Where an install started from Control Center has got to. */
     var install by mutableStateOf<Install>(Install.Idle); private set
@@ -90,9 +101,13 @@ object Updates {
         checker = UpdateCheck(
             scope = scope,
             lastSuccess = { prefs.getLong("checked_at", 0) },
-            read = { withContext(Dispatchers.IO) { read(VERSION_URL) } },
+            read = { withContext(Dispatchers.IO) { readReleaseVersion() } },
             save = { latest, checkedAt ->
-                prefs.edit { putString("latest", latest); putLong("checked_at", checkedAt) }
+                prefs.edit {
+                    putString("latest", latest)
+                    putLong("checked_at", checkedAt)
+                    fetchedApk?.let { putString("apk_url", it) } ?: remove("apk_url")
+                }
                 available = latest.takeIf { newer(it, current) }
                 loadNotes()
             },
@@ -111,44 +126,24 @@ object Updates {
      * release out an hour ago was not shown there for hours more (issue #301).
      */
     fun checkIfStale(
-        @Suppress("UNUSED_PARAMETER") force: Boolean = false,
-        @Suppress("UNUSED_PARAMETER") maxAgeMs: Long = UpdateCheck.MAX_AGE_MS,
-        @Suppress("UNUSED_PARAMETER") networkCameUp: Boolean = false,
+        force: Boolean = false,
+        maxAgeMs: Long = UpdateCheck.MAX_AGE_MS,
+        networkCameUp: Boolean = false,
     ) {
-        // Not in the merged build: the releases published for Aerial carry app.orchard.tv, so
-        // "Download and Install" would add a second launcher beside this one (com.ts.launcher)
-        // instead of updating it, and the two would fight over Home.
+        checker?.check(force, maxAgeMs, networkCameUp, when {
+            force -> "forced"
+            networkCameUp -> "network"
+            maxAgeMs == CONTROL_CENTER_MAX_AGE_MS -> "control center"
+            else -> "home"
+        })
     }
 
     fun diagnostics(): String = if (!started) "not initialized" else
         "known=${prefs.getString("latest", null) ?: "unknown"}; notes=${notes.size}; ${checker?.diagnostics}"
 
-    /**
-     * The release notes for [available], from the copy kept with the version it was read for, else
-     * from the website (once per new version; the update page asks again while it has none). The
-     * file is about 30 KB. A missing or bad file leaves the page as it was, without notes.
-     */
+    /** No release notes in this fork's releases: the update page shows the version only. */
     fun loadNotes() {
-        if (!started) return
-        val latest = available ?: run { notes = emptyList(); return }
-        val zh = Locale.getDefault().language == "zh"
-        if (prefs.getString("notes_for", null) == latest) {
-            prefs.getString("notes", null)?.let { json ->
-                runCatching { ReleaseNotesParser.parse(json, current, latest, zh) }.getOrNull()?.let { notes = it; return }
-            }
-        }
-        if (readingNotes) return
-        readingNotes = true
-        scope.launch {
-            val json = runCatching { withContext(Dispatchers.IO) { read(NOTES_URL) } }
-                .onFailure { Log.i(TAG, "release notes: ${it.javaClass.simpleName}") }.getOrNull()
-            readingNotes = false
-            val parsed = json?.let { runCatching { ReleaseNotesParser.parse(it, current, latest, zh) }.getOrNull() }
-            // Only notes that already have this release: the site's file may be a deploy behind.
-            if (parsed.isNullOrEmpty() || parsed.first().version != latest || available != latest) return@launch
-            prefs.edit { putString("notes", json); putString("notes_for", latest) }
-            notes = parsed
-        }
+        if (notes.isNotEmpty()) notes = emptyList()
     }
 
     /** Whether version [a] comes after [b], comparing dotted numbers ("1.10" after "1.9"). */
@@ -167,11 +162,26 @@ object Updates {
         LegacyUpdateTls.configure(appContext, c)
         c.connectTimeout = 8_000
         c.readTimeout = 10_000
+        // The GitHub API answers a request without a User-Agent with 403.
+        c.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME}")
         return try {
             c.inputStream.use { it.readBytes().decodeToString() }
         } finally {
             c.disconnect()
         }
+    }
+
+    /**
+     * Reads this fork's latest release and returns just the version, which is what [UpdateCheck]
+     * validates. The tag is "v1.84-web18": the build counter after the dash is not part of the
+     * version, so a fork release only counts as newer when versionName moved (1.84 -> 1.85).
+     * The APK address in the same answer is kept for [downloadFrom].
+     */
+    private fun readReleaseVersion(): String {
+        val body = read(RELEASE_API)
+        val tag = TAG_NAME.find(body)?.groupValues?.get(1) ?: throw IOException("release: no tag_name")
+        fetchedApk = APK_ASSET.find(body)?.groupValues?.get(1)
+        return tag.removePrefix("v").substringBefore('-').substringBefore('+')
     }
 
     // ---- Installing the new version from Control Center ----
@@ -191,7 +201,7 @@ object Updates {
     }
 
     enum class Failure {
-        /** Neither the website nor GitHub gave a complete APK. */
+        /** Neither the release's asset address nor the stable fallback gave a complete APK. */
         Download,
         /** The TV lets no app hand an APK to its installer, or has no installer to hand it to. */
         Blocked,
@@ -569,11 +579,7 @@ object Updates {
             if (Build.VERSION.SDK_INT < 24) file.setReadable(true, false)
             return verify(context, file)
         }
-        val name = "aerial-${BuildConfig.FLAVOR}.apk"
-        val sources = listOf(
-            "https://aerial.qust.me/download/$name",
-            "https://github.com/pengchujin/aerial-tv/releases/latest/download/$name",
-        )
+        val sources = listOfNotNull(prefs.getString("apk_url", null), APK_FALLBACK).distinct()
         for (url in sources) {
             val ok = runCatching { download(url, file) }
                 .onFailure { Log.w(TAG, "could not download $url", it) }

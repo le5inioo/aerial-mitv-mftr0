@@ -11,7 +11,7 @@
 <a href="LICENSE"><img alt="许可证 MIT" src="https://img.shields.io/badge/%E8%AE%B8%E5%8F%AF%E8%AF%81-MIT-555555?style=flat-square"></a>
 <img alt="Android 11 / API 30" src="https://img.shields.io/badge/Android%2011%20%2F%20API%2030-3ddc84?style=flat-square&logo=android&logoColor=white">
 
-![Aerial 首页](site/img/home.jpg)
+![Aerial 首页](docs/brand/home.jpg)
 
 </div>
 
@@ -38,7 +38,7 @@
 
 ## 本分支做了什么
 
-相对上游 `main` 分支：22 个提交、45 个文件、+2660 / −144 行。分四块。
+相对上游 `main` 分支：23 个提交、210 个文件、+2890 / −16894 行。删掉的多于新增的，因为上游的 `lite/`、官网 `site/`、其它机型笔记和通用安装脚本都清掉了。剩下的分四块。
 
 ### 一、让它能当桌面
 
@@ -159,6 +159,8 @@ python tools/test_rescue.py && python tools/test_restore.py
 架构和性能约束见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，接手说明见 [docs/HANDOFF.md](docs/HANDOFF.md)。
 
 `versionName` 跟上游（当前 `1.84`），`versionCode` 走自己的四位数（当前 `1094`，从 1000 起递增），这样不会和上游的两位数版本号互相干扰。
+
+「检查更新」读本仓库的 Release：`api.github.com/repos/le5inioo/aerial-mitv-mftr0/releases/latest` 的 tag 当版本号（`v1.85-web1` → `1.85`），assets 里的 APK 当下载地址。所以发版时 tag 的版本要和 `versionName` 一致，只改 webNN 不升版本号时电视不会提示更新；再顺手把 APK 以 `ts-launcher.apk` 的名字传一份，接口读不到时用它兜底。仓库现在只有 `app` 一个模块（上游的 `lite/`、官网 `site/` 和其它机型笔记都已删除），`./gradlew` 只能构建完整版。
 
 ## 许可
 

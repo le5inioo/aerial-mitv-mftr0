@@ -7,11 +7,11 @@
 
 ## 哪些来自上游
 
-`app/`、`lite/`、`site/`、`gradle/`、`README`（本分支加了几段说明）、`docs/` 下的架构与机型笔记，界面文案与品牌素材，绝大部分是上游的代码和文档。Inter 字体按 [SIL Open Font License](FONT-LICENSE-OFL.txt) 使用。
+`app/`、`gradle/`、`README`（本分支重写过）、`docs/` 下的架构说明，界面文案与品牌素材，绝大部分是上游的代码和文档。上游的 `lite/`、`site/`、其它机型笔记和通用安装脚本在本仓库里已经删除。Inter 字体按 [SIL Open Font License](FONT-LICENSE-OFL.txt) 使用。
 
 ## 哪些是本分支新增的
 
-针对小米 MiTV-MFTR0 的定制：包名 `com.ts.launcher`、桌面守护、守住开发者模式与 ADB、家长密码宽限、`tools/` 下的安装 / 还原 / 黑屏应急脚本，以及 `docs/devices/xiaomi-mitv-mftr0.md` 里的实测记录。逐项说明见 [README](README.md#本分支改了什么)。这些改动同样按 MIT 发布。
+针对小米 MiTV-MFTR0 的定制：包名 `com.ts.launcher`、桌面守护、守住开发者模式与 ADB、家长密码宽限、`tools/` 下的安装 / 还原 / 黑屏应急脚本，以及 `docs/devices/xiaomi-mitv-mftr0.md` 里的实测记录。逐项说明见 [README](README.md#本分支做了什么)。这些改动同样按 MIT 发布。
 
 ## 名称
 

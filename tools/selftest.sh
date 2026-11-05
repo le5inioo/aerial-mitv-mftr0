@@ -16,7 +16,7 @@
 #
 # What it changes: it presses Home, opens the TV's settings, opens inputs, and with the options
 # above sleeps or restarts the TV. Nothing is installed, removed or written to settings. Read
-# site/adapt.md for what to do with a failed check.
+# the README for what to do with a failed check.
 set -uo pipefail
 
 : "${TV:?set TV to the TV IP address, e.g. TV=<tv-ip> $0}"
@@ -220,4 +220,4 @@ echo '```'
 # Back on Aerial, as the TV was before.
 sh_ am start -n "$PKG/.MainActivity" >/dev/null
 echo >&2
-echo "Saved to $OUT. Paste it with tools/report.sh's output into https://github.com/pengchujin/aerial-tv/issues/new?template=device.yml" >&2
+echo "Saved to $OUT. Paste it with tools/report.sh's output into an issue at https://github.com/le5inioo/aerial-mitv-mftr0/issues" >&2

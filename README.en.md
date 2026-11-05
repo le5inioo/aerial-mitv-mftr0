@@ -11,7 +11,7 @@ A launcher tuned for one TV: the Xiaomi TV S65 Mini LED (MiTV-MFTR0). Forked fro
 <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/license-MIT-555555?style=flat-square"></a>
 <img alt="Android 11 / API 30" src="https://img.shields.io/badge/Android%2011%20%2F%20API%2030-3ddc84?style=flat-square&logo=android&logoColor=white">
 
-![Aerial home](site/img/home.jpg)
+![Aerial home](docs/brand/home.jpg)
 
 </div>
 
@@ -40,7 +40,7 @@ Apps only ever see 1080p, so budget layout and frame time against that: the syst
 
 ## What changed
 
-Against upstream `main`: 22 commits, 45 files, +2660 / −144 lines.
+Against upstream `main`: 23 commits, 210 files, +2890 / −16894 lines — more deleted than added, because upstream's `lite/`, the `site/` website, the other device notes and the generic installer are gone. What is left falls into four parts.
 
 ### 1. Making it the home screen
 
@@ -150,6 +150,8 @@ python tools/test_rescue.py && python tools/test_restore.py
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for structure and performance constraints, [docs/HANDOFF.md](docs/HANDOFF.md) for handover notes.
 
 `versionName` follows upstream (`1.84`); `versionCode` runs on its own four-digit line (`1094`, counting up from 1000) so the two never collide.
+
+"Check for updates" reads this repository's release: the tag of `api.github.com/repos/le5inioo/aerial-mitv-mftr0/releases/latest` is the version (`v1.85-web1` → `1.85`), and the APK among its assets is the download. A release must therefore carry a tag that matches `versionName` — bumping only the webNN counter will not prompt the TV. Upload the APK a second time as `ts-launcher.apk` as a fallback for when the API cannot be read. The repo has a single module now (`app`); upstream's `lite/`, `site/` and the other device notes are gone, so `./gradlew` only builds the full app.
 
 ## License
 

@@ -414,8 +414,8 @@ private fun UpdatePage(vm: HomeViewModel, takeFocus: Boolean) {
     val canInstall = remember { Updates.canInstall(context) }
     var qr by remember { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(Unit) {
-        val ip = PhoneServer.lanAddress(context)
-        val url = "https://aerial.qust.me/update/#v=${Updates.current}&f=${BuildConfig.FLAVOR}" + (ip?.let { "&tv=$it" } ?: "")
+        // This fork has no website of its own: the phone lands on the release list.
+        val url = "https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest"
         qr = withContext(Dispatchers.Default) { PhoneServer.qr(url).asImageBitmap() }
     }
     Column {
