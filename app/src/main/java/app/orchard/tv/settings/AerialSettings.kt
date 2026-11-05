@@ -1,7 +1,6 @@
 package app.orchard.tv.settings
 
 import android.content.Context
-import android.os.Build
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -135,13 +134,6 @@ object AerialSettings {
      */
     var videoSpeed by mutableStateOf(DEFAULT_VIDEO_SPEED); private set
 
-    /**
-     * The boot splash — a black screen, the little spinner and a hint, played once over Home
-     * after the TV starts (ported from DouYin-TV's launch screen, the owner's request of
-     * 2026-11-05). [bootSplashPending] also asks whether this boot still owes one.
-     */
-    var bootAnimation by mutableStateOf(true); private set
-
     /** The weather beside the clock; off for those who want the time alone (issue #472). */
     var showWeather by mutableStateOf(true); private set
 
@@ -208,11 +200,7 @@ object AerialSettings {
     const val VIDEO_SPEED_STEP = 0.1f
     private const val DEFAULT_VIDEO_SPEED = 1f
 
-    /** Boots measured: Home is up about half a minute in; anything within ten minutes still counts. */
-    private const val BOOT_WINDOW_MS = 10 * 60 * 1000L
-
-    fun init(context: Context) {
-        if (started) return
+    fun init(context: Context) {        if (started) return
         started = true
         app = context.applicationContext
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -231,7 +219,6 @@ object AerialSettings {
         homePlate = prefs.getBoolean("home_plate", true)
         chosenAllNames = prefs.getBoolean("show_all_names", false)
         wallpaperAlwaysMoves = prefs.getBoolean("wallpaper_always_moves", false)
-        bootAnimation = prefs.getBoolean("boot_animation", true)
         // A float kept by an older build of the phone page, or a hand-edited one, is brought in range.
         videoSpeed = prefs.getFloat("video_speed", DEFAULT_VIDEO_SPEED)
             .takeUnless { it.isNaN() }?.coerceIn(MIN_VIDEO_SPEED, MAX_VIDEO_SPEED) ?: DEFAULT_VIDEO_SPEED
@@ -337,48 +324,6 @@ object AerialSettings {
         wallpaperAlwaysMoves = on
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("wallpaper_always_moves", on) }
     }
-
-    fun chooseBootAnimation(on: Boolean) {
-        bootAnimation = on
-        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("boot_animation", on) }
-    }
-
-    /**
-     * Whether this boot still owes its splash: the animation on, Home started within
-     * [BOOT_WINDOW_MS] of the kernel, and not shown yet this boot. The boot is told apart by
-     * [Settings.Global.BOOT_COUNT] — BOOT_COMPLETED can arrive minutes after Home (Xiaomi
-     * MFTR0: sixteen seconds), so a marker the boot receiver clears replays the splash once
-     * the owner comes back from an app. Below Android 7 there is no boot count: the marker
-     * [clearBootSplashMark] clears does it there.
-     */
-    fun bootSplashPending(): Boolean {
-        if (!bootAnimation) return false
-        if (SystemClock.elapsedRealtime() > BOOT_WINDOW_MS) return false
-        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val boot = bootCount()
-        return if (boot >= 0) prefs.getInt("boot_splash_boot", Int.MIN_VALUE) != boot
-        else !prefs.getBoolean("boot_splash_done", false)
-    }
-
-    fun markBootSplashShown() {
-        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val boot = bootCount()
-        if (boot >= 0) prefs.edit { putInt("boot_splash_boot", boot) }
-        else prefs.edit { putBoolean("boot_splash_done", true) }
-    }
-
-    /** Only for firmwares without a boot count (below Android 7), from the boot receiver. */
-    fun clearBootSplashMark() {
-        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
-            remove("boot_splash_done").remove("boot_splash_boot")
-        }
-    }
-
-    private fun bootCount(): Int = runCatching {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Settings.Global.getInt(app.contentResolver, Settings.Global.BOOT_COUNT)
-        } else -1
-    }.getOrDefault(-1)
 
     /** Sets the video speed to [speed], rounded to a tenth and kept within [MIN_VIDEO_SPEED]..[MAX_VIDEO_SPEED]. */
     fun chooseVideoSpeed(speed: Float) {

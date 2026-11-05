@@ -3,10 +3,8 @@ package app.orchard.tv.guard
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.SystemClock
 import app.orchard.tv.MainActivity
-import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.system.DiagLog
 import kotlin.concurrent.thread
 
@@ -39,12 +37,6 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     private fun onBoot(context: Context, action: String) {
-        // A fresh boot owes a splash — but only where there is no boot count to tell boots apart
-        // (AerialSettings): on those, BOOT_COMPLETED arrives after Home and clearing here would
-        // replay the splash instead of resetting it.
-        if (action == Intent.ACTION_BOOT_COMPLETED && Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            AerialSettings.clearBootSplashMark()
-        }
         GuardSetup.ensureEnabled(context)
         if (action == Intent.ACTION_LOCKED_BOOT_COMPLETED) return
         GuardSetup.rescanIfMissing(context)

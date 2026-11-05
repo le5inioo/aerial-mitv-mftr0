@@ -155,7 +155,6 @@ fun WallpaperSheet(
     var keepAdbOn by remember { mutableStateOf(GuardSetup.keepAdb(context)) }
     // Developer mode put back after each boot, as the firmware sometimes forgets it (2026-11-04).
     var bootDevModeOn by remember { mutableStateOf(GuardSetup.bootDevMode(context)) }
-    var bootAnimOn by remember { mutableStateOf(AerialSettings.bootAnimation) }
 
     BackHandler(enabled = visible, onBack = onDismiss)
 
@@ -174,7 +173,6 @@ fun WallpaperSheet(
         guardOn = GuardSetup.guardEnabled(context)
         keepAdbOn = GuardSetup.keepAdb(context)
         bootDevModeOn = GuardSetup.bootDevMode(context)
-        bootAnimOn = AerialSettings.bootAnimation
     }
 
     val shown = remember { MutableTransitionState(false) }
@@ -474,16 +472,6 @@ fun WallpaperSheet(
                         listOf(true to R.string.st_on, false to R.string.st_off),
                         bootDevModeOn,
                         { on -> GuardSetup.setBootDevMode(context, on); bootDevModeOn = on },
-                    )
-                    // The splash between the TV starting up and Home (ported from DouYin-TV,
-                    // 2026-11-05); off for those who want Home at once.
-                    Choices(
-                        R.string.st_boot_anim,
-                        stringResource(R.string.st_boot_anim_hint),
-                        note,
-                        listOf(true to R.string.st_on, false to R.string.st_off),
-                        bootAnimOn,
-                        { on -> AerialSettings.chooseBootAnimation(on); bootAnimOn = on },
                     )
                 }
                 Spacer(Modifier.height(24.dp))

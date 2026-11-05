@@ -253,9 +253,6 @@
     <string name="ss_saver_video_all">Все по очереди</string>
     <string name="wp_speed">Скорость видео</string>
     <string name="wp_speed_hint">Скорость воспроизведения видео — обоев и хранителя экрана. «Влево» и «вправо» меняют её на 0,1\u00d7.</string>
-    <string name="boot_hint">Запуск, секунду…</string>
-    <string name="st_boot_anim">Анимация запуска</string>
-    <string name="st_boot_anim_hint">Заставка между включением телевизора и рабочим столом. Выключена — стол открывается сразу.</string>
     <string name="ss_system">Системная</string>
     <string name="ss_system_hint">Заставка самого телевизора, как задумал производитель (например, картины Xiaomi). Aerial свою не показывает.</string>
     <string name="wp_videos_note">Ваши видео, отправленные с телефона: без звука, одно за другим. Движутся как аэросъёмка и останавливаются на текущем кадре.</string>

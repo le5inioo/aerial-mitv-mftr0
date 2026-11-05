@@ -62,7 +62,6 @@ import app.orchard.tv.apps.TileArtFactory
 import app.orchard.tv.apps.rewritesLauncher
 import app.orchard.tv.guard.GuardSetup
 import app.orchard.tv.guard.HomeGuardService
-import app.orchard.tv.ui.home.BootSplash
 import app.orchard.tv.ui.home.FilmAfterInput
 import app.orchard.tv.ui.home.HomeScreen
 import app.orchard.tv.ui.home.AerialStart
@@ -307,8 +306,6 @@ class MainActivity : ComponentActivity() {
                         // Posted so the key-up of the Back press that started it does not end it at once.
                         onStartScreensaver = { idleHandler.postDelayed({ startScreensaver(asked = true) }, 150) },
                     )
-                    // The boot splash, over everything, once per boot (the owner, 2026-11-05).
-                    BootSplash()
                 }
             }
         }

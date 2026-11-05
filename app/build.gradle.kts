@@ -24,7 +24,7 @@ android {
         targetSdk = 34
         // Above homekey-standin's 102, which this package name held before (a clean update, no
         // uninstall needed). Custom: keep 4-digit versionCode above the standin, name tracks upstream.
-        versionCode = 1091
+        versionCode = 1092
         versionName = "1.84"
         // `./gradlew -Pdiag ...`: a build for one reporter's TV whose logcat shows no app lines;
         // see system/DiagLog.kt.
@@ -114,7 +114,6 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.2")
     // The boot splash's spinner, ported from DouYin-TV (issue: owner request, 2026-11-05).
-    implementation("com.airbnb.android:lottie-compose:6.6.6")
     implementation("androidx.core:core-ktx:1.16.0")
     // Baseline Profile install (src/main/baseline-prof.txt) and its compile state in the diagnostics.
     implementation("androidx.profileinstaller:profileinstaller:1.4.0")
