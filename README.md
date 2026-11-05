@@ -4,7 +4,7 @@
 
 # Aerial · 小米电视定制分支
 
-给一台小米电视 MiTV-MFTR0 改的桌面，从 [Aerial](https://github.com/pengchujin/aerial-tv) 分出来。
+给一台小米电视 S65 Mini LED（MiTV-MFTR0）改的桌面，从 [Aerial](https://github.com/pengchujin/aerial-tv) 分出来。
 
 <a href="https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest"><img alt="下载 APK" src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%20APK-34a853?style=for-the-badge&logo=android&logoColor=white"></a>
 <a href="https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest"><img alt="版本" src="https://img.shields.io/github/v/release/le5inioo/aerial-mitv-mftr0?style=flat-square&label=%E7%89%88%E6%9C%AC&color=2997ff"></a>
@@ -28,31 +28,13 @@
 | 项目 | 值 |
 |---|---|
 | 品牌 / 型号 | 小米（Xiaomi）MiTV-MFTR0 |
-| 零售型号 | Redmi X65 2026（同型号同平台，固件同为 `OSx.x.x.x.UFTMATV`） |
-| 设备代号 | `freeguy`（`ro.product.device`） |
-| SoC | MediaTek **MT9653**（`ro.hardware=mt9653`，`ro.board.platform=mt5879`） |
-| CPU | 4 核 ARMv8（`/proc/cpuinfo` 报 `ARMv8 Processor rev 0 (v8l)`，用户态 **32 位**） |
-| ABI | `armeabi-v7a` |
+| 零售型号 | 小米电视 S65 Mini LED 臻享版（L65MA-SPL） |
+| CPU | mt5879 · armeabi-v7a · 4 核心 |
 | 内存 | 3.7 GB 可用（`MemTotal: 3,860,504 kB`，标称 4 GB） |
-| 存储 | `/data` 54 GB，实测已用 6.5 GB |
-| 面板 / 分辨率 | 系统上报 **1920×1080**，只有 60 Hz 一个显示模式（`supportedModes` 仅 1 项） |
-| 屏幕密度 | 320 dpi（960×540 dp） |
-| HDR | HDR10、HDR10+、HLG、杜比视界（`HdrCapabilities` 类型 1–4），峰值 500 nits |
-| GPU | OpenGL ES 3.2（`ro.opengles.version=196610`），性能很弱：导航帧耗时中位数 14–18 ms |
-| 系统 | **Android 11（SDK 30）**，HyperOS TV 2.0 |
-| 固件 | `OS2.0.5.0.RFTMATV` |
-| 构建指纹 | `xiaomi/freeguy/freeguy:11/RP1A.200720.011/OS2.0.5.0.RFTMATV:user/release-keys` |
-| 内核 | `5.4.190-g17e2d9e9622d-dirty`（`armv8l`，2025-02-18 构建） |
-| 安全补丁 | 2023-02-05 |
-| 原桌面 | `com.mitv.tvhome/.MainActivityUserMode`（PatchWall） |
-| 备用桌面 | `com.xiaomi.mitv.settings/.entry.FallbackHome`（priority −1000） |
-| 安装包 | `standard` flavor，普通 `adb install` 即可，无需 guard 变体 |
-| 连接方式 | 局域网 adb（`adb connect <电视IP>:5555`），USB 口走 OTG 时不认 U 盘 |
+| 系统 | Android 11（SDK 30） |
+| 固件 | HyperOS 2.0.5.0（`OS2.0.5.0.RFTMATV`） |
 
-两点会影响判断，写在这里：
-
-- **固件有两代**。同型号另有 `OS3.0.x`（Android 14 / SDK 34）固件，`docs/` 里一部分实测是在那一代上做的，[机型笔记](docs/devices/xiaomi-mitv-mftr0.md) 会标出年代。看日志前先 `getprop ro.build.version.sdk` 确认自己在哪一代。
-- **应用层只有 1080p**。系统给的就是 1920×1080、单一 60 Hz 模式，面板物理分辨率从属性里读不到（只有 `ro.boot.panel_type=lcd`）。写布局、算帧预算都按应用层这个值来，不要按标称 4K 估。
+应用层只有 1080p，写布局、算帧预算都按这个来：系统给的是 1920×1080、单一 60 Hz 模式，面板物理分辨率从属性里读不到（只有 `ro.boot.panel_type=lcd`），不要按标称 4K 估。
 
 ## 本分支做了什么
 
@@ -157,7 +139,7 @@ TV=<电视IP> tools/restore.sh --uninstall  # 顺便卸载
 ```bash
 adb connect <电视IP>:5555
 adb logcat -d -s AerialDiag:* | tail -30      # 守护接管、唤醒动画、开机时机
-adb shell getprop ro.build.version.sdk         # 先确认是 Android 11 还是 14
+adb shell getprop ro.build.version.sdk         # 确认系统版本（这台是 30）
 adb shell dumpsys window | grep mCurrentFocus  # 现在谁在前台
 adb shell dumpsys accessibility | grep -i filter  # 按键过滤有没有开
 ```

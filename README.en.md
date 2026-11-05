@@ -4,7 +4,7 @@
 
 # Aerial · Xiaomi TV fork
 
-A launcher tuned for one TV: the Xiaomi MiTV-MFTR0. Forked from [Aerial](https://github.com/pengchujin/aerial-tv).
+A launcher tuned for one TV: the Xiaomi TV S65 Mini LED (MiTV-MFTR0). Forked from [Aerial](https://github.com/pengchujin/aerial-tv).
 
 <a href="https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest"><img alt="Download APK" src="https://img.shields.io/badge/Download%20APK-34a853?style=for-the-badge&logo=android&logoColor=white"></a>
 <a href="https://github.com/le5inioo/aerial-mitv-mftr0/releases/latest"><img alt="Version" src="https://img.shields.io/github/v/release/le5inioo/aerial-mitv-mftr0?style=flat-square&label=version&color=2997ff"></a>
@@ -30,28 +30,13 @@ Everything was measured on this one unit, read straight off the device on 2026-1
 | Item | Value |
 |---|---|
 | Brand / model | Xiaomi MiTV-MFTR0 |
-| Retail name | Redmi X65 2026 (same model, same platform, `OSx.x.x.x.UFTMATV` firmware) |
-| Codename | `freeguy` (`ro.product.device`) |
-| SoC | MediaTek **MT9653** (`ro.hardware=mt9653`, `ro.board.platform=mt5879`) |
-| CPU | 4× ARMv8 (`ARMv8 Processor rev 0 (v8l)`), **32-bit** userspace |
-| ABI | `armeabi-v7a` |
+| Retail name | Xiaomi TV S65 Mini LED 臻享版 (L65MA-SPL) |
+| CPU | mt5879 · armeabi-v7a · 4 cores |
 | RAM | 3.7 GB usable (`MemTotal: 3,860,504 kB`, 4 GB nominal) |
-| Storage | `/data` 54 GB, 6.5 GB used |
-| Panel / resolution | System reports **1920×1080**, a single 60 Hz mode |
-| Density | 320 dpi (960×540 dp) |
-| HDR | HDR10, HDR10+, HLG, Dolby Vision (types 1–4), 500 nits peak |
-| GPU | OpenGL ES 3.2, weak: 14–18 ms median frame time when navigating |
-| OS | **Android 11 (SDK 30)**, HyperOS TV 2.0 |
-| Firmware | `OS2.0.5.0.RFTMATV` |
-| Fingerprint | `xiaomi/freeguy/freeguy:11/RP1A.200720.011/OS2.0.5.0.RFTMATV:user/release-keys` |
-| Kernel | `5.4.190-g17e2d9e9622d-dirty` (`armv8l`) |
-| Security patch | 2023-02-05 |
-| Stock launcher | `com.mitv.tvhome/.MainActivityUserMode` (PatchWall) |
-| Fallback launcher | `com.xiaomi.mitv.settings/.entry.FallbackHome` (priority −1000) |
-| Build flavor | `standard` — a plain `adb install` works, no `guard` variant |
-| Connection | adb over LAN (`adb connect <TV-IP>:5555`) |
+| OS | Android 11 (SDK 30) |
+| Firmware | HyperOS 2.0.5.0 (`OS2.0.5.0.RFTMATV`) |
 
-Two caveats: the same model also ships `OS3.0.x` (Android 14 / SDK 34) firmware, and part of the measurements in `docs/` were taken on that generation — check `getprop ro.build.version.sdk` before trusting a log. And apps only ever see 1080p: the system exposes 1920×1080 in a single 60 Hz mode, and the panel's real resolution is not readable from properties. Budget layout and performance against what apps get.
+Apps only ever see 1080p, so budget layout and frame time against that: the system exposes 1920×1080 in a single 60 Hz mode, and the panel's real resolution is not readable from properties — do not plan for the nominal 4K.
 
 ## What changed
 
