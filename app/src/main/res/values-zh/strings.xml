@@ -328,5 +328,5 @@
     <string name="kids_warn">还能看 %d 分钟</string>
     <string name="kids_warn_break">%d 分钟后休息一下</string>
     <string name="st_wake_anim">唤醒动画</string>
-    <string name="st_wake_anim_hint">从待机唤醒时播放的 3 秒过场。冷启动和重启仍使用系统自带的开机动画。</string>
+    <string name="st_wake_anim_hint">从待机唤醒时播放的 5 秒过场。冷启动和重启仍使用系统自带的开机动画。</string>
 </resources>

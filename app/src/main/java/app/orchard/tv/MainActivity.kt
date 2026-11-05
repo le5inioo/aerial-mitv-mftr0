@@ -299,7 +299,9 @@ class MainActivity : ComponentActivity() {
                 fontScale = LocalDensity.current.fontScale,
             )
             CompositionLocalProvider(LocalReducedMotion provides reducedMotion, LocalDensity provides canvas) {
-                Box(Modifier.fillMaxSize()) {
+                // Five seconds of spinner, on a wake from standby only; Home composes behind it,
+                // so the splash's first seconds are not spent competing with Home's cold start.
+                WakeSplash(wakeSplash.intValue) {
                     HomeScreen(
                         vm = vm,
                         onLaunch = ::launch,
@@ -309,8 +311,6 @@ class MainActivity : ComponentActivity() {
                         // Posted so the key-up of the Back press that started it does not end it at once.
                         onStartScreensaver = { idleHandler.postDelayed({ startScreensaver(asked = true) }, 150) },
                     )
-                    // Three seconds of spinner over Home, on a wake from standby only.
-                    WakeSplash(wakeSplash.intValue)
                 }
             }
         }
@@ -388,7 +388,7 @@ class MainActivity : ComponentActivity() {
 
     private var bootSourceOpenedAt = Long.MIN_VALUE / 2
 
-    /** Counts wakes from standby; WakeSplash replays the three-second splash on each new value. */
+    /** Counts wakes from standby; WakeSplash replays the five-second splash on each new value. */
     private val wakeSplash = mutableIntStateOf(0)
 
     /**
