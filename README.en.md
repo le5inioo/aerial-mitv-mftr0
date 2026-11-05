@@ -40,7 +40,7 @@ Apps only ever see 1080p, so budget layout and frame time against that: the syst
 
 ## What changed
 
-Against upstream `main`: 23 commits, 210 files, +2890 / −16894 lines — more deleted than added, because upstream's `lite/`, the `site/` website, the other device notes and the generic installer are gone. What is left falls into four parts.
+Against upstream `main`: 26 commits, 210 files, +2893 / −16896 lines — more deleted than added, because upstream's `lite/`, the `site/` website, the other device notes and the generic installer are gone. What is left falls into four parts.
 
 ### 1. Making it the home screen
 
