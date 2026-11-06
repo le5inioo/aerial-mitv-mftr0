@@ -561,16 +561,16 @@ private val PlateSwell = 14.dp
 private val GridTint = PanelGlassTint
 
 /**
- * The plate's own glass: the frosted picture lifted to a milky white, drawn at three tenths, so the
- * sharp picture shows plainly through it (the owner, 2026-11-06: white frost, thirty percent).
- * White takes far less of it than the panels' grey did — at the grey's six tenths it was a slab —
- * and the panels and the grid glass stay whole, the grey they are.
+ * The plate's own glass: the frosted picture lifted to a milky white, drawn at half, so the sharp
+ * picture shows plainly through it (the owner, 2026-11-06: white frost, half). White takes far less
+ * of it than the panels' grey did — at the grey's six tenths it was a slab — and the panels and the
+ * grid glass stay whole, the grey they are.
  */
 private val PlateTint = floatArrayOf(
     0.45f, 0f, 0f, 0f, 145f,
     0f, 0.45f, 0f, 0f, 145f,
     0f, 0f, 0.45f, 0f, 145f,
-    0f, 0f, 0f, 0.30f, 0f,
+    0f, 0f, 0f, 0.50f, 0f,
 )
 
 /**
