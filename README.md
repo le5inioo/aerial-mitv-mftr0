@@ -191,4 +191,4 @@ python tools/test_rescue.py && python tools/test_restore.py
 
 ## 许可
 
-[MIT](LICENSE)，上游版权归 [pengchujin/aerial-tv](https://github.com/pengchujin/aerial-tv) 作者所有，详见 [NOTICE.md](NOTICE.md)。Inter 字体使用 [SIL Open Font License](FONT-LICENSE-OFL.txt)；天气城市表来自 [GeoNames](https://www.geonames.org)（CC BY 4.0），天气数据来自 [Open-Meteo](https://open-meteo.com)；航拍影片版权归 Apple，由 Apple 的服务器直接播放。
+[MIT](LICENSE)，上游版权归 [pengchujin/aerial-tv](https://github.com/pengchujin/aerial-tv) 作者所有，详见 [NOTICE.md](NOTICE.md)。Inter 与 DSEG7（翻页时钟的数码管字体）使用 [SIL Open Font License](FONT-LICENSE-OFL.txt)；天气城市表来自 [GeoNames](https://www.geonames.org)（CC BY 4.0），天气数据来自 [Open-Meteo](https://open-meteo.com)；航拍影片版权归 Apple，由 Apple 的服务器直接播放。

@@ -5,6 +5,11 @@ This license is copied below, and is also available with a FAQ at:
 https://scripts.sil.org/OFL
 
 
+Copyright 2019 keshikan (https://github.com/keshikan/DSEG) — DSEG7 Classic Bold,
+bundled as res/font/dseg7classic_bold.ttf. This Font Software is licensed under
+the same SIL Open Font License, Version 1.1, copied below.
+
+
 -----------------------------------------------------------
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
 -----------------------------------------------------------

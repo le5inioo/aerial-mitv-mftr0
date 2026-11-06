@@ -183,4 +183,4 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for structure and performance c
 
 ## License
 
-[MIT](LICENSE). Upstream copyright belongs to the [pengchujin/aerial-tv](https://github.com/pengchujin/aerial-tv) authors — see [NOTICE.md](NOTICE.md). Inter is under the [SIL Open Font License](FONT-LICENSE-OFL.txt); weather city data from [GeoNames](https://www.geonames.org) (CC BY 4.0), weather from [Open-Meteo](https://open-meteo.com); aerial films belong to Apple and stream from Apple's servers.
+[MIT](LICENSE). Upstream copyright belongs to the [pengchujin/aerial-tv](https://github.com/pengchujin/aerial-tv) authors — see [NOTICE.md](NOTICE.md). Inter and DSEG7 (the flip clock's seven-segment face) are under the [SIL Open Font License](FONT-LICENSE-OFL.txt); weather city data from [GeoNames](https://www.geonames.org) (CC BY 4.0), weather from [Open-Meteo](https://open-meteo.com); aerial films belong to Apple and stream from Apple's servers.

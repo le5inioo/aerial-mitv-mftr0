@@ -5,6 +5,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -38,15 +39,18 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.orchard.tv.ui.theme.Type
+import app.orchard.tv.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.time.LocalDateTime
-import kotlin.random.Random
+import kotlin.math.PI
+import kotlin.math.sin
 
 /**
  * The flip-clock screensaver (chosen in Personalize): a card per digit, HH MM SS in the 24-hour
@@ -54,15 +58,19 @@ import kotlin.random.Random
  * than that library, which is for web pages. Each second the card of the changing digit plays the
  * split-flap: its old top falls away to the hinge, then the new bottom unfolds over it.
  *
- * Black behind the cards, like the original, and the whole clock drifts a little every minute (as
- * ClockSaver's clock does) so nothing sits on one spot for hours.
+ * Black behind the cards, like the original, and the clock glides along a slow Lissajous curve so
+ * nothing sits on one spot for hours.
  */
 
 /** One top-fall-plus-bottom-rise cycle, in milliseconds. */
 private const val FLIP_MS = 460
 
-private val CardTop = Color(0xFFF3F3F1)
-private val CardBottom = Color(0xFFE1E1DF)
+// Each half is a light-to-dark gradient, light at the card's outer edge and shaded toward the
+// hinge, so the fold reads as a lit surface rather than a flat white slab.
+private val CardTopLight = Color(0xFFECECEA)
+private val CardTopShade = Color(0xFFC7C7C4)
+private val CardBotShade = Color(0xFFB6B6B3)
+private val CardBotLight = Color(0xFFE0E0DD)
 private val DigitInk = Color(0xFF17181A)
 private val HingeInk = Color(0xFF0A0A0B)
 
@@ -70,23 +78,27 @@ private val CardCorner = 12.dp
 private val CardW = 110.dp
 private val CardH = 156.dp
 
-private val FlipDigitStyle = Type.Clock.copy(
-    fontSize = 96.sp, color = DigitInk, letterSpacing = 0.sp, textAlign = TextAlign.Center,
+// DSEG7 Classic Bold (keshikan/DSEG, SIL OFL 1.1): a true seven-segment display face. Every digit
+// has the same advance width, so cards never change width as the seconds count.
+private val Dseg7 = FontFamily(Font(R.font.dseg7classic_bold))
+
+private val FlipDigitStyle = TextStyle(
+    fontFamily = Dseg7, fontSize = 88.sp, color = DigitInk, letterSpacing = 0.sp,
+    textAlign = TextAlign.Center,
 )
 
 @Composable
 internal fun FlipClockSaver(initial: LocalDateTime) {
     val now by rememberSecondly(initial)
-    val minute = now.withSecond(0).withNano(0)
-    // A spot per minute near the centre, so a card boundary (the hinge line and edges) does not sit
-    // on one pixel group for hours.
-    val drift = remember(minute) {
-        val rnd = Random(minute.hashCode())
-        Offset((rnd.nextFloat() - 0.5f) * 44f, (rnd.nextFloat() - 0.5f) * 30f)
-    }
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        // A slow drift, not a spot per minute: the clock creeps a fraction of a pixel a second
+        // along a Lissajous curve, so card edges never sit on one pixel group for hours, and the
+        // minute flip does not make the whole clock lurch to a new offset.
+        val secs = now.toLocalTime().toSecondOfDay().toFloat()
+        val dx = 16.dp * sin(secs * (2f * PI.toFloat() / 620f))
+        val dy = 11.dp * sin(secs * (2f * PI.toFloat() / 860f) + 1.1f)
         Row(
-            Modifier.offset(drift.x.dp, drift.y.dp),
+            Modifier.offset(dx, dy),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -158,17 +170,27 @@ private fun Half(digit: Char, top: Boolean, rotate: Float = 0f) {
     val half = CardH / 2
     val measurer = rememberTextMeasurer()
     // Only a moving flap gets a layer; a layer on every static half cost blank cards on the TV.
+    // The camera sits far back so the flap's near 90 degrees do not bulge past the card's sides —
+    // a real flap hinges without getting wider.
     val flap = if (rotate == 0f) Modifier
     else Modifier.graphicsLayer {
         rotationX = rotate
+        cameraDistance = 90.dp.toPx()
         transformOrigin = TransformOrigin(0.5f, if (top) 1f else 0f)
     }
     Canvas(Modifier.offset(y = if (top) 0.dp else half).then(flap).size(CardW, half)) {
         clipRect(0f, 0f, size.width, size.height) {
             translate(0f, if (top) 0f else -size.height) { // the bottom draws from the card's top too
                 val card = Size(CardW.toPx(), CardH.toPx())
+                // Lit from above: each half goes light at its outer edge to shade at the hinge.
+                // The gradients run in card coordinates, so each covers just its own half.
+                val brush = if (top) Brush.verticalGradient(
+                    listOf(CardTopLight, CardTopShade), startY = 0f, endY = size.height,
+                ) else Brush.verticalGradient(
+                    listOf(CardBotShade, CardBotLight), startY = size.height, endY = card.height,
+                )
                 drawRoundRect(
-                    color = if (top) CardTop else CardBottom,
+                    brush = brush,
                     size = card, // clipped to this half, so only the outer corners come out rounded
                     cornerRadius = CornerRadius(CardCorner.toPx()),
                 )
