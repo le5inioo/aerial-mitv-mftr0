@@ -39,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -659,12 +660,23 @@ fun HomeScreen(
         // "Follow Tile": the plate keeps one glass while the mode shows. Taking each tile's own
         // made it change colour with every tile stepped to — and re-bake itself each time, a
         // plate's worth of work on every step (the owner, 2026-11-06). Frozen at the first tile's,
-        // the one Home opens on; it follows the first tile's glass as that is re-baked (its
-        // wallpaper changed), and lets go when another wallpaper is chosen.
+        // the one Home opens on — taken once, on entering the mode, and not again: every tile on
+        // the image host is re-baked when a new picture is dealt (a tile stepped to deals one), so
+        // following the first tile's re-bakes changed the plate at every step, and the swap's
+        // moment before the new bake is ready showed the plate blank (the owner, 2026-11-06). It
+        // lets go when another wallpaper is chosen.
         var plateGlass by remember { mutableStateOf<ImageBitmap?>(null) }
+        LaunchedEffect(Wallpapers.selectedId) {
+            if (Wallpapers.selectedId != Wallpapers.PER_APP) plateGlass = null
+        }
         val firstTileGlass = Wallpapers.perAppFrosted(1)
-        LaunchedEffect(Wallpapers.selectedId, firstTileGlass) {
-            plateGlass = firstTileGlass.takeIf { Wallpapers.selectedId == Wallpapers.PER_APP }
+        SideEffect {
+            if (Wallpapers.selectedId == Wallpapers.PER_APP && plateGlass == null) {
+                firstTileGlass?.let { plateGlass = it }
+            }
+        }
+        if (Wallpapers.selectedId == Wallpapers.PER_APP && plateGlass == null) {
+            Wallpapers.perAppFrosted(1)?.let { plateGlass = it }
         }
         // A tile whose choice moves — the aerial films or the owner's videos — plays behind Home
         // (the owner, 2026-11-06): the still baked from it stands in until the film's first frame,
