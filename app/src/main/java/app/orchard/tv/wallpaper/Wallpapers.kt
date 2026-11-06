@@ -556,8 +556,37 @@ object Wallpapers {
     }
 
     /** The wallpaper's picture, when the photo screensaver starts from it: a picture wallpaper, not the aerial one. */
-    fun screensaverPicture(): Wallpaper? =
-        if (screensaver != ScreensaverMode.Photos || moves() || isSource() || selectedId == AUTO) null else resolve()
+    fun screensaverPicture(): Wallpaper? {
+        if (screensaver != ScreensaverMode.Photos) return null
+        // What Home shows, which in "Follow Tile" is the picture of the tile in focus — not the
+        // card for the mode itself: the card has no picture, and the screensaver sat on black with
+        // "跟随磁贴" for its caption until the next photo came round (the owner, 2026-11-06).
+        val shown = effectiveId()
+        if (moves(shown) || isSource(shown) || shown == AUTO) return null
+        return resolve(shown)?.takeIf { draws(it) }
+    }
+
+    /**
+     * The pictures the photo screensaver moves through: the owner's own photos, else the daily ones,
+     * else the built-in pictures. Only things that draw — "Follow Tile" and "Follow App" are cards
+     * that stand for a choice, listed among the built-ins; one of them in the pool left the
+     * screensaver on black until the next slide, titled with the card's own name ("跟随磁贴",
+     * the owner, 2026-11-06).
+     */
+    fun photoPictures(): List<Wallpaper> {
+        fun pictures(kind: WallpaperKind) = items.filter { it.kind == kind && draws(it) }
+        return pictures(WallpaperKind.Photo)
+            .ifEmpty { pictures(WallpaperKind.Daily) }
+            .ifEmpty { pictures(WallpaperKind.Builtin) }
+    }
+
+    /** Whether [wp] has a picture to draw: a card for a choice, or a photo whose file is gone, has none. */
+    private fun draws(wp: Wallpaper): Boolean = when (wp.kind) {
+        WallpaperKind.Builtin -> Gradients.byKey(wp.id.removePrefix("grad:")) != null
+        WallpaperKind.Daily, WallpaperKind.Photo -> fileFor(wp)?.exists() == true
+        WallpaperKind.Auto -> false
+        else -> true
+    }
 
     fun chooseScreensaver(mode: ScreensaverMode) {
         chosenScreensaver = mode

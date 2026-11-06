@@ -718,14 +718,18 @@ private fun PhotoSaver(
 ) {
     val reduced = LocalReducedMotion.current
     val pool = remember(Wallpapers.items) {
-        // The owner's own photos when there are any, else the daily ones (issue #27).
-        val pictures = Wallpapers.items.filter { it.kind == WallpaperKind.Photo }
-            .ifEmpty { Wallpapers.items.filter { it.kind == WallpaperKind.Daily } }
-        val rest = (pictures.ifEmpty { Wallpapers.items.filter { it.kind == WallpaperKind.Builtin } }).shuffled()
+        // The owner's own photos when there are any, else the daily ones (issue #27) — pictures
+        // only, never one of the cards that stand for a choice (Wallpapers.photoPictures).
+        val rest = Wallpapers.photoPictures().shuffled()
         if (first == null) rest else listOf(first) + rest.filter { it.id != first.id }
     }
     var slide by remember { mutableIntStateOf(0) }
     var image by remember { mutableStateOf<Pair<Int, ImageBitmap>?>(null) }
+    var missed by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(pool) {
+        DiagLog.i("photo screensaver: ${pool.size} pictures, first ${pool.firstOrNull()?.id}")
+    }
 
     // Restarts on every slide, so a step from the remote also restarts the 18 s wait.
     LaunchedEffect(pool, slide) {
@@ -733,6 +737,13 @@ private fun PhotoSaver(
         if (carried == null || slide != 0) {
             val wp = pool[slide.mod(pool.size)]
             val bmp = withContext(Dispatchers.Default) { Wallpapers.picture(wp, Wallpapers.screenW, Wallpapers.screenH)?.asImageBitmap() }
+            // A picture that will not decode does not hold the screen black for its whole turn:
+            // the next one comes at once (a round of them, at most).
+            if (bmp == null && missed < pool.size) {
+                missed++
+                slide++
+                return@LaunchedEffect
+            }
             if (bmp != null) image = slide to bmp
         }
         delay(18_000)
