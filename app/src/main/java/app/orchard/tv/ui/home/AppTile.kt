@@ -668,7 +668,9 @@ private fun tileShadow(w: Int, h: Int, corner: Float, blur: Float): TileShadow =
         drawPath(
             smoothRectPath(Rect(0f, 0f, w.toFloat(), h.toFloat()), corner).asAndroidPath(),
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.Black.copy(alpha = 0.7f).toArgb()
+                // Half of what it was (0.7): the owner asked for a lighter shadow under the
+                // lifted tile (2026-11-06); the blur keeps it soft at the lower alpha.
+                color = Color.Black.copy(alpha = 0.35f).toArgb()
                 maskFilter = BlurMaskFilter(blur, BlurMaskFilter.Blur.NORMAL)
             },
         )

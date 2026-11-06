@@ -518,13 +518,14 @@ private fun smokeGlass(color: Int): ImageBitmap =
         .apply { eraseColor(color) }.asImageBitmap()
 
 /** How much of the film plate is its frosted key frame; the rest is the film itself, moving. */
-private const val FILM_FROST = 0.55f
+private const val FILM_FROST = 0.45f
 
 /**
  * The film plate's smoke: a milky white veil now (the plate's glass went white, 2026-11-06), so
- * the tiles keep a bright ground over any film. Deeper where no frosted frame is under it.
+ * the tiles keep a bright ground over any film. Deeper where no frosted frame is under it. Both
+ * eased with the plate (the owner asked for it more see-through, 2026-11-06).
  */
-private val FILM_SMOKE = android.graphics.Color.argb(48, 255, 255, 255)
+private val FILM_SMOKE = android.graphics.Color.argb(36, 255, 255, 255)
 
 /**
  * With no frosted frame under it (Wallpapers.filmGlassless): a milkier white veil. Black (40%)
@@ -532,7 +533,7 @@ private val FILM_SMOKE = android.graphics.Color.argb(48, 255, 255, 255)
  * 2026-11-01). White lifts it as glass lit from within, as Tigris and CleanTV do with no blur;
  * the lit edge does the rest.
  */
-private val FILM_SMOKE_ALONE = android.graphics.Color.argb(72, 255, 255, 255)
+private val FILM_SMOKE_ALONE = android.graphics.Color.argb(56, 255, 255, 255)
 
 /** A new key frame fades in over the last: slow, as the glass is soft, and seldom (GLASS_EVERY_MS). */
 private const val FILM_SWAP_MS = 700
@@ -559,13 +560,15 @@ private val GridTint = floatArrayOf(
 /**
  * The plate's tint: lifts the frosted picture to a milky white glass (the owner, 2026-11-06: the
  * plate read as black over their dark films). The frost is the blur of what is behind, so the
- * plate keeps its translucent look; only its colour turns white.
+ * plate keeps its translucent look; only its colour turns white. Drawn at 72% (the owner's next
+ * word was "更透"): the sharp picture shows through a little, and the plate reads as glass again
+ * rather than a milky slab.
  */
 private val PlateTint = floatArrayOf(
     0.45f, 0f, 0f, 0f, 145f,
     0f, 0.45f, 0f, 0f, 145f,
     0f, 0f, 0.45f, 0f, 145f,
-    0f, 0f, 0f, 1f, 0f,
+    0f, 0f, 0f, 0.72f, 0f,
 )
 
 /** The glass picture with [tint] applied ahead of time, so the plate is one plain draw. */
