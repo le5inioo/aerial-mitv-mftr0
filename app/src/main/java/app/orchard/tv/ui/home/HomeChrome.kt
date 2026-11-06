@@ -561,16 +561,20 @@ private val PlateSwell = 14.dp
 private val GridTint = PanelGlassTint
 
 /**
- * The plate's own glass: the panels' tint ([PanelGlassTint]) a tenth see-through, so the sharp
- * picture shows under it a little (the owner asked for it, 2026-11-06). The panels stay whole.
+ * The plate's own glass: the frosted picture lifted to a milky white, drawn at three tenths, so the
+ * sharp picture shows plainly through it (the owner, 2026-11-06: white frost, thirty percent).
+ * White takes far less of it than the panels' grey did — at the grey's six tenths it was a slab —
+ * and the panels and the grid glass stay whole, the grey they are.
  */
-private val PlateTint = PanelGlassTint.copyOf().also { it[18] = 0.60f }
+private val PlateTint = floatArrayOf(
+    0.45f, 0f, 0f, 0f, 145f,
+    0f, 0.45f, 0f, 0f, 145f,
+    0f, 0f, 0.45f, 0f, 145f,
+    0f, 0f, 0f, 0.30f, 0f,
+)
 
 /**
- * The plate is the panels' glass ([PanelGlassTint]) at six tenths, drawn as they draw it: the owner
- * asked for one material, so that a menu opening over Home does not sit on a plate of another colour
- * (2026-11-06), then asked to see more of the picture through it (2026-11-06): the sharp picture now
- * shows under the plate plainly. The panels and the grid glass stay whole.
+ * [PlateTint] applied to [src] ahead of the bake, so the plate is one plain draw.
  */
 private fun plateTinted(src: ImageBitmap, tint: FloatArray = GridTint): ImageBitmap {
     val out = src.asAndroidBitmap().copy(android.graphics.Bitmap.Config.ARGB_8888, true)
