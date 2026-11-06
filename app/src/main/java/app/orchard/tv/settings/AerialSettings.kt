@@ -149,6 +149,9 @@ object AerialSettings {
      */
     var screensaverClock by mutableStateOf(true); private set
 
+    /** The flip clock's seconds cards; off leaves HH and MM, an unhurried clock for a bedside set. */
+    var flipClockSeconds by mutableStateOf(true); private set
+
     /** Every app's name under its tile, not only the focused one's (issue #28), the top row's on the glass plate too. */
     private var chosenAllNames by mutableStateOf(false)
 
@@ -231,6 +234,7 @@ object AerialSettings {
             .takeUnless { it.isNaN() }?.coerceIn(MIN_VIDEO_SPEED, MAX_VIDEO_SPEED) ?: DEFAULT_VIDEO_SPEED
         showWeather = prefs.getBoolean("show_weather", true)
         screensaverClock = prefs.getBoolean("screensaver_clock", true)
+        flipClockSeconds = prefs.getBoolean("flipclock_seconds", true)
         // Before 1.28 this was on or off; on meant whichever sounds Aerial played.
         uiSounds = UiSounds.of(prefs.getString("ui_sounds_kind", null)) ?: when {
             !prefs.getBoolean("ui_sounds", true) -> UiSounds.Off
@@ -353,6 +357,11 @@ object AerialSettings {
     fun chooseScreensaverClock(on: Boolean) {
         screensaverClock = on
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("screensaver_clock", on) }
+    }
+
+    fun chooseFlipClockSeconds(on: Boolean) {
+        flipClockSeconds = on
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("flipclock_seconds", on) }
     }
 
     fun chooseBackStartsScreensaver(on: Boolean) {

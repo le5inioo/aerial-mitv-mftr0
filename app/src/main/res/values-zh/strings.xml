@@ -107,6 +107,10 @@
     <string name="ss_clock">时钟</string>
     <string name="ss_flipclock">翻页时钟</string>
     <string name="ss_flipclock_hint">翻页卡片显示 24 小时制的时、分、秒</string>
+    <string name="ss_webhost">个人图床</string>
+    <string name="ss_webhost_hint">每 20 秒从个人图床取一张新图；按左右键立即换一张。</string>
+    <string name="ss_seconds">显示秒数</string>
+    <string name="ss_seconds_hint">关掉只显示时和分。</string>
     <string name="wp_phone_title">用手机或电脑设置</string>
     <string name="wp_phone_body">扫码，或在电脑浏览器打开下面的地址，可以发照片和视频、更换 App 图标、设置天气城市。需要和电视连接同一网络。</string>
     <string name="wp_phone_offline">电视联网后即可用手机或电脑设置。</string>

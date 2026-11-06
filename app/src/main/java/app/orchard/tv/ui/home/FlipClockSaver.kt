@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.orchard.tv.settings.AerialSettings
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.time.LocalDateTime
@@ -64,6 +66,9 @@ import kotlin.math.sin
 
 /** One top-fall-plus-bottom-rise cycle, in milliseconds. */
 private const val FLIP_MS = 460
+
+/** How much taller than its face a digit is drawn: 1.2 fills the card the way the reference does. */
+private const val DIGIT_STRETCH = 1.2f
 
 // Dark charcoal cards with a faint light-to-dark gradient (shade toward the hinge) and pale
 // digits, per the reference mock; the whole thing sits on black.
@@ -102,8 +107,15 @@ internal fun FlipClockSaver(initial: LocalDateTime) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val h = "%02d%02d%02d".format(now.hour, now.minute, now.second)
-            FlipDigit(h[0]); FlipDigit(h[1]); Colons(); FlipDigit(h[2]); FlipDigit(h[3]); Colons(); FlipDigit(h[4]); FlipDigit(h[5])
+            // HH MM, and SS when the seconds cards are on (Personalize): a colon before every pair
+            // after the first, whatever the count.
+            val seconds = AerialSettings.flipClockSeconds
+            val text = if (seconds) "%02d%02d%02d".format(now.hour, now.minute, now.second)
+            else "%02d%02d".format(now.hour, now.minute)
+            text.forEachIndexed { i, c ->
+                if (i > 0 && i % 2 == 0) Colons()
+                FlipDigit(c)
+            }
         }
     }
 }
@@ -195,13 +207,17 @@ private fun Half(digit: Char, top: Boolean, rotate: Float = 0f) {
                     cornerRadius = CornerRadius(CardCorner.toPx()),
                 )
                 val laid = measurer.measure(digit.toString(), FlipDigitStyle, maxLines = 1)
-                drawText(
-                    laid,
-                    topLeft = Offset(
-                        (card.width - laid.size.width) / 2f,
-                        (card.height - laid.size.height) / 2f,
-                    ),
-                )
+                // Taller than the face draws them: stretched about the card's centre, both halves
+                // stretch the same way, so a digit meets at the hinge as one.
+                scale(1f, DIGIT_STRETCH, pivot = Offset(card.width / 2f, card.height / 2f)) {
+                    drawText(
+                        laid,
+                        topLeft = Offset(
+                            (card.width - laid.size.width) / 2f,
+                            (card.height - laid.size.height) / 2f,
+                        ),
+                    )
+                }
             }
         }
     }

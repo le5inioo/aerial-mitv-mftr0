@@ -43,6 +43,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import android.graphics.BitmapFactory
+import java.net.HttpURLConnection
+import java.net.URL
 import app.orchard.tv.MainActivity
 import app.orchard.tv.system.SystemScreensaver
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,6 +70,7 @@ import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.wallpaper.AerialFormats
 import app.orchard.tv.wallpaper.AerialQuality
 import app.orchard.tv.wallpaper.Aerials
+import app.orchard.tv.wallpaper.Images
 import app.orchard.tv.wallpaper.ScreensaverMode
 import app.orchard.tv.wallpaper.WallpaperKind
 import app.orchard.tv.wallpaper.Wallpapers
@@ -91,6 +95,8 @@ import kotlin.random.Random
  *   with where it was taken.
  * - Clock: a large clock over the wallpaper, moving once a minute so nothing burns in.
  * - Videos: the owner's local films, uploaded from the phone page, playing silently offline.
+ * - My image host: a new picture from the owner's own host every twenty seconds, left and right
+ *   asking for one at once.
  *
  * If the films cannot be reached, Aerial falls back to Photos. Left and right step to the previous
  * or next film or photo, as on Apple TV; see [ScreensaverSkips].
@@ -123,6 +129,7 @@ fun Screensaver(visible: Boolean, apps: List<AppEntry>, now: LocalDateTime, skip
         val context = LocalContext.current
         var aerialFailed by remember { mutableStateOf(false) }
         var videosFailed by remember { mutableStateOf(false) }
+        var hostFailed by remember { mutableStateOf(false) }
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             when (Wallpapers.screensaver) {
                 ScreensaverMode.Aerial -> if (aerialFailed) PhotoSaver(now, skips.steps) else AerialSaver(
@@ -135,6 +142,9 @@ fun Screensaver(visible: Boolean, apps: List<AppEntry>, now: LocalDateTime, skip
                 ScreensaverMode.Photos -> PhotoSaver(now, skips.steps, remember { Wallpapers.screensaverPicture() })
                 ScreensaverMode.Clock, ScreensaverMode.System -> ClockSaver(apps, now)
                 ScreensaverMode.FlipClock -> FlipClockSaver(now)
+                ScreensaverMode.Webhost -> if (hostFailed) PhotoSaver(now, skips.steps) else WebHostSaver(
+                    now, skips.steps, onUnavailable = { hostFailed = true },
+                )
                 ScreensaverMode.Videos -> if (videosFailed) PhotoSaver(now, skips.steps) else VideoSaver(
                     skips.steps, onUnavailable = { videosFailed = true }, only = Wallpapers.screensaverVideo,
                 )
@@ -631,6 +641,70 @@ private const val RETRY_MS = 1_500L
 private const val STALL_MS = 8_000L
 
 private val DECODER_ERRORS = PlaybackException.ERROR_CODE_DECODER_INIT_FAILED..PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
+
+/**
+ * The owner's image host as a screensaver (Personalize → My Image Host): one picture at a time, a
+ * new one fetched every twenty seconds — the host answers each request with a different picture.
+ * Left and right ask for the next one at once. A fetch that fails keeps the picture on screen and
+ * tries again, so a host that went away leaves a still rather than a black screen.
+ */
+@Composable
+private fun WebHostSaver(now: LocalDateTime, steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
+    val host = remember { Wallpapers.webHostUrl().removePrefix("http://").removePrefix("https://").trimEnd('/') }
+    var picture by remember { mutableStateOf<ImageBitmap?>(null) }
+    var round by remember { mutableIntStateOf(0) }
+    var failures by remember { mutableIntStateOf(0) }
+    LaunchedEffect(round) {
+        val next = withContext(Dispatchers.IO) { fetchHostPicture(Wallpapers.webHostUrl()) }
+        if (next != null) {
+            picture = next
+            failures = 0
+        } else {
+            failures++
+            DiagLog.i("image host screensaver: nothing from $host ($failures)")
+            // A host that is off or on another network: the photos, rather than a black screen.
+            if (failures >= 3) onUnavailable()
+        }
+        delay(HOST_SLIDE_MS)
+        round++
+    }
+    LaunchedEffect(steps) { steps.collect { round++ } }
+    Dissolve(targetState = picture, durationMs = 1600, easing = LinearEasing, label = "webhost") { current ->
+        if (current != null) Canvas(Modifier.fillMaxSize()) {
+            drawImage(
+                current,
+                dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+                filterQuality = FilterQuality.Medium,
+            )
+        }
+    }
+    Labels(host, now)
+}
+
+/** How long one picture from the image host stays up before the next is asked for. */
+private const val HOST_SLIDE_MS = 20_000L
+
+/** One picture from [url], decoded to the screen's size; null when the host does not answer. */
+private fun fetchHostPicture(url: String): ImageBitmap? = runCatching {
+    val c = URL(url).openConnection() as HttpURLConnection
+    c.connectTimeout = 5_000
+    c.readTimeout = 20_000
+    c.instanceFollowRedirects = true
+    try {
+        check(c.responseCode in 200..299) { "HTTP ${c.responseCode}" }
+        val bytes = c.inputStream.use { it.readBytes() }
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0) return null
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= Wallpapers.screenW && bounds.outHeight / (sample * 2) >= Wallpapers.screenH) sample *= 2
+        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+            ?: return null
+        Images.cover(bitmap, Wallpapers.screenW, Wallpapers.screenH).asImageBitmap()
+    } finally {
+        c.disconnect()
+    }
+}.getOrNull()
 
 @Composable
 private fun PhotoSaver(

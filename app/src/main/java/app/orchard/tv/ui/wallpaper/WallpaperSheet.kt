@@ -324,18 +324,12 @@ fun WallpaperSheet(
                 Spacer(Modifier.height(22.dp))
                 SectionTitle(R.string.wp_screensaver)
                 Group { note ->
-                    SettingRow(
-                        R.string.ss_kind,
-                        when {
-                            Wallpapers.screensaver == ScreensaverMode.Videos -> stringResource(R.string.ss_videos_hint)
-                            Wallpapers.screensaver == ScreensaverMode.System -> stringResource(R.string.ss_system_hint)
-                            Wallpapers.screensaver == ScreensaverMode.FlipClock -> stringResource(R.string.ss_flipclock_hint)
-                            Wallpapers.screensaverFollows -> stringResource(R.string.ss_follow_hint)
-                            AerialSettings.backStartsScreensaver -> stringResource(R.string.ss_back_hint)
-                            else -> null
-                        },
-                        note, first = true,
-                    ) { ScreensaverChoice(onStartScreensaver) }
+                    ScreensaverKind(note, onStartScreensaver)
+                    if (Wallpapers.screensaver == ScreensaverMode.FlipClock) Choices(
+                        R.string.ss_seconds, stringResource(R.string.ss_seconds_hint), note,
+                        listOf(true to R.string.st_on, false to R.string.st_off),
+                        AerialSettings.flipClockSeconds, AerialSettings::chooseFlipClockSeconds,
+                    )
                     // The videos screensaver plays them all in turn; one of them may be picked to
                     // loop instead, until another is picked or it is deleted. A second-level menu:
                     // the row opens the picker over the sheet.
@@ -914,32 +908,69 @@ private fun ActionChip(label: String, glyph: Glyph, onClick: () -> Unit) {
     }
 }
 
+/** The kinds of screensaver, four chips to a row: seven choices and "start now" no longer fit on one. */
 @Composable
-private fun ScreensaverChoice(onStart: () -> Unit) {
-    // The choice first, then the action that tries it.
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        listOf(
-            ScreensaverMode.Aerial to R.string.ss_aerial,
-            ScreensaverMode.Photos to R.string.ss_photos,
-            ScreensaverMode.Clock to R.string.ss_clock,
-            ScreensaverMode.FlipClock to R.string.ss_flipclock,
-            ScreensaverMode.Videos to R.string.ss_videos,
-            ScreensaverMode.System to R.string.ss_system,
-        ).forEach { (mode, label) ->
-            Chip(stringResource(label), on = Wallpapers.screensaver == mode) { Wallpapers.chooseScreensaver(mode) }
-        }
-        Spacer(Modifier.width(6.dp))
-        Pressable(onClick = onStart, focusedScale = 1.06f) { state ->
-            val bg by animateColorAsState(if (state.focused) Palette.Focus else Palette.FillStrong, tween(140, easing = Motion.EaseOut), label = "ss-start")
-            val fg = if (state.focused) Palette.OnFocus else Palette.Label
-            Row(
-                Modifier.clip(RoundedCornerShape(50)).drawBehind { drawRect(bg) }.height(40.dp).padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                GlyphIcon(Glyph.Play, fg, 14.dp)
-                BasicText(stringResource(R.string.ss_start), style = Type.Body.copy(color = fg))
+private fun ScreensaverKind(note: (String?) -> Unit, onStart: () -> Unit) {
+    val kinds = listOf(
+        ScreensaverMode.Aerial to R.string.ss_aerial,
+        ScreensaverMode.Photos to R.string.ss_photos,
+        ScreensaverMode.Clock to R.string.ss_clock,
+        ScreensaverMode.FlipClock to R.string.ss_flipclock,
+        ScreensaverMode.Videos to R.string.ss_videos,
+        ScreensaverMode.Webhost to R.string.ss_webhost,
+        ScreensaverMode.System to R.string.ss_system,
+    )
+    // Read here, in composition: the chips call note() from their own callbacks.
+    val hint = when {
+        Wallpapers.screensaver == ScreensaverMode.Videos -> R.string.ss_videos_hint
+        Wallpapers.screensaver == ScreensaverMode.System -> R.string.ss_system_hint
+        Wallpapers.screensaver == ScreensaverMode.FlipClock -> R.string.ss_flipclock_hint
+        Wallpapers.screensaver == ScreensaverMode.Webhost -> R.string.ss_webhost_hint
+        Wallpapers.screensaverFollows -> R.string.ss_follow_hint
+        AerialSettings.backStartsScreensaver -> R.string.ss_back_hint
+        else -> null
+    }
+    val hintText = hint?.let { stringResource(it) }
+    Column(
+        Modifier.fillMaxWidth()
+            .onFocusChanged { if (it.hasFocus) note(hintText) }
+            .padding(start = 18.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+    ) {
+        BasicText(stringResource(R.string.ss_kind), style = Type.Body)
+        Spacer(Modifier.height(10.dp))
+        kinds.chunked(4).forEachIndexed { index, row ->
+            if (index > 0) Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                row.forEach { (mode, label) ->
+                    Chip(
+                        stringResource(label),
+                        on = Wallpapers.screensaver == mode,
+                        onFocused = { note(hintText) },
+                    ) { Wallpapers.chooseScreensaver(mode) }
+                }
+                // The action that tries the chosen one, at the end of the second row.
+                if (index == 1) {
+                    Spacer(Modifier.width(6.dp))
+                    StartChip(onStart)
+                }
             }
+        }
+    }
+}
+
+/** Starts the screensaver now, to see what it looks like. */
+@Composable
+private fun StartChip(onStart: () -> Unit) {
+    Pressable(onClick = onStart, focusedScale = 1.06f) { state ->
+        val bg by animateColorAsState(if (state.focused) Palette.Focus else Palette.FillStrong, tween(140, easing = Motion.EaseOut), label = "ss-start")
+        val fg = if (state.focused) Palette.OnFocus else Palette.Label
+        Row(
+            Modifier.clip(RoundedCornerShape(50)).drawBehind { drawRect(bg) }.height(40.dp).padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            GlyphIcon(Glyph.Play, fg, 14.dp)
+            BasicText(stringResource(R.string.ss_start), style = Type.Body.copy(color = fg))
         }
     }
 }
