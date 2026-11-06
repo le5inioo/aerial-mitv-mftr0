@@ -1066,7 +1066,21 @@ object Wallpapers {
      */
     fun leaveVideoFilm(film: String, atMs: Long) {
         prefs.edit { putString("video_film", film).putLong("video_at", atMs) }
+        rememberVideoPosition(film, atMs)
     }
+
+    /** Where each film last played, so a tile met again goes on from there. In memory only. */
+    private val videoPositions = mutableMapOf<String, Long>()
+
+    fun rememberVideoPosition(film: String?, atMs: Long) {
+        if (film != null && atMs > 0L) videoPositions[film] = atMs
+    }
+
+    /** Where [film] last played: its own place in memory, else the one left at (prefs), else 0. */
+    fun videoPosition(film: String): Long =
+        videoPositions[film]
+            ?: prefs.getLong("video_at", 0L).takeIf { prefs.getString("video_film", null) == film }
+            ?: 0L
 
     /**
      * The one of the owner's films the screensaver plays on a loop, or null for all of them in

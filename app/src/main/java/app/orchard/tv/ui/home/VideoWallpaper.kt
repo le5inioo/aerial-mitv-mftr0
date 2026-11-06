@@ -35,6 +35,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * The owner's own videos behind Home (issues #410, #583), sent from the phone page as for the video
@@ -210,12 +211,25 @@ fun VideoWallpaper(
     }
     // Another film's wallpaper on the same plane — the next tile's, or another video chosen. The
     // player and its surface stay: torn down and opened again, the window went black for the second
-    // the new film took to show, on every tile stepped along the row (the owner, 2026-11-06). The
-    // tile's own picture stands in while the new film opens, as it does when the film first starts.
+    // the new film took to show, on every tile stepped along the row (the owner, 2026-11-06).
+    // The last frame stays on the surface while the new film opens, and the new film's first frame
+    // takes over from it directly: a dip to the tile's poster in between read as a blink, and the
+    // film coming back after it read as the old one left behind (the owner, 2026-11-06). Only a
+    // frame slow to come (a cold file) has the poster stand in, for the while it takes.
     LaunchedEffect(filmsId) {
         val p = player ?: return@LaunchedEffect
         val films = withContext(Dispatchers.IO) { Wallpapers.videoFilms(filmsId) }
+        // The same films as now — two tiles taking one video: keep playing, do not even move.
+        val now = (0 until p.mediaItemCount).map { p.getMediaItemAt(it).mediaId }
+        if (now == films.map { it.id }) {
+            DiagLog.i("video wallpaper keeps ${filmsId.takeLast(8)}")
+            if (play) p.playWhenReady = true
+            return@LaunchedEffect
+        }
         DiagLog.i("video wallpaper switches to ${filmsId.takeLast(8)} (${films.size} films)")
+        // Where the film on screen now was, for the tile it belongs to to go on from there when
+        // it is back in focus.
+        p.currentMediaItem?.mediaId?.let { Wallpapers.rememberVideoPosition(it, p.currentPosition) }
         if (films.isEmpty()) {
             cover.snapTo(0f)
             release()
@@ -223,19 +237,22 @@ fun VideoWallpaper(
         }
         rendered = false
         showing = false
-        cover.snapTo(0f)
         val spot = Wallpapers.videoSpot()
         val first = films.indexOfFirst { it.id == spot?.first }
+        val start = first.coerceAtLeast(0)
         p.setMediaItems(
             films.map { MediaItem.Builder().setUri(it.file.toUri()).setMediaId(it.id).build() },
-            first.coerceAtLeast(0),
-            if (first >= 0) spot?.second ?: 0L else 0L,
+            start,
+            if (first >= 0) spot?.second ?: 0L else Wallpapers.videoPosition(films[start].id),
         )
         p.prepare()
         if (play) {
             p.playWhenReady = true
-            snapshotFlow { rendered }.first { it }
-            cover.animateTo(1f, tween(1200, easing = Motion.EaseOut))
+            if (withTimeoutOrNull(SWITCH_FRAME_MS) { snapshotFlow { rendered }.first { it } } != true) {
+                cover.snapTo(0f)
+                snapshotFlow { rendered }.first { it }
+            }
+            if (cover.value < 0.99f) cover.animateTo(1f, tween(320, easing = Motion.EaseOut))
         }
     }
     DisposableEffect(Unit) {
@@ -263,6 +280,9 @@ fun VideoWallpaper(
         onRelease = { player?.clearVideoSurfaceView(it.surface); surface = null },
     )
 }
+
+/** How long a switched-to film has to bring its first frame before the poster stands in. */
+private const val SWITCH_FRAME_MS = 400L
 
 /** Frame [atMs] of the owner's video [id], screen-sized and drawable on, or null. */
 private fun fileFrame(context: android.content.Context, id: String, atMs: Long, w: Int, h: Int): Bitmap? {

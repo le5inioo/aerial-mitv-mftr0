@@ -771,10 +771,17 @@ fun HomeScreen(
                     (metrics.topRowY + metrics.tileH + PlatePadV + metrics.firstGap + second).toPx(),
                 )
             }
-            // Another wallpaper chosen, or the focus left a tile whose film was playing: the film
-            // plane is gone with it, so the picture shows at once rather than a black window until
-            // a new film's first frame.
-            LaunchedEffect(Wallpapers.selectedId, tileFilm) { filmCover.snapTo(0f) }
+            // The film plane's kind changed — a film to a still picture, an input to a film: the
+            // plane is rebuilt, so the picture shows at once rather than a black window until the
+            // new film's first frame. Between two of the owner's videos the plane stays, and
+            // VideoWallpaper cuts them inside itself, with no dip to the poster (2026-11-06).
+            val filmBranch = when {
+                filmId == Wallpapers.LIVE -> 1
+                Wallpapers.isVideo(filmId) -> 2
+                sourceInput != null -> 3
+                else -> 0
+            }
+            LaunchedEffect(filmBranch) { filmCover.snapTo(0f) }
             // The aerial film's own glass for the grid: the one playing or stopped, else the one
             // the picture was taken from.
             val pictureClip = remember(Wallpapers.backdrop) { Wallpapers.livePictureSpot()?.first }

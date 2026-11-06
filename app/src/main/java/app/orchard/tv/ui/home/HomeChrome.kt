@@ -420,7 +420,7 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, filmPlate: Boolean, d
         if (glass == null || plate == null || screen == Size.Zero || filmPlate) return null
         val size = screen
         return withContext(Dispatchers.Default) {
-            bakePlate(plateTinted(glass), size, plate, with(density) { PlateCorner.toPx() }, with(density) { 1.2.dp.toPx() })
+            bakePlate(plateTinted(glass, PlateTint), size, plate, with(density) { PlateCorner.toPx() }, with(density) { 1.2.dp.toPx() })
         }
     }
     val top by produceState<ImageBitmap?>(null, shown, plate, screen) { value = baked(shown) }
@@ -439,7 +439,7 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, filmPlate: Boolean, d
             filmBottom = null
             return@LaunchedEffect
         }
-        val baked = withContext(Dispatchers.Default) { bakePlate(plateTinted(film), screen, plate, with(density) { PlateCorner.toPx() }, 0f, edge = false) }
+        val baked = withContext(Dispatchers.Default) { bakePlate(plateTinted(film, PlateTint), screen, plate, with(density) { PlateCorner.toPx() }, 0f, edge = false) }
         // Not on screen: the new frame simply takes over.
         if (filmTop == null || cover() < 0.01f) {
             filmTop = baked
@@ -521,18 +521,18 @@ private fun smokeGlass(color: Int): ImageBitmap =
 private const val FILM_FROST = 0.55f
 
 /**
- * The film plate's smoke: a little black, so the tiles keep their contrast over a bright film.
- * Deeper since the film is not shaded (18% before): the shade had darkened the film under it too.
+ * The film plate's smoke: a milky white veil now (the plate's glass went white, 2026-11-06), so
+ * the tiles keep a bright ground over any film. Deeper where no frosted frame is under it.
  */
-private val FILM_SMOKE = android.graphics.Color.argb(72, 0, 0, 0)
+private val FILM_SMOKE = android.graphics.Color.argb(48, 255, 255, 255)
 
 /**
- * With no frosted frame under it (Wallpapers.filmGlassless): a milky white veil, not smoke. Black
- * (40%) made the plate a dark slab over the film, nothing like glass (the owner, TCL MT5879,
- * 2026-11-01). White lifts it as glass lit from within, as Tigris and CleanTV do with no blur; the
- * lit edge does the rest. The plate with a frosted frame (FILM_SMOKE) the owner keeps as it is.
+ * With no frosted frame under it (Wallpapers.filmGlassless): a milkier white veil. Black (40%)
+ * made the plate a dark slab over the film, nothing like glass (the owner, TCL MT5879,
+ * 2026-11-01). White lifts it as glass lit from within, as Tigris and CleanTV do with no blur;
+ * the lit edge does the rest.
  */
-private val FILM_SMOKE_ALONE = android.graphics.Color.argb(38, 255, 255, 255)
+private val FILM_SMOKE_ALONE = android.graphics.Color.argb(72, 255, 255, 255)
 
 /** A new key frame fades in over the last: slow, as the glass is soft, and seldom (GLASS_EVERY_MS). */
 private const val FILM_SWAP_MS = 700
@@ -548,18 +548,30 @@ private const val GRID_SHADE = 0.55f
 /** How much the plate swells as it dissolves into the grid's background. */
 private val PlateSwell = 14.dp
 
-/** The plate's tint: the frosted picture a little darker, lifted with white, so it reads as milky glass. */
-private val PlateTint = floatArrayOf(
+/** The grid glass's tint: the frosted picture a little darker, lifted with white, so it reads as milky glass. */
+private val GridTint = floatArrayOf(
     0.8f, 0f, 0f, 0f, 30f,
     0f, 0.8f, 0f, 0f, 30f,
     0f, 0f, 0.8f, 0f, 30f,
     0f, 0f, 0f, 1f, 0f,
 )
 
-/** The glass picture with the plate's tint applied ahead of time, so the plate is one plain draw. */
-private fun plateTinted(src: ImageBitmap): ImageBitmap {
+/**
+ * The plate's tint: lifts the frosted picture to a milky white glass (the owner, 2026-11-06: the
+ * plate read as black over their dark films). The frost is the blur of what is behind, so the
+ * plate keeps its translucent look; only its colour turns white.
+ */
+private val PlateTint = floatArrayOf(
+    0.45f, 0f, 0f, 0f, 145f,
+    0f, 0.45f, 0f, 0f, 145f,
+    0f, 0f, 0.45f, 0f, 145f,
+    0f, 0f, 0f, 1f, 0f,
+)
+
+/** The glass picture with [tint] applied ahead of time, so the plate is one plain draw. */
+private fun plateTinted(src: ImageBitmap, tint: FloatArray = GridTint): ImageBitmap {
     val out = src.asAndroidBitmap().copy(android.graphics.Bitmap.Config.ARGB_8888, true)
-    val paint = android.graphics.Paint().apply { colorFilter = android.graphics.ColorMatrixColorFilter(PlateTint) }
+    val paint = android.graphics.Paint().apply { colorFilter = android.graphics.ColorMatrixColorFilter(tint) }
     android.graphics.Canvas(out).drawBitmap(src.asAndroidBitmap(), 0f, 0f, paint)
     return out.frozen().asImageBitmap()
 }
