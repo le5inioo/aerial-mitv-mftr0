@@ -1059,6 +1059,16 @@ object Wallpapers {
     }
 
     /**
+     * The owner's video [film] was let go at [atMs] with no frame copied: it goes on from there
+     * when its tile is back in focus. A tile keeps its own baked picture, so the frame is not
+     * copied on the way out — that copy holds the main thread (copyFrameNow) and read as a stutter
+     * on every tile stepped past (the owner, 2026-11-06).
+     */
+    fun leaveVideoFilm(film: String, atMs: Long) {
+        prefs.edit { putString("video_film", film).putLong("video_at", atMs) }
+    }
+
+    /**
      * The one of the owner's films the screensaver plays on a loop, or null for all of them in
      * turn. Kept beside the screensaver's kind ([ScreensaverMode.Videos]); a film deleted from the
      * phone page clears it back.

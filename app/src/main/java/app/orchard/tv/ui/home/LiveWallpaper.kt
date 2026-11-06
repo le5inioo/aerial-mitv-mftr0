@@ -170,6 +170,13 @@ fun LiveWallpaper(
     otherFormatSaver: Boolean,
     /** When a key was last pressed (uptimeMillis): a slow copy of the stopped film waits for quiet. Read, not observed. */
     lastInputAt: () -> Long = { 0L },
+    /**
+     * Whether the frame it stopped on is copied as the picture on the way out. False for a tile,
+     * which has a picture of its own: the copy waits on the main thread (copyFrameNow) and read
+     * as a stutter on every tile stepped past (the owner, 2026-11-06). The film's place is kept
+     * either way, so it goes on from there when the tile is back.
+     */
+    copyOnLeave: Boolean = true,
     live: LiveFilm,
 ) {
     val context = LocalContext.current
@@ -209,7 +216,7 @@ fun LiveWallpaper(
         // frame becomes the picture instead: the still that follows fades in from where the film
         // was, not from one taken earlier (2026-11-04, the owner asked for the fade).
         val film = player?.currentMediaItem?.mediaId
-        val frame = if (showing && cover.value > 0f) copyFrameNow(surface) else null
+        val frame = if (copyOnLeave && showing && cover.value > 0f) copyFrameNow(surface) else null
         if (frame != null && live.moved && film != null && unreadable(frame) == null) {
             Wallpapers.leaveBehind(frame, film, player?.currentPosition ?: 0L, video = false)
         } else {

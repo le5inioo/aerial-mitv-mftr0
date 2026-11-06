@@ -652,6 +652,16 @@ fun HomeScreen(
         }
         val perAppPicture = Wallpapers.perAppBackdrop(shownSlot)
         val perAppGlass = Wallpapers.perAppFrosted(shownSlot)
+        // "Follow Tile": the plate keeps one glass while the mode shows. Taking each tile's own
+        // made it change colour with every tile stepped to — and re-bake itself each time, a
+        // plate's worth of work on every step (the owner, 2026-11-06). Frozen at the first tile's,
+        // the one Home opens on; let go when another wallpaper is chosen.
+        var plateGlass by remember { mutableStateOf<ImageBitmap?>(null) }
+        val firstTileGlass = Wallpapers.perAppFrosted(1)
+        LaunchedEffect(Wallpapers.selectedId, firstTileGlass) {
+            if (Wallpapers.selectedId != Wallpapers.PER_APP) plateGlass = null
+            else if (plateGlass == null) plateGlass = firstTileGlass
+        }
         // A tile whose choice moves — the aerial films or the owner's videos — plays behind Home
         // (the owner, 2026-11-06): the still baked from it stands in until the film's first frame,
         // and comes back as the focus moves to a tile that does not play.
@@ -682,6 +692,10 @@ fun HomeScreen(
         // between (a released SurfaceView is a hole in the window, Xiaomi MiTV-MFTR0).
         val videoMoves = vm.filmFront && !vm.screensaverVisible
         val sourceInput = Wallpapers.sourceInput
+        // Whether a film plane is on screen this frame: the picture goes fully opaque the moment
+        // one is gone, rather than fading in over a surface that is no longer there — a black
+        // flash on every tile stepped off a video (the owner, 2026-11-06).
+        val filmPlane = filmId == Wallpapers.LIVE || Wallpapers.isVideo(filmId) || sourceInput != null
         when {
             filmId == Wallpapers.LIVE -> LiveWallpaper(
                 moving = filmMoves,
@@ -699,18 +713,20 @@ fun HomeScreen(
                 otherFormatSaver = vm.screensaverVisible && !filmSaver && Wallpapers.screensaver == ScreensaverMode.Aerial &&
                     !AerialFormats.screensaverCarriesWallpaper(appContext),
                 lastInputAt = { vm.lastInputAt },
+                copyOnLeave = tileFilm == null,
                 live = liveFilm,
             )
-            // Anew for each choice, so another of the owner's videos does not keep the last one's player.
-            Wallpapers.isVideo(filmId) -> key(filmId) {
-                VideoWallpaper(
-                    moving = videoMoves,
-                    keep = vm.filmFront && !vm.screensaverVisible,
-                    hold = filmHolds,
-                    cover = filmCover,
-                    filmsId = filmId,
-                )
-            }
+            // The player and its surface stay from one film's wallpaper to the next: it switches
+            // them inside itself (VideoWallpaper), so a step between video tiles does not go
+            // through the window's black while another player opens.
+            Wallpapers.isVideo(filmId) -> VideoWallpaper(
+                moving = videoMoves,
+                keep = vm.filmFront && !vm.screensaverVisible,
+                hold = filmHolds,
+                cover = filmCover,
+                filmsId = filmId,
+                copyOnLeave = tileFilm == null,
+            )
             sourceInput != null -> SourceWallpaper(sourceInput, show = vm.resumed && !vm.screensaverVisible, cover = filmCover)
         }
         Box(
@@ -774,7 +790,8 @@ fun HomeScreen(
                 plate = plate,
                 scroll = { scroll.value },
                 collapse = collapsePx,
-                cover = { filmCover.value },
+                // A film plane gone: the picture is opaque from that frame, not a frame later.
+                cover = { if (filmPlane) filmCover.value else 0f },
                 // An input's picture gets the shade a picture has; in the grid it gives way to the
                 // glass, as any wallpaper does (it cannot be blurred). Not a film, moving or not
                 // (the owner, 2026-10-29): since the aerial wallpaper keeps moving under keys
@@ -783,7 +800,18 @@ fun HomeScreen(
                 shadeMoving = sourceInput != null,
                 filmStopped = { filmStopped },
                 toSaver = { toSaver.value },
-                filmGlass = (Wallpapers.filmFrost ?: Wallpapers.frosted).takeIf { Wallpapers.moves() && Wallpapers.backdrop != null },
+                // A tile's film keeps the plate's glass fixed at the frozen one: the plate would
+                // otherwise take each tile's own and change colour with every step, re-baking as
+                // it went (the owner, 2026-11-06). Only while a film plays — the film plate is
+                // see-through by design (FILM_FROST); a still tile keeps the opaque still plate,
+                // whose glass is frozen all the same. Before the freeze is in, the tile's own
+                // glass stands in.
+                filmGlass = when {
+                    plateGlass != null && filmPlane -> plateGlass
+                    perAppPicture != null && filmPlane -> perAppGlass
+                    else -> (Wallpapers.filmFrost ?: Wallpapers.frosted).takeIf { Wallpapers.moves() && Wallpapers.backdrop != null }
+                },
+                plateGlass = plateGlass,
                 saverImage = saverImage,
                 saverReveal = { saverReveal.value },
                 saverPush = { saverPush.value },

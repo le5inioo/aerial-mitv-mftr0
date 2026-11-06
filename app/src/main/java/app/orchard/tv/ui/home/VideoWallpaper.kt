@@ -54,12 +54,21 @@ fun VideoWallpaper(
     cover: Animatable<Float, *>,
     /** Which films to play: the wallpaper's own, or one "Each App" tile's choice. */
     filmsId: String = Wallpapers.selectedId,
+    /**
+     * Whether the frame it stopped on is copied as the picture on the way out. False for a tile,
+     * which has a picture of its own: the copy waits on the main thread (copyFrameNow, up to
+     * 250 ms) and read as a stutter on every tile stepped past (the owner, 2026-11-06).
+     */
+    copyOnLeave: Boolean = true,
 ) {
     val context = LocalContext.current
     var player by remember { mutableStateOf<ExoPlayer?>(null) }
     VideoSpeed(player)
     var surface by remember { mutableStateOf<SurfaceView?>(null) }
     var showing by remember { mutableStateOf(false) }
+    // A frame of the film being played has been drawn: what the cover waits for before it fades
+    // the picture away, and what a switch to another film's wallpaper sets again.
+    var rendered by remember { mutableStateOf(false) }
     val play = moving || hold
     val keepNow by rememberUpdatedState(keep)
     val scope = rememberCoroutineScope()
@@ -72,6 +81,7 @@ fun VideoWallpaper(
         player?.release()
         player = null
         showing = false
+        rendered = false
         Wallpapers.dropFilmFrost()
         released++
     }
@@ -82,7 +92,7 @@ fun VideoWallpaper(
         // Where the picture on screen came from, so moving again does not cut to another place.
         val spot = Wallpapers.videoSpot()
         val first = films.indexOfFirst { it.id == spot?.first }
-        var rendered = false
+        rendered = false
         return ExoPlayer.Builder(context).build().apply {
             volume = 0f
             trackSelectionParameters = trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true).build()
@@ -198,16 +208,50 @@ fun VideoWallpaper(
     LaunchedEffect(keep) {
         if (!keep && !play && player != null && cover.value == 0f) release()
     }
+    // Another film's wallpaper on the same plane — the next tile's, or another video chosen. The
+    // player and its surface stay: torn down and opened again, the window went black for the second
+    // the new film took to show, on every tile stepped along the row (the owner, 2026-11-06). The
+    // tile's own picture stands in while the new film opens, as it does when the film first starts.
+    LaunchedEffect(filmsId) {
+        val p = player ?: return@LaunchedEffect
+        val films = withContext(Dispatchers.IO) { Wallpapers.videoFilms(filmsId) }
+        DiagLog.i("video wallpaper switches to ${filmsId.takeLast(8)} (${films.size} films)")
+        if (films.isEmpty()) {
+            cover.snapTo(0f)
+            release()
+            return@LaunchedEffect
+        }
+        rendered = false
+        showing = false
+        cover.snapTo(0f)
+        val spot = Wallpapers.videoSpot()
+        val first = films.indexOfFirst { it.id == spot?.first }
+        p.setMediaItems(
+            films.map { MediaItem.Builder().setUri(it.file.toUri()).setMediaId(it.id).build() },
+            first.coerceAtLeast(0),
+            if (first >= 0) spot?.second ?: 0L else 0L,
+        )
+        p.prepare()
+        if (play) {
+            p.playWhenReady = true
+            snapshotFlow { rendered }.first { it }
+            cover.animateTo(1f, tween(1200, easing = Motion.EaseOut))
+        }
+    }
     DisposableEffect(Unit) {
         onDispose {
             DiagLog.i("video wallpaper view gone (${filmsId.takeLast(8)})")
             // Gone while it showed — the wallpaper changed away from the video, or Aerial stopped
             // over it: its last frame becomes the picture, so what follows fades in from where
             // the video was rather than cutting to the poster of an earlier moment (2026-11-04).
-            // A copy that cannot be read here leaves the picture as it was.
-            val frame = if (showing && cover.value > 0f) copyFrameNow(surface) else null
+            // A copy that cannot be read here leaves the picture as it was. A tile keeps its own
+            // picture and skips the copy, which waits on the main thread (the owner, 2026-11-06);
+            // only where the film was is kept, for it to go on from when the tile is back.
+            val frame = if (copyOnLeave && showing && cover.value > 0f) copyFrameNow(surface) else null
             if (frame != null && unreadable(frame) == null) {
                 player?.currentMediaItem?.mediaId?.let { Wallpapers.leaveBehind(frame, it, player?.currentPosition ?: 0L, video = true) }
+            } else if (!copyOnLeave) {
+                player?.currentMediaItem?.mediaId?.let { Wallpapers.leaveVideoFilm(it, player?.currentPosition ?: 0L) }
             }
             release()
         }

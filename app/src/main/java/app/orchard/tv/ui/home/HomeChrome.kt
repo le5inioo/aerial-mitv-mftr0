@@ -249,6 +249,12 @@ fun HomeBackground(
     glassAwaitsStop: Boolean = false,
     /** The grid's own glass, where it is not the picture's ([frosted]): the aerial film's (Wallpapers.clipGlass). */
     gridGlass: ImageBitmap? = null,
+    /**
+     * The plate's glass where it is not to follow [frosted]: "Follow Tile" keeps one, so stepping
+     * along the row does not change the plate's colour and re-bake it at every tile (the owner,
+     * 2026-11-06). Null: the plate takes the picture's glass as before.
+     */
+    plateGlass: ImageBitmap? = null,
 ) {
     val shade = remember { Images.homeShade.asImageBitmap() }
     Box(Modifier.fillMaxSize()) {
@@ -275,7 +281,8 @@ fun HomeBackground(
             // ([filmGlass], every 15 s), so it is not the colours of a shot long gone.
             val still = Wallpapers.filmGlassless && Wallpapers.moves() && (frosted ?: backdrop) != null
             val film = filmGlass.takeUnless { Wallpapers.filmGlassless }
-            Plate(if (still) filmGlass ?: frosted ?: backdrop else frosted ?: backdrop, film, film != null, Wallpapers.filmGlassless, plate, scroll, collapse, cover, filmStopped, toSaver, lift, still)
+            val glass = plateGlass ?: if (still) filmGlass ?: frosted ?: backdrop else frosted ?: backdrop
+            Plate(glass, film, film != null, Wallpapers.filmGlassless, plate, scroll, collapse, cover, filmStopped, toSaver, lift, still)
         }
     }
 }
