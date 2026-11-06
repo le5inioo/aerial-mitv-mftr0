@@ -134,6 +134,7 @@ fun Screensaver(visible: Boolean, apps: List<AppEntry>, now: LocalDateTime, skip
                 )
                 ScreensaverMode.Photos -> PhotoSaver(now, skips.steps, remember { Wallpapers.screensaverPicture() })
                 ScreensaverMode.Clock, ScreensaverMode.System -> ClockSaver(apps, now)
+                ScreensaverMode.FlipClock -> FlipClockSaver(now)
                 ScreensaverMode.Videos -> if (videosFailed) PhotoSaver(now, skips.steps) else VideoSaver(
                     skips.steps, onUnavailable = { videosFailed = true }, only = Wallpapers.screensaverVideo,
                 )
@@ -157,7 +158,8 @@ class ScreensaverSkips {
             KeyEvent.KEYCODE_DPAD_RIGHT -> 1
             else -> return false
         }
-        if (Wallpapers.screensaver == ScreensaverMode.Clock) return false
+        // The clocks have nothing to step through.
+        if (Wallpapers.screensaver == ScreensaverMode.Clock || Wallpapers.screensaver == ScreensaverMode.FlipClock) return false
         if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) flow.tryEmit(step)
         return true
     }

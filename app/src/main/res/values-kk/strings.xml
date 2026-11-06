@@ -98,6 +98,8 @@
     <string name="ss_aerial">Аэрожиын</string>
     <string name="ss_photos">Фотолар</string>
     <string name="ss_clock">Сағат</string>
+    <string name="ss_flipclock">Аударылатын сағат</string>
+    <string name="ss_flipclock_hint">24 сағаттық форматтағы аударылатын карточкалар: сағат, минут, секунд</string>
     <string name="wp_phone_title">Телефоннан немесе компьютерден баптау</string>
     <string name="wp_phone_body">Фото мен бейнелерді жіберу, қолданба белгішелерін өзгерту және ауа райына арналған қаланы орнату үшін кодты сканерлеңіз немесе төмендегі мекенжайды компьютер браузерінде ашыңыз. Құрылғы мен теледидар бір желіде болуы керек.</string>
     <string name="wp_phone_offline">Телефоннан немесе компьютерден баптау үшін теледидарды желіге қосыңыз.</string>

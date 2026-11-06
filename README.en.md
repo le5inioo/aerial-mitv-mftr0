@@ -76,6 +76,7 @@ Against upstream `main` as of 2026-11-05: 28 commits, 210 files, +2898 / −1689
 | **Fade between wallpapers** | Every wallpaper switch is a 650 ms dissolve instead of a hard cut | automatic |
 | **Wake splash** | 5 s spinner when waking from standby, then fades into Home; nothing on cold starts or restarts (the firmware's own boot animation covers those) | Personalize → TV System → Wake animation |
 | **Single-video screensaver** | Pick one specific video in a second-level picker | Personalize → Screensaver |
+| **Flip clock screensaver** | FlipClock-style split-flap cards on black: 24-hour HH MM SS, a flap every second; the whole clock drifts a little each minute against burn-in | Personalize → Screensaver → Flip clock |
 | **Auto-brightness fix** | Fixes the dead brightness slider under Xiaomi's auto-brightness; shows a hint instead of forcing the slider where unsupported | Control Center → Brightness |
 | **Developer mode at boot** | Reopens developer options and ADB after every boot (Xiaomi closes them now and then) | Personalize → TV System |
 | **Five languages** | zh, en, ru, uk, kk — new strings included | — |

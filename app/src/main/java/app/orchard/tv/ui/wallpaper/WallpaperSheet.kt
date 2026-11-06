@@ -329,6 +329,7 @@ fun WallpaperSheet(
                         when {
                             Wallpapers.screensaver == ScreensaverMode.Videos -> stringResource(R.string.ss_videos_hint)
                             Wallpapers.screensaver == ScreensaverMode.System -> stringResource(R.string.ss_system_hint)
+                            Wallpapers.screensaver == ScreensaverMode.FlipClock -> stringResource(R.string.ss_flipclock_hint)
                             Wallpapers.screensaverFollows -> stringResource(R.string.ss_follow_hint)
                             AerialSettings.backStartsScreensaver -> stringResource(R.string.ss_back_hint)
                             else -> null
@@ -921,6 +922,7 @@ private fun ScreensaverChoice(onStart: () -> Unit) {
             ScreensaverMode.Aerial to R.string.ss_aerial,
             ScreensaverMode.Photos to R.string.ss_photos,
             ScreensaverMode.Clock to R.string.ss_clock,
+            ScreensaverMode.FlipClock to R.string.ss_flipclock,
             ScreensaverMode.Videos to R.string.ss_videos,
             ScreensaverMode.System to R.string.ss_system,
         ).forEach { (mode, label) ->

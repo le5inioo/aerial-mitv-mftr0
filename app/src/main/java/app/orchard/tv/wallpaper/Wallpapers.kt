@@ -51,7 +51,7 @@ data class Wallpaper(
 
 /** System: none of Aerial's; the TV's own screensaver starts as the firmware has it (SystemScreensaver). */
 enum class ScreensaverMode(val key: String) {
-    Aerial("aerial"), Photos("photos"), Clock("clock"), Videos("videos"), System("system");
+    Aerial("aerial"), Photos("photos"), Clock("clock"), FlipClock("flipclock"), Videos("videos"), System("system");
 
     companion object {
         fun of(key: String?) = entries.firstOrNull { it.key == key } ?: Aerial
