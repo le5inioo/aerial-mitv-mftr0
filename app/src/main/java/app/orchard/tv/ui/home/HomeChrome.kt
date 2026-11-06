@@ -251,9 +251,9 @@ fun HomeBackground(
     /** The grid's own glass, where it is not the picture's ([frosted]): the aerial film's (Wallpapers.clipGlass). */
     gridGlass: ImageBitmap? = null,
     /**
-     * The plate's glass where it is not to follow [frosted]: "Follow Tile" keeps one, so stepping
-     * along the row does not change the plate's colour and re-bake it at every tile (the owner,
-     * 2026-11-06). Null: the plate takes the picture's glass as before.
+     * The plate's glass where it must not be [frosted]'s: "Follow Tile" hands it the shown tile's
+     * own, so the plate takes the colour of the picture behind it as it changes with the tile
+     * (the owner, 2026-11-06). Null: the plate takes the picture's glass as before.
      */
     plateGlass: ImageBitmap? = null,
 ) {

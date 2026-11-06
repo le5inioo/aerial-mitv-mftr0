@@ -39,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -650,22 +651,18 @@ fun HomeScreen(
         LaunchedEffect(apps, perAppSlots) {
             Wallpapers.adoptPerAppByPackage(apps.take(perAppSlots).map { it.packageName })
         }
-        // Only in "Each App" does a tile's own picture stand for the wallpaper. Read regardless of
-        // the mode, a cache left over from a stay in it showed each tile's picture under any
-        // wallpaper chosen — and the plate changed colour with every tile stepped (2026-11-06).
         val inPerApp = Wallpapers.selectedId == Wallpapers.PER_APP
         val perAppPicture = if (inPerApp) Wallpapers.perAppBackdrop(shownSlot) else null
         val perAppGlass = if (inPerApp) Wallpapers.perAppFrosted(shownSlot) else null
-        // "Follow Tile": the plate keeps one glass while the mode shows. Taking each tile's own
-        // made it change colour with every tile stepped to — and re-bake itself each time, a
-        // plate's worth of work on every step (the owner, 2026-11-06). Frozen at the first tile's,
-        // the one Home opens on; it follows the first tile's glass as that is re-baked (its
-        // wallpaper changed), and lets go when another wallpaper is chosen.
-        var plateGlass by remember { mutableStateOf<ImageBitmap?>(null) }
-        val firstTileGlass = Wallpapers.perAppFrosted(1)
-        LaunchedEffect(Wallpapers.selectedId, firstTileGlass) {
-            plateGlass = firstTileGlass.takeIf { Wallpapers.selectedId == Wallpapers.PER_APP }
-        }
+        // "Follow Tile": the plate takes the glass of the picture Home is showing, as the panels do.
+        // Frozen at the first tile's (2026-11-06) it kept one colour while the picture changed with
+        // every tile stepped to: white, the difference hardly showed; the panels' darker glass now
+        // reads as a grey block that does not belong to the picture behind it, so it follows (the
+        // owner, 2026-11-06). A tile whose glass is not baked yet keeps the last one.
+        var lastGlass by remember { mutableStateOf<ImageBitmap?>(null) }
+        // A tile whose glass is not baked yet keeps the one before it, rather than a bare plate.
+        if (perAppGlass != null && perAppGlass !== lastGlass) SideEffect { lastGlass = perAppGlass }
+        val plateGlass = if (inPerApp) perAppGlass ?: lastGlass else null
         // A tile whose choice moves — the aerial films or the owner's videos — plays behind Home
         // (the owner, 2026-11-06): the still baked from it stands in until the film's first frame,
         // and comes back as the focus moves to a tile that does not play.
