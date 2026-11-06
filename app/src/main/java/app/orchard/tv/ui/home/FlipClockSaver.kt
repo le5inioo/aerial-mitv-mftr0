@@ -54,6 +54,7 @@ import app.orchard.tv.settings.AerialSettings
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -104,15 +105,19 @@ private val FlipDigitStyle = TextStyle(
 )
 
 @Composable
-internal fun FlipClockSaver(initial: LocalDateTime) {
-    val now by rememberSecondly(initial)
+internal fun FlipClockSaver() {
+    val now by rememberSecondly()
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
         // A slow drift, not a spot per minute: the clock creeps a fraction of a pixel a second
         // along a Lissajous curve, so card edges never sit on one pixel group for hours, and the
-        // minute flip does not make the whole clock lurch to a new offset.
-        val secs = now.toLocalTime().toSecondOfDay().toFloat()
-        val dx = 16.dp * sin(secs * (2f * PI.toFloat() / 620f))
-        val dy = 11.dp * sin(secs * (2f * PI.toFloat() / 860f) + 1.1f)
+        // minute flip does not make the whole clock lurch to a new offset. The phase counts the
+        // clock's absolute seconds rather than the time of day: the time of day wrapped at
+        // midnight and the whole clock jumped, and seeding the drift from Home's minute-old tick
+        // (seconds always zero) left it a few pixels off, to snap into place once the real second
+        // arrived — that snap is what read as the cards shifting as the screensaver came up.
+        val t = now.toEpochSecond(ZoneOffset.UTC).toDouble()
+        val dx = 16.dp * sin(t * (2.0 * PI / 620.0)).toFloat()
+        val dy = 11.dp * sin(t * (2.0 * PI / 860.0) + 1.1).toFloat()
         Row(
             Modifier.offset(dx, dy),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -131,10 +136,15 @@ internal fun FlipClockSaver(initial: LocalDateTime) {
     }
 }
 
-/** The time, fresh every second: Home's `now` only ticks on the minute, and the flip clock shows seconds. */
+/**
+ * The time, fresh every second: Home's `now` only ticks on the minute, and the flip clock shows
+ * seconds. Seeded from the clock itself, not from Home's tick: a minute-old seed showed the wrong
+ * digits (and the wrong drift offset) for the first instant, and the cards flipped and jumped to
+ * catch up as the screensaver faded in.
+ */
 @Composable
-private fun rememberSecondly(initial: LocalDateTime): State<LocalDateTime> {
-    val now = remember { mutableStateOf(initial) }
+private fun rememberSecondly(): State<LocalDateTime> {
+    val now = remember { mutableStateOf(LocalDateTime.now()) }
     LaunchedEffect(Unit) {
         while (isActive) {
             delay(200)

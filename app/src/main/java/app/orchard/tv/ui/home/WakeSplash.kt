@@ -46,7 +46,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  *
  * Only wakes play it. A real start — a cold power-on or the power menu's restart — keeps the
  * firmware's own boot animation, which covers the whole start, so nothing of Aerial's would show
- * there. Standby is not a boot at all: the panel lights straight into Home, which this fills.
+ * there (the owner's final call on 2026-11-05; a splash there was tried on 2026-11-06 and taken
+ * back out). Standby is not a boot at all: the panel lights straight into Home, which this fills.
  *
  * [trigger] counts wakes; 0 draws Home alone. Each new value replays the splash from the start.
  */

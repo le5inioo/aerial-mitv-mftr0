@@ -340,7 +340,20 @@ class MainActivity : ComponentActivity() {
         if (fresh && firstStartSinceBoot()) openBootSource("boot")
         // The other route to the wake splash: a wake that recreated the activity, or one whose
         // process Aerial's guard revived in standby (the screen-on broadcast never reached it).
-        if (fresh) maybeWakeSplash("recreated on wake", inFront = false)
+        if (fresh) {
+            // The firmware on this TV restarts Home a second after the panel goes dark, already
+            // in standby (a new pid right behind the screen-off). That start knows the screen is
+            // off, and it is the one chance to arm the wake splash when the screen-off broadcast
+            // never reached the process that died — a short standby suspends the kernel too
+            // briefly for the suspend fallback. Not near a boot: a start there is a cold start,
+            // and boots play no splash.
+            if (Build.VERSION.SDK_INT < 24 ||
+                android.os.Process.getStartElapsedRealtime() >= WAKE_MIN_UPTIME_MS
+            ) {
+                BootOpen.noteStartedInStandby(this)
+            }
+            maybeWakeSplash("recreated on wake", inFront = false)
+        }
         if (intent.getBooleanExtra(EXTRA_WOKE, false)) openBootSource("brought back on wake")
         if (intent.getBooleanExtra(EXTRA_REOPEN_BOOT, false)) openBootSource("covered by the stock launcher", again = true)
         if (fromLocked) {
@@ -402,23 +415,40 @@ class MainActivity : ComponentActivity() {
      * Two routes, since a wake may only resume the activity (TCL keeps it in front) or recreate
      * it (Xiaomi MFTR0); the screen-on broadcast lands about two seconds after the panel lights
      * on MFTR0, so the resume is the route that actually covers the light-up. [BootOpen] keeps
-     * the owed splash across processes, one per screen-off. [inFront] is false where the
-     * activity is not resumed yet.
+     * the owed splash across processes, one per screen-off — plus a fallback apiece for the
+     * firmware killing Aerial before SCREEN_OFF reached it: a start that happened in standby,
+     * and the kernel's suspend time. [inFront] is false where the activity is not resumed yet.
      */
     private fun maybeWakeSplash(reason: String, inFront: Boolean = true) {
         if (!AerialSettings.wakeAnimation) return
         if (inFront && !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
-        // A start: Home is up about half a minute in (MFTR0: 13 s), and nothing went off before it.
+        // Only on a lit panel. The splash used to fire while the TV was still in standby, where
+        // the firmware had covered Aerial: it ran unseen, spent the owed splash, and the screen
+        // going off again re-armed it — the real wake then played a second one, with a flash of
+        // desktop between (the "splash, desktop, splash" of a 息屏 wake, 2026-11-06).
+        if (getSystemService<PowerManager>()?.isInteractive != true) {
+            DiagLog.i("wake splash: not while the screen is off ($reason)")
+            return
+        }
+        // A start: Home is up about half a minute in (MFTR0: 13 s), and nothing went off before
+        // it — the firmware's boot animation covers a cold start, and plays no splash (the
+        // owner's final call on 2026-11-05; a splash there was tried and taken back out).
         if (SystemClock.elapsedRealtime() < WAKE_MIN_UPTIME_MS) return
         // Standing in for Home: an input or an app that opens at wake (Personalize).
         if (AerialSettings.hasBootTarget) return
-        if (!BootOpen.wakeSplashOwed(this)) return
         val now = SystemClock.elapsedRealtime()
         if (now - wakeSplashAt < WAKE_DEDUPE_MS) return
+        // Armed by the screen-off broadcast, by a start that happened in standby (the firmware
+        // restarts Home a second after the panel goes dark), or — where nothing reached the
+        // dying process — by the kernel having been suspended since Aerial was last awake.
+        val owed = BootOpen.wakeSplashOwed(this)
+        val suspended = !owed && BootOpen.suspendedSinceAwake(this)
+        if (!owed && !suspended) return
         // One screen-off, one splash: the resume lands first, the screen-on broadcast follows.
         BootOpen.consumeWakeSplash(this)
+        BootOpen.noteAwake(this)
         wakeSplashAt = now
-        DiagLog.i("wake splash ($reason)")
+        DiagLog.i("wake splash ($reason${if (suspended) ", suspended since last awake" else ""})")
         wakeSplash.intValue++
     }
 
@@ -1008,6 +1038,9 @@ class MainActivity : ComponentActivity() {
         // the activity's lifecycle is still STARTED (fragments resume after the activity does),
         // so the resumed check would refuse it: this route is in front by definition.
         maybeWakeSplash("resumed", inFront = false)
+        // After the splash check: this is the fresh baseline the suspend fallback reads on the
+        // next wake (a wake that killed Aerial before the screen-off broadcast could arm it).
+        BootOpen.noteAwake(this)
         if (SystemClock.uptimeMillis() - dreamAskedAt < 1_000) {
             dreamChecking = true
             idleHandler.postDelayed(dreamCheck, 1_500)

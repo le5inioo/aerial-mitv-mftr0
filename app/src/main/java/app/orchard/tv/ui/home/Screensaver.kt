@@ -141,7 +141,7 @@ fun Screensaver(visible: Boolean, apps: List<AppEntry>, now: LocalDateTime, skip
                 )
                 ScreensaverMode.Photos -> PhotoSaver(now, skips.steps, remember { Wallpapers.screensaverPicture() })
                 ScreensaverMode.Clock, ScreensaverMode.System -> ClockSaver(apps, now)
-                ScreensaverMode.FlipClock -> FlipClockSaver(now)
+                ScreensaverMode.FlipClock -> FlipClockSaver()
                 ScreensaverMode.Webhost -> if (hostFailed) PhotoSaver(now, skips.steps) else WebHostSaver(
                     now, skips.steps, onUnavailable = { hostFailed = true },
                 )

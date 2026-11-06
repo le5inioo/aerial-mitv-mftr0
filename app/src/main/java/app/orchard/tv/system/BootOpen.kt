@@ -2,7 +2,9 @@ package app.orchard.tv.system
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
 import android.os.PowerManager
+import android.os.Process
 import android.os.SystemClock
 import androidx.core.content.edit
 import androidx.core.content.getSystemService
@@ -23,6 +25,8 @@ object BootOpen {
     private const val OPENED_ASLEEP = "boot_open_asleep"
     private const val WAKE_ARMED_ELAPSED = "wake_splash_armed"
     private const val WAKE_ARMED_BOOT = "wake_splash_armed_boot"
+    private const val AWAKE_ASLEEP = "awake_asleep"
+    private const val AWAKE_ASLEEP_BOOT = "awake_asleep_boot"
     private const val HOME_ELAPSED = "home_key_elapsed"
     private const val HOME_BOOT = "home_key_boot"
 
@@ -60,6 +64,33 @@ object BootOpen {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
             remove(WAKE_ARMED_ELAPSED).remove(WAKE_ARMED_BOOT)
         }
+    }
+
+    fun noteAwake(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+            putLong(AWAKE_ASLEEP, asleep()).putLong(AWAKE_ASLEEP_BOOT, bootStamp())
+        }
+    }
+
+    /**
+     * Aerial awake, and how long the kernel had been suspended at that point. The screen-off
+     * broadcast that arms the wake splash does not always reach Aerial: Xiaomi stops it on the way
+     * into standby, before SCREEN_OFF (a short-press standby then woke straight into Home with no
+     * splash, 2026-11-06). This is the fallback: if the kernel has been suspended since Aerial was
+     * last awake, the light-up was a wake. The display holds the CPU out of suspend while it is
+     * lit, so any real suspend means the panel went off; a few seconds of it count. Only a young
+     * process asks — an old one resuming after a suspend is a long-idle screensaver, and its
+     * panel going off would have armed the splash through the broadcast anyway. And only within
+     * one boot: a cold start resets [asleep], and a power-on owes no splash.
+     */
+    fun suspendedSinceAwake(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT >= 24 &&
+            SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime() > COLD_WAKE_MS
+        ) return false
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val at = prefs.getLong(AWAKE_ASLEEP, -1L)
+        return at >= 0 && thisBoot(at, prefs.getLong(AWAKE_ASLEEP_BOOT, 0L)) &&
+            asleep() - at > SPLASH_SLEPT_MS
     }
 
     /**
@@ -151,6 +182,9 @@ object BootOpen {
 
     private const val SAME_BOOT_SLACK_MS = 2 * 60 * 1000L
     private const val SLEPT_MS = 30_000L
+
+    /** Any real suspend outlasts this; the display keeps the CPU awake while the panel is lit. */
+    private const val SPLASH_SLEPT_MS = 5_000L
 
     /** A wake on MiTV-MFTR0 took up to 2 minutes to bring Aerial's process up (PR #927). */
     private const val COLD_WAKE_MS = 3 * 60 * 1000L
