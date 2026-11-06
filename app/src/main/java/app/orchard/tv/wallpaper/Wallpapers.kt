@@ -195,7 +195,15 @@ object Wallpapers {
         }
 
     /** A wallpaper that moves behind Home (aerial films, the owner's videos), with a frame as its picture. */
-    fun moves(id: String = selectedId) = id == LIVE || isVideo(id)
+    fun moves(id: String = effectiveId()) = id == LIVE || isVideo(id)
+
+    /**
+     * What Home shows behind it now: the wallpaper itself, or in "Each App" the shown tile's
+     * choice — a tile may take the aerial films or the owner's videos, which play behind Home
+     * while it is the tile in focus (the owner, 2026-11-06).
+     */
+    private fun effectiveId(): String =
+        if (selectedId == PER_APP) perApp[shownPerApp] ?: PER_APP else selectedId
 
     /** The owner's videos, all in turn or one of them. */
     fun isVideo(id: String = selectedId) = id == VIDEOS || id.startsWith(VIDEO_PREFIX)
@@ -337,9 +345,9 @@ object Wallpapers {
         val next = perApp.toMutableMap()
         var changed = false
         for ((slot, id) in perApp) {
-            // A slot that names a film (an earlier build let them in) falls back too: tiles take
-            // pictures only now.
-            if (resolve(id) != null && !isVideo(id)) continue
+            // A slot whose picture is gone — a photo or a film deleted — falls back too: the
+            // lists are rebuilt first, so what the pickers offer is what resolve() answers for.
+            if (resolve(id) != null) continue
             next.remove(slot)
             changed = true
             perAppJobs.remove(slot)?.cancel()
@@ -369,7 +377,9 @@ object Wallpapers {
     /**
      * Gives the tile in [slot] the picture [id], or takes its own away (null) so it follows the
      * wallpaper again. The baked picture is made at once in [PER_APP] mode, so the tile shows it as
-     * soon as the owner goes back to Home.
+     * soon as the owner goes back to Home. A tile that takes the aerial films or the owner's videos
+     * plays them behind Home while it is in focus ([moves]); the baked poster stands in until the
+     * film's first frame.
      */
     fun setPerApp(slot: Int, id: String?) {
         if (slot !in 1..PER_APP_SLOTS) return
@@ -899,7 +909,7 @@ object Wallpapers {
      * (the screensaver's pictures, LiveWallpaper.SaverFrames).
      */
     fun applyLiveFrame(prepared: PreparedFrame, film: String, atMs: Long): Boolean {
-        val id = selectedId
+        val id = effectiveId()
         if (!moves() || isVideo(id)) return false
         backdropJob?.cancel()
         leftHere = null
@@ -920,7 +930,7 @@ object Wallpapers {
 
     suspend fun useLiveFrame(frame: Bitmap, film: String, atMs: Long, wanted: () -> Boolean = { true }): Boolean {
         if (!moves()) return false
-        val id = selectedId
+        val id = effectiveId()
         val key = if (isVideo(id)) "video" else "live"
         val target = if (isVideo(id)) videoFrame else liveFrame
         val part = File(target.path + ".part")
@@ -933,7 +943,9 @@ object Wallpapers {
             // Not shaded, as the film is not (HomeBackground).
             Images.frost(frame).let { frost -> frame to frost }
         }
-        if (!wanted() || selectedId != id) {
+        // "Each App": the frame belongs to the tile's film, not to the wallpaper row — the row
+        // still points at "跟随磁贴" itself, and that is no reason to throw the frame away.
+        if (!wanted() || (selectedId != PER_APP && selectedId != id)) {
             part.delete()
             return false
         }
@@ -948,7 +960,7 @@ object Wallpapers {
         backdrop = bmp.asImageBitmap()
         frosted = frost.asImageBitmap()
         pictureVersion++
-        resolve(id)?.let { saveBaked(bakedKey(it), bmp, frost) }
+        if (selectedId == id) resolve(id)?.let { saveBaked(bakedKey(it), bmp, frost) }
         return true
     }
 
@@ -1090,7 +1102,7 @@ object Wallpapers {
      * [useLiveFrame]. [frame] is used up.
      */
     suspend fun useLiveFrost(frame: Bitmap) {
-        if (selectedId != LIVE) return
+        if (effectiveId() != LIVE) return
         backdropJob?.cancel()
         // The frame the plate's glass was made from while the film moved: that glass, at once.
         frosted = filmFrost?.takeIf { frame === filmFrostOf }
