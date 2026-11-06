@@ -678,7 +678,8 @@ private fun WebHostSaver(now: LocalDateTime, steps: SharedFlow<Int>, onUnavailab
             )
         }
     }
-    Labels(host, now)
+    // The host's address stays off the screen: the label shows the time only.
+    Labels(null, now)
 }
 
 /** How long one picture from the image host stays up before the next is asked for. */

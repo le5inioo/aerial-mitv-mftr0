@@ -908,7 +908,7 @@ private fun ActionChip(label: String, glyph: Glyph, onClick: () -> Unit) {
     }
 }
 
-/** The kinds of screensaver, four chips to a row: seven choices and "start now" no longer fit on one. */
+/** The kinds of screensaver, one row of chips: the labels are kept short so all eight fit. */
 @Composable
 private fun ScreensaverKind(note: (String?) -> Unit, onStart: () -> Unit) {
     val kinds = listOf(
@@ -934,26 +934,21 @@ private fun ScreensaverKind(note: (String?) -> Unit, onStart: () -> Unit) {
     Column(
         Modifier.fillMaxWidth()
             .onFocusChanged { if (it.hasFocus) note(hintText) }
-            .padding(start = 18.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+            .padding(start = 12.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
     ) {
         BasicText(stringResource(R.string.ss_kind), style = Type.Body)
         Spacer(Modifier.height(10.dp))
-        kinds.chunked(4).forEachIndexed { index, row ->
-            if (index > 0) Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                row.forEach { (mode, label) ->
-                    Chip(
-                        stringResource(label),
-                        on = Wallpapers.screensaver == mode,
-                        onFocused = { note(hintText) },
-                    ) { Wallpapers.chooseScreensaver(mode) }
-                }
-                // The action that tries the chosen one, at the end of the second row.
-                if (index == 1) {
-                    Spacer(Modifier.width(6.dp))
-                    StartChip(onStart)
-                }
+        // Tighter gaps than the other rows: eight chips have to fit on the one.
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            kinds.forEach { (mode, label) ->
+                Chip(
+                    stringResource(label),
+                    on = Wallpapers.screensaver == mode,
+                    onFocused = { note(hintText) },
+                ) { Wallpapers.chooseScreensaver(mode) }
             }
+            // The action that tries the chosen one, at the end of the row.
+            StartChip(onStart)
         }
     }
 }

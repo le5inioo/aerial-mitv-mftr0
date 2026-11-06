@@ -36,17 +36,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.orchard.tv.R
 import app.orchard.tv.settings.AerialSettings
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -67,9 +70,6 @@ import kotlin.math.sin
 /** One top-fall-plus-bottom-rise cycle, in milliseconds. */
 private const val FLIP_MS = 460
 
-/** How much taller than its face a digit is drawn: 1.2 fills the card the way the reference does. */
-private const val DIGIT_STRETCH = 1.2f
-
 // Dark charcoal cards with a faint light-to-dark gradient (shade toward the hinge) and pale
 // digits, per the reference mock; the whole thing sits on black.
 private val CardTopLight = Color(0xFF424245)
@@ -84,11 +84,19 @@ private val CardCorner = 12.dp
 private val CardW = 110.dp
 private val CardH = 156.dp
 
-// The TV's own sans, at its heaviest weight, like the reference mock. (DSEG7, the seven-segment
-// face tried earlier, read too "LCD" against the dark cards and is gone.)
+// Bahnschrift Bold (DIN 1451 style), the user's pick. It is a Microsoft-bundled variable font, so
+// res/font/bahnschrift.ttf is git-ignored and only ever packed into local APK builds; the variable
+// weight axis tops out at 700, which is its heaviest cut. At 154sp the digit stands 72% of the
+// card's height, the proportion picked from the previews.
+@OptIn(ExperimentalTextApi::class)
 private val FlipDigitStyle = TextStyle(
-    fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Black,
-    fontSize = 112.sp, color = DigitInk, letterSpacing = 0.sp, textAlign = TextAlign.Center,
+    fontFamily = FontFamily(
+        Font(
+            R.font.bahnschrift, weight = FontWeight.Bold,
+            variationSettings = FontVariation.Settings(FontVariation.weight(700)),
+        )
+    ),
+    fontSize = 154.sp, color = DigitInk, letterSpacing = 0.sp, textAlign = TextAlign.Center,
     shadow = Shadow(DigitShadow, Offset(0f, 4f), blurRadius = 14f),
 )
 
@@ -207,17 +215,17 @@ private fun Half(digit: Char, top: Boolean, rotate: Float = 0f) {
                     cornerRadius = CornerRadius(CardCorner.toPx()),
                 )
                 val laid = measurer.measure(digit.toString(), FlipDigitStyle, maxLines = 1)
-                // Taller than the face draws them: stretched about the card's centre, both halves
-                // stretch the same way, so a digit meets at the hinge as one.
-                scale(1f, DIGIT_STRETCH, pivot = Offset(card.width / 2f, card.height / 2f)) {
-                    drawText(
-                        laid,
-                        topLeft = Offset(
-                            (card.width - laid.size.width) / 2f,
-                            (card.height - laid.size.height) / 2f,
-                        ),
-                    )
-                }
+                // Centred by the glyph's own bounding box, not the layout block: the block's
+                // ascent and descent are far taller than the digit, and at this size the
+                // difference would hang the digit visibly off the card's centre.
+                val g = laid.getBoundingBox(0)
+                drawText(
+                    laid,
+                    topLeft = Offset(
+                        (card.width - (g.left + g.right)) / 2f,
+                        (card.height - (g.top + g.bottom)) / 2f,
+                    ),
+                )
             }
         }
     }
