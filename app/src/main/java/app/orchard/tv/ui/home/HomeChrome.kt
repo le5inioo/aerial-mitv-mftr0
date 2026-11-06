@@ -443,7 +443,7 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, filmPlate: Boolean, d
             filmBottom = null
             return@LaunchedEffect
         }
-        val baked = withContext(Dispatchers.Default) { bakePlate(plateTinted(film, PlateTint), screen, plate, with(density) { PlateCorner.toPx() }, 0f, edge = false) }
+        val baked = withContext(Dispatchers.Default) { bakePlate(plateTinted(film, FilmPlateTint), screen, plate, with(density) { PlateCorner.toPx() }, 0f, edge = false) }
         // Not on screen: the new frame simply takes over.
         if (filmTop == null || cover() < 0.01f) {
             filmTop = baked
@@ -574,10 +574,24 @@ private val PlateTint = floatArrayOf(
 )
 
 /**
+ * The film plate's frost, the same white but whole: it is drawn at [FILM_FROST] over the moving
+ * film itself, so its strength lives in that draw, not in the bitmap. At [PlateTint]'s three
+ * tenths the frost thinned to about a seventh of what it was and the film's plate lost its body
+ * (2026-11-06).
+ */
+private val FilmPlateTint = PlateTint.copyOf().also { it[18] = 1f }
+
+/**
  * [PlateTint] applied to [src] ahead of the bake, so the plate is one plain draw.
+ *
+ * Drawn into a blank bitmap, not over a copy of [src]: over a copy, the copy's whole pixels stay
+ * under the filtered ones and the alpha row does nothing — a plate meant to be three tenths read
+ * as a solid frost over a picture (the owner, 2026-11-06). Over a film it looked right only because
+ * the film's plate is drawn at [FILM_FROST] on top of the moving film. A tint at full alpha comes
+ * out the same either way.
  */
 private fun plateTinted(src: ImageBitmap, tint: FloatArray = GridTint): ImageBitmap {
-    val out = src.asAndroidBitmap().copy(android.graphics.Bitmap.Config.ARGB_8888, true)
+    val out = android.graphics.Bitmap.createBitmap(src.width, src.height, android.graphics.Bitmap.Config.ARGB_8888)
     val paint = android.graphics.Paint().apply { colorFilter = android.graphics.ColorMatrixColorFilter(tint) }
     android.graphics.Canvas(out).drawBitmap(src.asAndroidBitmap(), 0f, 0f, paint)
     return out.frozen().asImageBitmap()
