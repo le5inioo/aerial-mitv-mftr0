@@ -70,6 +70,9 @@ import kotlin.math.sin
 /** One top-fall-plus-bottom-rise cycle, in milliseconds. */
 private const val FLIP_MS = 460
 
+/** Bahnschrift's digit cap height as a fraction of the font size, measured from the face itself. */
+private const val CAP_HEIGHT = 0.729f
+
 // Dark charcoal cards with a faint light-to-dark gradient (shade toward the hinge) and pale
 // digits, per the reference mock; the whole thing sits on black.
 private val CardTopLight = Color(0xFF424245)
@@ -215,15 +218,17 @@ private fun Half(digit: Char, top: Boolean, rotate: Float = 0f) {
                     cornerRadius = CornerRadius(CardCorner.toPx()),
                 )
                 val laid = measurer.measure(digit.toString(), FlipDigitStyle, maxLines = 1)
-                // Centred by the glyph's own bounding box, not the layout block: the block's
-                // ascent and descent are far taller than the digit, and at this size the
-                // difference would hang the digit visibly off the card's centre.
-                val g = laid.getBoundingBox(0)
+                // Digits stand on the baseline and are CAP_HEIGHT of the font tall. Centring the
+                // layout box is not the same thing: the box also holds the ascent above the cap
+                // and the descent below the baseline, which are not equal, and the digits came out
+                // riding high on the card. Centre the cap band instead.
+                val cap = FlipDigitStyle.fontSize.toPx() * CAP_HEIGHT
+                val baseline = laid.getLineBaseline(0)
                 drawText(
                     laid,
                     topLeft = Offset(
-                        (card.width - (g.left + g.right)) / 2f,
-                        (card.height - (g.top + g.bottom)) / 2f,
+                        (card.width - laid.size.width) / 2f,
+                        card.height / 2f - (baseline - cap / 2f),
                     ),
                 )
             }

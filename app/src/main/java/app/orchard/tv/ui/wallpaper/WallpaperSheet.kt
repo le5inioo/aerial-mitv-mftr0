@@ -75,6 +75,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.orchard.tv.R
@@ -353,7 +354,9 @@ fun WallpaperSheet(
                     if (Wallpapers.screensaver == ScreensaverMode.Aerial || Wallpapers.screensaver == ScreensaverMode.Videos) {
                         SpeedRow(note, stringResource(R.string.wp_speed_hint))
                     }
-                    if (qualities.size > 1) {
+                    // The quality is the aerial films' own: it has nothing to say for the other
+                    // saver kinds, so it appears only while the aerials are the chosen one.
+                    if (qualities.size > 1 && Wallpapers.screensaver == ScreensaverMode.Aerial) {
                         // The films kept on the TV (AerialSet, AerialStream): how many, how much
                         // space at most, and how they change. In place of the quality's own note,
                         // as a note shows two lines at most.
@@ -868,7 +871,9 @@ private fun WeatherValue() {
 
 /** A pill to pick one of a few options: a check on the chosen one, white when focused. */
 @Composable
-private fun Chip(label: String, on: Boolean, onFocused: (() -> Unit)? = null, onClick: () -> Unit) {
+private fun Chip(
+    label: String, on: Boolean, onFocused: (() -> Unit)? = null, pad: Dp = 20.dp, onClick: () -> Unit,
+) {
     Pressable(onClick = onClick, focusedScale = 1.06f) { state ->
         if (onFocused != null) LaunchedEffect(state.focused) { if (state.focused) onFocused() }
         val bg by animateColorAsState(
@@ -881,12 +886,14 @@ private fun Chip(label: String, on: Boolean, onFocused: (() -> Unit)? = null, on
         )
         val fg = if (state.focused) Palette.OnFocus else Palette.Label
         Row(
-            Modifier.clip(RoundedCornerShape(50)).drawBehind { drawRect(bg) }.height(40.dp).padding(horizontal = 20.dp),
+            Modifier.clip(RoundedCornerShape(50)).drawBehind { drawRect(bg) }.height(40.dp).padding(horizontal = pad),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (on) GlyphIcon(Glyph.Check, fg, 14.dp)
-            BasicText(label, style = Type.Body.copy(color = fg))
+            // One line always: in a row that runs out of width a label used to wrap into a
+            // vertical stack of single characters rather than being shortened.
+            BasicText(label, style = Type.Body.copy(color = fg), maxLines = 1, softWrap = false)
         }
     }
 }
@@ -945,6 +952,7 @@ private fun ScreensaverKind(note: (String?) -> Unit, onStart: () -> Unit) {
                     stringResource(label),
                     on = Wallpapers.screensaver == mode,
                     onFocused = { note(hintText) },
+                    pad = 14.dp,
                 ) { Wallpapers.chooseScreensaver(mode) }
             }
             // The action that tries the chosen one, at the end of the row.
@@ -960,12 +968,15 @@ private fun StartChip(onStart: () -> Unit) {
         val bg by animateColorAsState(if (state.focused) Palette.Focus else Palette.FillStrong, tween(140, easing = Motion.EaseOut), label = "ss-start")
         val fg = if (state.focused) Palette.OnFocus else Palette.Label
         Row(
-            Modifier.clip(RoundedCornerShape(50)).drawBehind { drawRect(bg) }.height(40.dp).padding(horizontal = 20.dp),
+            Modifier.clip(RoundedCornerShape(50)).drawBehind { drawRect(bg) }.height(40.dp).padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             GlyphIcon(Glyph.Play, fg, 14.dp)
-            BasicText(stringResource(R.string.ss_start), style = Type.Body.copy(color = fg))
+            BasicText(
+                stringResource(R.string.ss_start), style = Type.Body.copy(color = fg),
+                maxLines = 1, softWrap = false,
+            )
         }
     }
 }
