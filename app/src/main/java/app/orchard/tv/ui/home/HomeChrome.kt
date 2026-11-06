@@ -587,15 +587,24 @@ private fun plateTinted(src: ImageBitmap, tint: FloatArray = GridTint): ImageBit
 private fun bakePlate(glass: ImageBitmap, screen: Size, plate: Rect, radius: Float, rim: Float, edge: Boolean = true): ImageBitmap {
     val w = plate.width.roundToInt().coerceAtLeast(1)
     val h = plate.height.roundToInt().coerceAtLeast(1)
-    val out = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
-    val canvas = android.graphics.Canvas(out)
+    // Baked at twice the plate's size and brought back down: the lit rim is about two pixels
+    // wide, and drawn at 1:1 its antialiasing and the outline's left the corners ragged (the
+    // owner, 2026-11-06). The 2x draw gives the downscale four samples a pixel to smooth with.
+    val ss = 2
+    val big = android.graphics.Bitmap.createBitmap(w * ss, h * ss, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(big)
     canvas.drawBitmap(
         glass.asAndroidBitmap(),
-        Matrix().apply { setScale(screen.width / glass.width, screen.height / glass.height); postTranslate(-plate.left, -plate.top) },
+        Matrix().apply {
+            setScale(ss * screen.width / glass.width, ss * screen.height / glass.height)
+            postTranslate(-ss * plate.left, -ss * plate.top)
+        },
         android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG),
     )
-    canvas.drawBitmap(smoothMask(w, h, radius), 0f, 0f, android.graphics.Paint().apply { xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.DST_IN) })
-    if (edge) canvas.drawBitmap(glassEdge(w, h, radius, rim).asAndroidBitmap(), 0f, 0f, null)
+    canvas.drawBitmap(smoothMask(w * ss, h * ss, radius * ss), 0f, 0f, android.graphics.Paint().apply { xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.DST_IN) })
+    if (edge) canvas.drawBitmap(glassEdge(w * ss, h * ss, radius * ss, rim * ss).asAndroidBitmap(), 0f, 0f, null)
+    val out = android.graphics.Bitmap.createScaledBitmap(big, w, h, true)
+    big.recycle()
     return out.frozen().asImageBitmap()
 }
 
