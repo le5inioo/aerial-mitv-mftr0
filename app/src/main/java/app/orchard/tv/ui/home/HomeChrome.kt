@@ -93,6 +93,7 @@ import app.orchard.tv.system.NetworkStatus
 import app.orchard.tv.ui.components.Dissolve
 import app.orchard.tv.ui.components.Pressable
 import app.orchard.tv.ui.components.frozen
+import app.orchard.tv.ui.components.PanelGlassTint
 import app.orchard.tv.ui.components.glassEdge
 import app.orchard.tv.ui.components.rememberFrostSwap
 import app.orchard.tv.ui.components.smoothMask
@@ -423,7 +424,7 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, filmPlate: Boolean, d
         if (glass == null || plate == null || screen == Size.Zero || filmPlate) return null
         val size = screen
         return withContext(Dispatchers.Default) {
-            bakePlate(plateTinted(glass, PlateTint), size, plate, with(density) { PlateCorner.toPx() }, with(density) { 1.2.dp.toPx() })
+            bakePlate(plateTinted(glass, PanelGlassTint), size, plate, with(density) { PlateCorner.toPx() }, with(density) { 1.2.dp.toPx() })
         }
     }
     val top by produceState<ImageBitmap?>(null, shown, plate, screen, filmPlate) { value = baked(shown) }
@@ -442,7 +443,7 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, filmPlate: Boolean, d
             filmBottom = null
             return@LaunchedEffect
         }
-        val baked = withContext(Dispatchers.Default) { bakePlate(plateTinted(film, PlateTint), screen, plate, with(density) { PlateCorner.toPx() }, 0f, edge = false) }
+        val baked = withContext(Dispatchers.Default) { bakePlate(plateTinted(film, PanelGlassTint), screen, plate, with(density) { PlateCorner.toPx() }, 0f, edge = false) }
         // Not on screen: the new frame simply takes over.
         if (filmTop == null || cover() < 0.01f) {
             filmTop = baked
@@ -552,29 +553,20 @@ private const val GRID_SHADE = 0.55f
 /** How much the plate swells as it dissolves into the grid's background. */
 private val PlateSwell = 14.dp
 
-/** The grid glass's tint: the frosted picture a little darker, lifted with white, so it reads as milky glass. */
-private val GridTint = floatArrayOf(
-    0.8f, 0f, 0f, 0f, 30f,
-    0f, 0.8f, 0f, 0f, 30f,
-    0f, 0f, 0.8f, 0f, 30f,
-    0f, 0f, 0f, 1f, 0f,
-)
+/**
+ * The grid glass's tint: the panels' glass ([PanelGlassTint]), as the plate is. The plate dissolves
+ * into this as the grid comes in; tinted milkier (0.8, lifted 30) it lightened as it went, one
+ * material turning into another (2026-11-06, the plate went over to the panels' glass).
+ */
+private val GridTint = PanelGlassTint
 
 /**
- * The plate's tint: lifts the frosted picture to a milky white glass (the owner, 2026-11-06: the
- * plate read as black over their dark films). The frost is the blur of what is behind, so the
- * plate keeps its translucent look; only its colour turns white. Drawn at 62% (the owner asked it
- * more see-through yet, 2026-11-06, over a photo wallpaper): the sharp picture shows through, and
- * the plate reads as glass rather than a milky slab.
+ * The plate is the panels' glass ([PanelGlassTint]), drawn as they draw it: the owner asked for one
+ * material, so that a menu opening over Home does not sit on a plate of another colour
+ * (2026-11-06). The frosted picture at half its light and lifted a little, whole rather than at
+ * part alpha — the white the plate had before (a milky lift at 62%) read as another material beside
+ * the menus.
  */
-private val PlateTint = floatArrayOf(
-    0.45f, 0f, 0f, 0f, 145f,
-    0f, 0.45f, 0f, 0f, 145f,
-    0f, 0f, 0.45f, 0f, 145f,
-    0f, 0f, 0f, 0.62f, 0f,
-)
-
-/** The glass picture with [tint] applied ahead of time, so the plate is one plain draw. */
 private fun plateTinted(src: ImageBitmap, tint: FloatArray = GridTint): ImageBitmap {
     val out = src.asAndroidBitmap().copy(android.graphics.Bitmap.Config.ARGB_8888, true)
     val paint = android.graphics.Paint().apply { colorFilter = android.graphics.ColorMatrixColorFilter(tint) }

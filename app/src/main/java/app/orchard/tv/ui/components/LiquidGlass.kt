@@ -287,9 +287,16 @@ private val filmSheen: ImageBitmap by lazy {
     bitmap.asImageBitmap()
 }
 
-private val PanelTint = ColorFilter.colorMatrix(ColorMatrix(floatArrayOf(
+/**
+ * How a panel's glass takes the frosted picture: at half its light, lifted a little, so white
+ * text reads on snow. The plate under Home's top row is the same glass ([app.orchard.tv.ui.home]
+ * uses this very matrix), so a menu opening over Home does not change the material around it.
+ */
+val PanelGlassTint = floatArrayOf(
     0.48f, 0f, 0f, 0f, 14f,
     0f, 0.48f, 0f, 0f, 14f,
     0f, 0f, 0.48f, 0f, 14f,
     0f, 0f, 0f, 1f, 0f,
-)))
+)
+
+private val PanelTint = ColorFilter.colorMatrix(ColorMatrix(PanelGlassTint))
