@@ -413,6 +413,9 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, filmPlate: Boolean, d
     // frames held up a frame every few seconds (Xiaomi MiTV-MFTR0: frames of 50-70 ms), and the
     // glass of a film that had just stopped took the main thread for about 37 ms of a menu's
     // opening. A glass not baked yet is not drawn; until then the one before it stays.
+    // [filmPlate] keys the bake: over a film nothing is baked (the film plate below), and once the
+    // wallpaper is a picture again the same glass must bake then — keyed on the glass alone, the
+    // plate stayed blank until a tile stepped and the glass changed (the owner, 2026-11-06).
     val density = LocalDensity.current
     var screen by remember { mutableStateOf(Size.Zero) }
     suspend fun baked(glass: ImageBitmap?): ImageBitmap? {
@@ -423,8 +426,8 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, filmPlate: Boolean, d
             bakePlate(plateTinted(glass, PlateTint), size, plate, with(density) { PlateCorner.toPx() }, with(density) { 1.2.dp.toPx() })
         }
     }
-    val top by produceState<ImageBitmap?>(null, shown, plate, screen) { value = baked(shown) }
-    val bottom by produceState<ImageBitmap?>(null, under, plate, screen) { value = baked(under) }
+    val top by produceState<ImageBitmap?>(null, shown, plate, screen, filmPlate) { value = baked(shown) }
+    val bottom by produceState<ImageBitmap?>(null, under, plate, screen, filmPlate) { value = baked(under) }
     var filmTop by remember { mutableStateOf<ImageBitmap?>(null) }
     var filmBottom by remember { mutableStateOf<ImageBitmap?>(null) }
     var smoke by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -560,15 +563,15 @@ private val GridTint = floatArrayOf(
 /**
  * The plate's tint: lifts the frosted picture to a milky white glass (the owner, 2026-11-06: the
  * plate read as black over their dark films). The frost is the blur of what is behind, so the
- * plate keeps its translucent look; only its colour turns white. Drawn at 72% (the owner's next
- * word was "更透"): the sharp picture shows through a little, and the plate reads as glass again
- * rather than a milky slab.
+ * plate keeps its translucent look; only its colour turns white. Drawn at 62% (the owner asked it
+ * more see-through yet, 2026-11-06, over a photo wallpaper): the sharp picture shows through, and
+ * the plate reads as glass rather than a milky slab.
  */
 private val PlateTint = floatArrayOf(
     0.45f, 0f, 0f, 0f, 145f,
     0f, 0.45f, 0f, 0f, 145f,
     0f, 0f, 0.45f, 0f, 145f,
-    0f, 0f, 0f, 0.72f, 0f,
+    0f, 0f, 0f, 0.62f, 0f,
 )
 
 /** The glass picture with [tint] applied ahead of time, so the plate is one plain draw. */

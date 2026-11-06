@@ -158,7 +158,8 @@ object Wallpapers {
 
     /** The frosted picture panels are made of: the wallpaper's, or in "Each App" the shown tile's. */
     val panelFrost: ImageBitmap?
-        get() = frosted?.takeIf { backdrop != null } ?: perAppGlass[shownPerApp]
+        get() = frosted?.takeIf { backdrop != null }
+            ?: perAppGlass[shownPerApp].takeIf { selectedId == PER_APP }
 
     /** Home tells which tile it shows, for [panelFrost]. */
     fun notePerAppShown(slot: Int) {
@@ -327,6 +328,14 @@ object Wallpapers {
     fun select(id: String) {
         selectedId = id
         prefs.edit { putString("selected", id) }
+        // Out of "Each App", the tiles' own pictures go with the mode. Kept over from a stay in
+        // it, they stood in for the wallpaper in every other mode: the picture and the plate
+        // changed with every tile stepped, under a photo wallpaper that never moved (the owner,
+        // 2026-11-06). Entering the mode again bakes them anew.
+        if (id != PER_APP) {
+            perAppPictures = emptyMap()
+            perAppGlass = emptyMap()
+        }
         rebuildBackdrop()
         // The image host's picture is fetched as Home comes back to it, but a first choice should
         // show one at once rather than wait for the next refresh of the screen.
