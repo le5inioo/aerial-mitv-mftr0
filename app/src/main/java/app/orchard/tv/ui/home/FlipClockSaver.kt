@@ -33,19 +33,19 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.orchard.tv.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.time.LocalDateTime
@@ -65,26 +65,26 @@ import kotlin.math.sin
 /** One top-fall-plus-bottom-rise cycle, in milliseconds. */
 private const val FLIP_MS = 460
 
-// Each half is a light-to-dark gradient, light at the card's outer edge and shaded toward the
-// hinge, so the fold reads as a lit surface rather than a flat white slab.
-private val CardTopLight = Color(0xFFECECEA)
-private val CardTopShade = Color(0xFFC7C7C4)
-private val CardBotShade = Color(0xFFB6B6B3)
-private val CardBotLight = Color(0xFFE0E0DD)
-private val DigitInk = Color(0xFF17181A)
-private val HingeInk = Color(0xFF0A0A0B)
+// Dark charcoal cards with a faint light-to-dark gradient (shade toward the hinge) and pale
+// digits, per the reference mock; the whole thing sits on black.
+private val CardTopLight = Color(0xFF424245)
+private val CardTopShade = Color(0xFF353538)
+private val CardBotShade = Color(0xFF2B2B2E)
+private val CardBotLight = Color(0xFF3B3B3E)
+private val DigitInk = Color(0xFFD8D8D8)
+private val DigitShadow = Color(0x73000000)
+private val HingeInk = Color(0xFF141416)
 
 private val CardCorner = 12.dp
 private val CardW = 110.dp
 private val CardH = 156.dp
 
-// DSEG7 Classic Bold (keshikan/DSEG, SIL OFL 1.1): a true seven-segment display face. Every digit
-// has the same advance width, so cards never change width as the seconds count.
-private val Dseg7 = FontFamily(Font(R.font.dseg7classic_bold))
-
+// The TV's own sans, at its heaviest weight, like the reference mock. (DSEG7, the seven-segment
+// face tried earlier, read too "LCD" against the dark cards and is gone.)
 private val FlipDigitStyle = TextStyle(
-    fontFamily = Dseg7, fontSize = 88.sp, color = DigitInk, letterSpacing = 0.sp,
-    textAlign = TextAlign.Center,
+    fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Black,
+    fontSize = 112.sp, color = DigitInk, letterSpacing = 0.sp, textAlign = TextAlign.Center,
+    shadow = Shadow(DigitShadow, Offset(0f, 4f), blurRadius = 14f),
 )
 
 @Composable
@@ -223,5 +223,5 @@ private fun Colons() {
 
 @Composable
 private fun Dot() {
-    Box(Modifier.size(11.dp).clip(RoundedCornerShape(50)).background(DigitInk))
+    Box(Modifier.size(14.dp).clip(RoundedCornerShape(50)).background(DigitInk))
 }
