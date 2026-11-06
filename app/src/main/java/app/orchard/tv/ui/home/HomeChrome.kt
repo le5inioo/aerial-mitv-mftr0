@@ -251,9 +251,9 @@ fun HomeBackground(
     /** The grid's own glass, where it is not the picture's ([frosted]): the aerial film's (Wallpapers.clipGlass). */
     gridGlass: ImageBitmap? = null,
     /**
-     * The plate's glass where it must not be [frosted]'s: "Follow Tile" hands it the shown tile's
-     * own, so the plate takes the colour of the picture behind it as it changes with the tile
-     * (the owner, 2026-11-06). Null: the plate takes the picture's glass as before.
+     * The plate's glass where it is not to follow [frosted]: "Follow Tile" keeps one, so stepping
+     * along the row does not change the plate's colour and re-bake it at every tile (the owner,
+     * 2026-11-06). Null: the plate takes the picture's glass as before.
      */
     plateGlass: ImageBitmap? = null,
 ) {
@@ -424,7 +424,7 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, filmPlate: Boolean, d
         if (glass == null || plate == null || screen == Size.Zero || filmPlate) return null
         val size = screen
         return withContext(Dispatchers.Default) {
-            bakePlate(plateTinted(glass, PanelGlassTint), size, plate, with(density) { PlateCorner.toPx() }, with(density) { 1.2.dp.toPx() })
+            bakePlate(plateTinted(glass, PlateTint), size, plate, with(density) { PlateCorner.toPx() }, with(density) { 1.2.dp.toPx() })
         }
     }
     val top by produceState<ImageBitmap?>(null, shown, plate, screen, filmPlate) { value = baked(shown) }
@@ -443,7 +443,7 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, filmPlate: Boolean, d
             filmBottom = null
             return@LaunchedEffect
         }
-        val baked = withContext(Dispatchers.Default) { bakePlate(plateTinted(film, PanelGlassTint), screen, plate, with(density) { PlateCorner.toPx() }, 0f, edge = false) }
+        val baked = withContext(Dispatchers.Default) { bakePlate(plateTinted(film, PlateTint), screen, plate, with(density) { PlateCorner.toPx() }, 0f, edge = false) }
         // Not on screen: the new frame simply takes over.
         if (filmTop == null || cover() < 0.01f) {
             filmTop = baked
@@ -559,6 +559,12 @@ private val PlateSwell = 14.dp
  * material turning into another (2026-11-06, the plate went over to the panels' glass).
  */
 private val GridTint = PanelGlassTint
+
+/**
+ * The plate's own glass: the panels' tint ([PanelGlassTint]) a tenth see-through, so the sharp
+ * picture shows under it a little (the owner asked for it, 2026-11-06). The panels stay whole.
+ */
+private val PlateTint = PanelGlassTint.copyOf().also { it[18] = 0.90f }
 
 /**
  * The plate is the panels' glass ([PanelGlassTint]), drawn as they draw it: the owner asked for one
