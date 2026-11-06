@@ -373,8 +373,8 @@ object Wallpapers {
      */
     fun setPerApp(slot: Int, id: String?) {
         if (slot !in 1..PER_APP_SLOTS) return
-        // A tile's picture is a still: videos are the wallpaper's own business, not a slot's.
-        if (id != null && isVideo(id)) return
+        // A tile shows a still, but a film may stand for it: the bake takes the film's poster or
+        // its last stopped frame (picture()), so "My Videos" and a single film are offered too.
         val next = perApp.toMutableMap()
         if (id == null) next.remove(slot) else next[slot] = id
         perApp = next
@@ -1181,7 +1181,7 @@ object Wallpapers {
             .sortedByDescending { it.lastModified() }
             .map { Wallpaper("photo:${it.nameWithoutExtension}", WallpaperKind.Photo, if (zh) "我的照片" else "My Photo") }
         val auto = Wallpaper(AUTO, WallpaperKind.Auto, if (zh) "跟随 App" else "Follow App")
-        val perAppCard = Wallpaper(PER_APP, WallpaperKind.Builtin, if (zh) "每个 App 一张" else "Each App")
+        val perAppCard = Wallpaper(PER_APP, WallpaperKind.Builtin, if (zh) "跟随磁贴" else "Follow Tile")
         val live = Wallpaper(LIVE, WallpaperKind.Live, if (zh) "航拍" else "Aerial")
         // All of them in turn, then each on its own (#762); the pickers show the first only for two or more.
         val films = ScreensaverVideos.all(app)

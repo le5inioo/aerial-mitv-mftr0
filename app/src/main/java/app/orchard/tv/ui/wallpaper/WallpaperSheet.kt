@@ -1041,21 +1041,34 @@ private fun PerAppRow(slot: Int, label: String, note: (String?) -> Unit, first: 
 }
 
 /**
- * The pictures one of Home's first tiles may take: built-ins, the day's photo and the owner's
- * own pictures. Films are not offered here: a tile's picture is a still (the wallpaper's own
- * films keep playing behind Home).
+ * The pictures one of Home's first tiles may take, the same spread the wallpaper row offers —
+ * the aerial films, the owner's videos and the set-top inputs included — with "默认" in front
+ * and "跟随磁贴" itself left out. A tile shows a still whatever it picks: the bake takes a
+ * film's poster or last stopped frame, an input's and the aerial's stand-in picture. "Auto" is
+ * the one card not offered: it has no picture of its own to bake.
  */
 @Composable
 private fun PerAppPicker(slot: Int, label: String, chosen: String?, onDismiss: () -> Unit, onPick: (String?) -> Unit) {
+    val rotateTitle = stringResource(R.string.wp_photos_rotate)
+    val videosTitle = stringResource(R.string.wp_videos_rotate)
     val list = remember(Wallpapers.items) {
         val all = Wallpapers.items
-        // Right after "默认" come the owner's own pictures — My Photos, then the image host
-        // (the owner, 2026-11-04) — and the day's photo and built-ins after them.
-        all.filter { it.kind == WallpaperKind.Photo } +
-            all.filter { it.kind == WallpaperKind.Webhost } +
-            all.filter {
-                (it.kind == WallpaperKind.Builtin && it.id != Wallpapers.PER_APP) || it.kind == WallpaperKind.Daily
-            }
+        // The wallpaper row's order, "跟随磁贴" dropped: live films, the image host, My Photos
+        // (and their rotation with two or more), My Videos (and each film), the day's photo,
+        // the built-ins, the inputs last.
+        buildList {
+            addAll(all.filter { it.kind == WallpaperKind.Live })
+            addAll(all.filter { it.kind == WallpaperKind.Webhost })
+            val photos = all.filter { it.kind == WallpaperKind.Photo }
+            if (photos.size > 1) add(Wallpaper(Wallpapers.ROTATE_PHOTOS, WallpaperKind.Photo, rotateTitle))
+            addAll(photos)
+            val videos = all.filter { it.kind == WallpaperKind.Video && it.id != Wallpapers.VIDEOS }
+            if (videos.isNotEmpty()) add(Wallpaper(Wallpapers.VIDEOS, WallpaperKind.Video, videosTitle))
+            addAll(videos)
+            addAll(all.filter { it.kind == WallpaperKind.Daily })
+            addAll(all.filter { it.kind == WallpaperKind.Builtin && it.id != Wallpapers.PER_APP })
+            addAll(all.filter { it.kind == WallpaperKind.Source })
+        }
     }
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) {
