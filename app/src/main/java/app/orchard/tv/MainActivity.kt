@@ -444,40 +444,12 @@ class MainActivity : ComponentActivity() {
         val owed = BootOpen.wakeSplashOwed(this)
         val suspended = !owed && BootOpen.suspendedSinceAwake(this)
         if (!owed && !suspended) return
-        // A wake restores the app the TV slept on over Home (measured 2026-11-08: the firmware
-        // set the video player's DetailsActivity resumed 90 ms before Home's task, and waking
-        // from ok兔 resumed its program above the splash's window, which played unseen behind
-        // it). Bring Home's task to the front first, so the splash is what the panel shows and
-        // the wake lands on the desktop (the owner's call: every wake plays the splash and ends
-        // on Home, whatever was on the screen before).
-        frontApp()?.takeIf { it != packageName }?.let { front ->
-            DiagLog.i("wake splash: $front was restored over Home; bringing Home back")
-            startActivity(
-                Intent(this, MainActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            )
-        }
         // One screen-off, one splash: the resume lands first, the screen-on broadcast follows.
         BootOpen.consumeWakeSplash(this)
         BootOpen.noteAwake(this)
         wakeSplashAt = now
         DiagLog.i("wake splash ($reason${if (suspended) ", suspended since last awake" else ""})")
         wakeSplash.intValue++
-    }
-
-    /**
-     * The package in front, or null where the system says nothing. Only the default Home gets
-     * real answers from [ActivityManager.getRunningTasks] (the rest see only their own tasks),
-     * and null is the safe answer: without a name, the wake-splash grab does nothing and the
-     * firmware's restore stands.
-     */
-    @Suppress("DEPRECATION")
-    private fun frontApp(): String? = try {
-        @Suppress("DEPRECATION")
-        getSystemService<android.app.ActivityManager>()?.getRunningTasks(1)
-            ?.firstOrNull()?.topActivity?.packageName
-    } catch (_: Exception) {
-        null
     }
 
     /**
