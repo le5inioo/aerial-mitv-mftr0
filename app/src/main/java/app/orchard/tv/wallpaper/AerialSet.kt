@@ -5,21 +5,22 @@ import androidx.core.content.edit
 import java.time.LocalDate
 
 /**
- * The few aerial films Aerial plays, kept on disk (AerialStream), shared by the aerial wallpaper and
+ * The one aerial film Aerial plays, kept on disk (AerialStream), shared by the aerial wallpaper and
  * every screensaver of aerials in every format, so going from one to the other is the same film
  * (owner, 2026-10-29: "从杜比的屏保到航拍壁纸切换的时候，最好是同一个视频").
  *
- * - [MAX] films, newest first. Both play them in this order, one after another, round and round;
- *   where each one is and how far in is Wallpapers.liveSpot, written by whichever plays.
- * - A new film joins once a day, at the day's first screensaver or Home's first film ([takeDaily]),
- *   and pressing right in the screensaver adds one at once ([addNew]); the oldest leaves either way.
- * - Left steps back through the films kept, which play from disk.
+ * - One film at a time (owner, 2026-11-12). The wallpaper and the screensaver loop it; where it is
+ *   and how far in is Wallpapers.liveSpot, written by whichever plays.
+ * - A new film takes its place once a day ([takeDaily]) or on right in the screensaver ([addNew]).
+ *   As soon as the new one starts to arrive, the old one's cache goes (AerialEvictor), so only one
+ *   film's worth of bytes is ever on the TV.
  *
  * Until 1.69 every screensaver shuffled all 114 films, and the wallpaper picked its own: the two
- * rarely matched, and every film was fetched again each time (issue #843).
+ * rarely matched, and every film was fetched again each time (issue #843). A few were then kept
+ * (1.70-1.94); the owner asked for just one again, to save space on the TV.
  */
 object AerialSet {
-    const val MAX = 3
+    const val MAX = 1
 
     private const val PREFS = "aerial_set"
 
@@ -38,7 +39,8 @@ object AerialSet {
     fun films(context: Context): List<Aerial> {
         val all = Aerials.all(context)
         val known = ids(context).mapNotNull { id -> all.firstOrNull { it.id == id } }
-        if (known.isNotEmpty()) return known
+        // A set saved by a build that kept three: only its newest is played now.
+        if (known.isNotEmpty()) return known.take(MAX)
         val first = runCatching { Wallpapers.liveSpot() }.getOrNull()?.first?.let { id -> all.firstOrNull { it.id == id } } ?: all.random()
         save(context, listOf(first.id), today())
         return listOf(first)
@@ -67,7 +69,7 @@ object AerialSet {
     fun nextNew(context: Context): Aerial {
         val all = Aerials.all(context)
         prefs(context).getString("next", null)?.let { id -> all.firstOrNull { it.id == id } }?.let { return it }
-        val kept = ids(context).toSet()
+        val kept = films(context).map { it.id }.toSet()
         val film = all.filter { it.id !in kept }.randomOrNull() ?: all.random()
         prefs(context).edit { putString("next", film.id) }
         return film
@@ -87,8 +89,13 @@ object AerialSet {
     /** Whether today has not had its new film yet. */
     fun due(context: Context): Boolean = prefs(context).getString("day", null) != today()
 
-    /** Today's new film, if today has not had one: it joins the set (see [addNew]). */
-    fun takeDaily(context: Context): Aerial? = if (due(context)) addNew(context) else null
+    /**
+     * Today's new film, if today has not had one: it joins the set (see [addNew]). A day only
+     * brings a new film in when the aerials are actually in use — otherwise the day's turn would
+     * fetch a film nobody plays (owner, 2026-11-12).
+     */
+    fun takeDaily(context: Context): Aerial? =
+        if (due(context) && Wallpapers.aerialEnabled()) addNew(context) else null
 
     /** Today's date; a test moves it on. */
     internal var today: () -> String = { LocalDate.now().toString() }

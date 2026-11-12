@@ -112,11 +112,12 @@ class LiveFilm {
 
     /**
      * The viewer's left and right in the screensaver carrying this film: right brings in a new
-     * film (AerialSet.addNew), left goes back to one kept.
+     * film (AerialSet.addNew), left starts this one over — only one film is kept now
+     * (owner, 2026-11-12).
      */
     fun skip(context: android.content.Context, step: Int) {
         val p = player ?: return
-        if (step < 0) p.seekToPreviousMediaItem() else insert?.invoke(AerialSet.addNew(context))
+        if (step < 0) p.seekTo(0L) else insert?.invoke(AerialSet.addNew(context))
     }
 
     /** The film and the moment showing now, while a player has it. */
@@ -245,8 +246,8 @@ fun LiveWallpaper(
     fun open(): ExoPlayer {
         val quality = AerialFormats.forWallpaper(context)
         val overHttp = Build.VERSION.SDK_INT < Build.VERSION_CODES.N
-        // Where it was let go (into an app, or a screensaver's films), else the picture's own
-        // moment; then the other films kept (AerialSet), in the order the screensaver plays them.
+        // Where it was let go (into an app, or the screensaver), else the picture's own moment;
+        // the one film kept (AerialSet) is the same one the screensaver plays.
         val spot = Wallpapers.liveSpot()
         fresh = false
         val films = AerialSet.playlist(context, spot?.first)
@@ -290,9 +291,10 @@ fun LiveWallpaper(
                 }
             })
             live.insert = { film ->
-                addMediaItem(currentMediaItemIndex + 1, AerialStream.mediaItem(film, quality, overHttp))
-                seekTo(currentMediaItemIndex + 1, 0L)
-                if (playbackState == Player.STATE_IDLE) prepare()
+                // One film only (owner, 2026-11-12): a new one replaces the playlist rather than
+                // being appended, so past skips do not leave several films to loop through.
+                setMediaItems(listOf(AerialStream.mediaItem(film, quality, overHttp)), 0, 0L)
+                prepare()
             }
             setMediaItems(films.map { AerialStream.mediaItem(it, quality, overHttp) }, 0, if (resume != null) spot?.second ?: 0L else 0L)
             surface?.let { setVideoSurfaceView(it) }

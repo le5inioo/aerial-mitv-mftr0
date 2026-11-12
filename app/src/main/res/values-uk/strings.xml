@@ -128,7 +128,7 @@
     <string name="ss_quality_hd">1080p</string>
     <string name="ss_quality_uhd">4K</string>
     <string name="ss_quality_dv">4K Dolby Vision</string>
-    <string name="ss_aerial_keeps">Aerial зберігає на телевізорі %2$d останні фільми (до %1$s); шпалери й заставка показують їх по черзі, щодня додається новий. У заставці вправо — новий фільм, вліво — попередній.</string>
+    <string name="ss_aerial_keeps">Aerial зберігає на телевізорі лише поточний фільм (до %1$s); шпалери й заставка повторюють його, щодня — новий. Кеш старого фільму видаляється, щойно починає завантажуватися новий. У заставці вправо — новий фільм.</string>
     <string name="st_focus_style">Стиль фокуса</string>
     <string name="st_home_layout">Головний екран</string>
     <string name="st_layout">Розкладка</string>

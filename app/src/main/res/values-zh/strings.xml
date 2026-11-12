@@ -135,7 +135,7 @@
     <string name="ss_quality_hd">1080p</string>
     <string name="ss_quality_uhd">4K</string>
     <string name="ss_quality_dv">4K 杜比视界</string>
-    <string name="ss_aerial_keeps">航拍会在电视上存最近 %2$d 部（最多占 %1$s），壁纸和屏保轮流放这几部，每天换一部新的；在屏保里按右键换新片，左键回到上一部。</string>
+    <string name="ss_aerial_keeps">航拍只在电视上留当前这一部（最多占 %1$s），壁纸和屏保循环播放它，每天换一部新的；新片一开始下载就清掉旧片的缓存。在屏保里按右键换新片。</string>
     <string name="st_focus_style">焦点样式</string>
     <string name="st_home_layout">主屏幕</string>
     <string name="st_layout">布局</string>

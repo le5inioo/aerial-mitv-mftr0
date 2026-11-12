@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -104,7 +105,6 @@ import app.orchard.tv.ui.theme.Type
 import app.orchard.tv.wallpaper.PhoneServer
 import app.orchard.tv.wallpaper.AerialFormats
 import app.orchard.tv.wallpaper.AerialQuality
-import app.orchard.tv.wallpaper.AerialSet
 import app.orchard.tv.wallpaper.AerialStream
 import app.orchard.tv.wallpaper.ScreensaverMode
 import app.orchard.tv.system.SystemScreensaver
@@ -150,6 +150,19 @@ fun WallpaperSheet(
     var qr by remember { mutableStateOf<ImageBitmap?>(null) }
     // The tile whose picture is being chosen ("Each App"): its place and app, or null when closed.
     var picking by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    // The tile row whose picker was last opened. A picker takes the focus for itself; when it
+    // disappears Compose hands the focus to the sheet's first focusable item — the Aerial card —
+    // instead of the row that opened it (the owner, 2026-11-12). Give it back explicitly.
+    var lastTile by remember { mutableStateOf(0) }
+    val tileFocus = remember { Array(Wallpapers.PER_APP_SLOTS) { FocusRequester() } }
+    LaunchedEffect(picking) {
+        if (picking != null || lastTile !in 1..Wallpapers.PER_APP_SLOTS) return@LaunchedEffect
+        withFrameNanos { }
+        runCatching { tileFocus[lastTile - 1].requestFocus() }
+    }
+    // The pictures a tile may take, in the picker's order. The rows name the current choice from
+    // this same list, so what a row says is exactly the title of the card that was picked.
+    val tileChoices = perAppChoices()
     // The screensaver video picker ("All, in turn" or one film on a loop), over the sheet.
     var saverPicking by remember { mutableStateOf(false) }
     // Home Guard and ADB kept on, as Android has them now: read again each time the sheet opens,
@@ -227,7 +240,18 @@ fun WallpaperSheet(
                 if (Wallpapers.selectedId == Wallpapers.PER_APP) {
                     Group(stringResource(R.string.wp_per_app_hint)) { note ->
                         tiles.take(Wallpapers.PER_APP_SLOTS).forEachIndexed { i, (_, label) ->
-                            PerAppRow(i + 1, label, note, first = i == 0) { picking = (i + 1) to label }
+                            val slot = i + 1
+                            val choice = Wallpapers.perAppChoice(slot)
+                            // Name the picture the tile has, as the screensaver video row names
+                            // its film: "选择" told the owner nothing about a choice already made.
+                            val chip = if (choice == null) stringResource(R.string.wp_per_app_inherit)
+                            else tileChoices.firstOrNull { it.id == choice }?.title
+                                ?: Wallpapers.items.firstOrNull { it.id == choice }?.title
+                                ?: stringResource(R.string.wp_per_app_change)
+                            PerAppRow(slot, label, chip, note, first = i == 0, focusRequester = tileFocus[i]) {
+                                lastTile = slot
+                                picking = slot to label
+                            }
                         }
                     }
                 }
@@ -371,7 +395,8 @@ fun WallpaperSheet(
                             ActionChip(
                                 chosenTitle ?: stringResource(R.string.ss_saver_video_all),
                                 Glyph.ChevronRight,
-                            ) { saverPicking = true }
+                                onClick = { saverPicking = true },
+                            )
                         }
                     }
                     // Only the qualities this TV can play; a 1080p-only TV has nothing to choose.
@@ -383,13 +408,12 @@ fun WallpaperSheet(
                     // The quality is the aerial films' own: it has nothing to say for the other
                     // saver kinds, so it appears only while the aerials are the chosen one.
                     if (qualities.size > 1 && Wallpapers.screensaver == ScreensaverMode.Aerial) {
-                        // The films kept on the TV (AerialSet, AerialStream): how many, how much
-                        // space at most, and how they change. In place of the quality's own note,
-                        // as a note shows two lines at most.
+                        // The one film kept on the TV (AerialSet, AerialStream): how much space
+                        // at most, and how it changes. In place of the quality's own note, as a
+                        // note shows two lines at most.
                         val keeps = stringResource(
                             R.string.ss_aerial_keeps,
                             remember { android.text.format.Formatter.formatShortFileSize(context, AerialStream.keepLimit(context)) },
-                            AerialSet.MAX,
                         )
                         Choices(
                             R.string.ss_quality, keeps, note,
@@ -536,13 +560,13 @@ fun WallpaperSheet(
         PerAppPicker(
             slot = slot,
             label = label,
+            choices = tileChoices,
             chosen = Wallpapers.perAppChoice(slot),
             onDismiss = { picking = null },
             onPick = { id ->
                 Wallpapers.setPerApp(slot, id)
-                // Choosing a picture from another wallpaper turns "Each App" on, so the choice
-                // shows at once; "inherit" leaves the wallpaper as it is.
-                if (id != null && Wallpapers.selectedId != Wallpapers.PER_APP) Wallpapers.select(Wallpapers.PER_APP)
+                // The tile rows only exist while "Follow Tile" is the wallpaper, so there is no
+                // mode to switch into here. Closing the picker restores the row's focus.
                 picking = null
             },
         )
@@ -926,8 +950,13 @@ private fun Chip(
 
 /** A pill that does something rather than choosing a value: white when focused, a glyph after its label. */
 @Composable
-private fun ActionChip(label: String, glyph: Glyph, onClick: () -> Unit) {
-    Pressable(onClick = onClick, focusedScale = 1.06f) { state ->
+private fun ActionChip(
+    label: String,
+    glyph: Glyph,
+    onClick: () -> Unit,
+    focusRequester: FocusRequester? = null,
+) {
+    Pressable(onClick = onClick, focusRequester = focusRequester, focusedScale = 1.06f) { state ->
         val bg by animateColorAsState(if (state.focused) Palette.Focus else Palette.FillStrong, tween(140, easing = Motion.EaseOut), label = "action-bg")
         val fg = if (state.focused) Palette.OnFocus else Palette.Label
         Row(
@@ -935,7 +964,15 @@ private fun ActionChip(label: String, glyph: Glyph, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            BasicText(label, style = Type.Body.copy(color = fg))
+            // A wallpaper's name can be long (an uploaded photo, a film's file name): keep the
+            // pill from pushing the row's own title off the screen.
+            BasicText(
+                label,
+                style = Type.Body.copy(color = fg),
+                modifier = Modifier.widthIn(max = 260.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             GlyphIcon(glyph, fg, 18.dp)
         }
     }
@@ -1040,7 +1077,15 @@ private val SheetCorner = 30.dp
 
 /** "Each App": one of Home's first tiles, by its place, with the picture it has now. */
 @Composable
-private fun PerAppRow(slot: Int, label: String, note: (String?) -> Unit, first: Boolean, onPick: () -> Unit) {
+private fun PerAppRow(
+    slot: Int,
+    label: String,
+    chip: String,
+    note: (String?) -> Unit,
+    first: Boolean,
+    focusRequester: FocusRequester? = null,
+    onPick: () -> Unit,
+) {
     if (!first) Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(1.dp).background(Palette.Hairline))
     Row(
         Modifier
@@ -1057,32 +1102,24 @@ private fun PerAppRow(slot: Int, label: String, note: (String?) -> Unit, first: 
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        ActionChip(
-            if (Wallpapers.perAppChoice(slot) == null) stringResource(R.string.wp_per_app_inherit)
-            else stringResource(R.string.wp_per_app_change),
-            Glyph.ChevronRight,
-            onPick,
-        )
+        ActionChip(chip, Glyph.ChevronRight, onPick, focusRequester = focusRequester)
     }
 }
 
 /**
- * The pictures one of Home's first tiles may take, the same spread the wallpaper row offers —
- * the aerial films, the owner's videos and the set-top inputs included — with the wallpaper
- * row's "Follow App" as its default in front, and "Follow Tile" itself left out. The default
- * bakes nothing: Home shows the artwork of the app the focus is on (the owner, 2026-11-12).
- * A tile shows a still for anything else: the bake takes a film's poster or last stopped
- * frame, an input's and the aerial's stand-in picture.
+ * The pictures one of Home's first tiles may take, in the order its picker shows them: the
+ * wallpaper row's spread, with "Follow Tile" itself left out. Shared with the tile rows, which
+ * name their current choice from this very list — so a row says exactly the title of the card
+ * that was picked, instead of the button's own "选择" (the owner, 2026-11-12).
  */
 @Composable
-private fun PerAppPicker(slot: Int, label: String, chosen: String?, onDismiss: () -> Unit, onPick: (String?) -> Unit) {
+private fun perAppChoices(): List<Wallpaper> {
+    val all = Wallpapers.items
     val rotateTitle = stringResource(R.string.wp_photos_rotate)
     val videosTitle = stringResource(R.string.wp_videos_rotate)
-    val list = remember(Wallpapers.items) {
-        val all = Wallpapers.items
-        // The wallpaper row's order, "跟随磁贴" dropped: live films, the image host, My Photos
-        // (and their rotation with two or more), My Videos (and each film), the day's photo,
-        // the built-ins, the inputs last.
+    return remember(all, rotateTitle, videosTitle) {
+        // Live films, the image host, My Photos (and their rotation with two or more), My Videos
+        // (and each film), the day's photo, the built-ins, the inputs last.
         buildList {
             addAll(all.filter { it.kind == WallpaperKind.Live })
             addAll(all.filter { it.kind == WallpaperKind.Webhost })
@@ -1097,6 +1134,22 @@ private fun PerAppPicker(slot: Int, label: String, chosen: String?, onDismiss: (
             addAll(all.filter { it.kind == WallpaperKind.Source })
         }
     }
+}
+
+/**
+ * One tile's picker: "Follow App" first (it bakes nothing — Home shows the focused app's art),
+ * then the same spread the wallpaper row offers. Anything else shows a still: the bake takes a
+ * film's poster or its last stopped frame, an input's and the aerial's stand-in picture.
+ */
+@Composable
+private fun PerAppPicker(
+    slot: Int,
+    label: String,
+    choices: List<Wallpaper>,
+    chosen: String?,
+    onDismiss: () -> Unit,
+    onPick: (String?) -> Unit,
+) {
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) {
         withFrameNanos { }
@@ -1134,7 +1187,7 @@ private fun PerAppPicker(slot: Int, label: String, chosen: String?, onDismiss: (
                 item(key = "inherit") {
                     InheritCard(selected = chosen == null, focusRequester = first) { onPick(null) }
                 }
-                items(list, key = { it.id }) { wp ->
+                items(choices, key = { it.id }) { wp ->
                     WallpaperCard(wp, null, onFocused = {}, selected = wp.id == chosen) { onPick(wp.id) }
                 }
             }

@@ -126,6 +126,8 @@ object Wallpapers {
     private val dailyDir by lazy { File(app.filesDir, "daily").apply { mkdirs() } }
     private val photoDir by lazy { File(app.filesDir, "photos").apply { mkdirs() } }
     private val webhostFile by lazy { File(app.filesDir, "webhost.jpg") }
+    /** The picture dealt for the next look at the image host, fetched and baked in advance. */
+    private val webhostNext by lazy { File(app.filesDir, "webhost-next.jpg") }
     private val liveFrame by lazy { File(app.filesDir, "live-frame.jpg") }
     private val videoFrame by lazy { File(app.filesDir, "video-frame.jpg") }
 
@@ -208,6 +210,15 @@ object Wallpapers {
 
     /** The owner's videos, all in turn or one of them. */
     fun isVideo(id: String = selectedId) = id == VIDEOS || id.startsWith(VIDEO_PREFIX)
+
+    /**
+     * Whether Apple's aerials are in use now: the wallpaper, a tile in "Follow Tile", or the
+     * screensaver. Nothing fetches a film ahead of time, nor brings in the day's new one, when
+     * none of them shows the aerials (owner, 2026-11-12).
+     */
+    fun aerialEnabled(): Boolean = started &&
+        (selectedId == LIVE || (selectedId == PER_APP && perApp.containsValue(LIVE)) ||
+            screensaver == ScreensaverMode.Aerial)
 
     /** The films [id] plays behind Home: all the owner's videos, or the one chosen. Call off the main thread. */
     fun videoFilms(id: String = selectedId): List<ScreensaverVideo> {
@@ -304,8 +315,13 @@ object Wallpapers {
         loadBaked()
         loadPerAppBaked()
         rebuildBackdrop()
-        scope.launch { refreshDaily() }
-        scope.launch { refreshWebHost() }
+        if (dailyEnabled()) scope.launch { refreshDaily() }
+        // Deal the first picture into the buffer while nothing is looking at the image host. A
+        // first install has no picture at all, so that one goes on screen as soon as it is baked.
+        scope.launch {
+            if (webhostWanted() && !webhostFile.exists()) pendingShow = true
+            prefetchWebHost()
+        }
         scope.launch(Dispatchers.IO) { clearStaleUploads() }
         // Installs from before 1.42 have a baked picture but no copy yet.
         scope.launch(Dispatchers.IO) { keepForLockedBoot() }
@@ -349,6 +365,7 @@ object Wallpapers {
 
     fun select(id: String) {
         val previousId = selectedId
+        val wasDaily = dailyEnabled()
         selectedId = id
         prefs.edit { putString("selected", id) }
         // The panels' glass belongs to the film it was taken from. Left in place, a switch
@@ -368,9 +385,12 @@ object Wallpapers {
             perAppGlass = emptyMap()
         }
         rebuildBackdrop()
-        // The image host's picture is fetched as Home comes back to it, but a first choice should
-        // show one at once rather than wait for the next refresh of the screen.
+        // A first choice shows the picture dealt in advance, rather than waiting for Home to come
+        // back to it; the one after that is dealt while this one is on screen.
         if (id == WEBHOST) refreshWebHost(force = true)
+        // A daily photo is fetched only while something shows it: a switch to one must bring it
+        // in now, rather than wait for the next six-hour check.
+        if (!wasDaily && dailyEnabled()) kickDaily()
     }
 
     // ---- a picture for each tile ----
@@ -382,13 +402,19 @@ object Wallpapers {
      */
     private fun sanitizePerApp() {
         val next = perApp.toMutableMap()
+        // One daily photo is kept now (owner, 2026-11-12), so a tile that named one of the older
+        // dates loses its file as soon as the newer picture arrives. Keep the tile's choice rather
+        // than dropping it back to "Follow App": point it at the photo that is on disk today.
+        val newestDaily = items.firstOrNull { it.kind == WallpaperKind.Daily }?.id
         var changed = false
         for ((slot, id) in perApp) {
             // A slot whose picture is gone — a photo or a film deleted — falls back too: the
             // lists are rebuilt first, so what the pickers offer is what resolve() answers for.
             if (resolve(id) != null) continue
-            next.remove(slot)
+            val daily = if (id.startsWith("daily:") && newestDaily != null) newestDaily else null
+            if (daily != null) next[slot] = daily else next.remove(slot)
             changed = true
+            // Whatever was baked for the old picture must not stand in for the new one's.
             perAppJobs.remove(slot)?.cancel()
             perAppPictures = perAppPictures - slot
             perAppGlass = perAppGlass - slot
@@ -422,6 +448,7 @@ object Wallpapers {
      */
     fun setPerApp(slot: Int, id: String?) {
         if (slot !in 1..PER_APP_SLOTS) return
+        val wasDaily = dailyEnabled()
         // A tile shows a still, but a film may stand for it: the bake takes the film's poster or
         // its last stopped frame (picture()), so "My Videos" and a single film are offered too.
         val next = perApp.toMutableMap()
@@ -434,6 +461,7 @@ object Wallpapers {
         clearPerBaked(slot)
         if (id == WEBHOST) refreshWebHost(force = true)
         if (selectedId == PER_APP) preparePerApp(listOf(slot))
+        if (!wasDaily && dailyEnabled()) kickDaily()
     }
 
     /** Writes [perApp] as {"1": "grad:…", "2": "photo:…"}, by tile. */
@@ -629,9 +657,12 @@ object Wallpapers {
     }
 
     fun chooseScreensaver(mode: ScreensaverMode) {
+        val wasDaily = dailyEnabled()
         chosenScreensaver = mode
         prefs.edit { putString("screensaver", mode.key) }
         GuardSetup.screensaverModeChanged(app)
+        // The photo screensaver falls back to the daily photo when the owner has no photos.
+        if (!wasDaily && dailyEnabled()) kickDaily()
     }
 
     /** The concrete wallpaper the selection points at today. */
@@ -661,24 +692,47 @@ object Wallpapers {
 
     /**
      * Moves "My Photos, in turn" on to the photo for now; Aerial calls it whenever Home comes back,
-     * and each minute while Home is in front.
+     * and each minute while Home is in front. Every call also makes sure the image host has a picture
+     * dealt in advance: the minute tick must NOT spend it, or a focus arriving later would find the
+     * buffer empty. Actually showing it is [refreshWebHost]'s job (a look at the picture, or Home
+     * coming back), which then deals the next one.
      */
     fun rotateIfDue() {
         if (!started) return
-        refreshWebHost()
+        prefetchWebHost()
         if (selectedId != ROTATE_PHOTOS || rotatedOn == photoSlot()) return
         rebuildBackdrop()
     }
 
     // ---- the owner's image host ----
 
-    /** When a picture was last fetched from the image host, so Home's bounces fetch once. */
+    /** When a picture was last dealt from the image host, so Home's bounces deal once. */
     private var webhostAt = 0L
 
     private const val WEBHOST_MIN_MS = 10_000L
 
     /** One fetch at a time: the tiles can be stepped through faster than a picture arrives. */
     @Volatile private var webhostFetching = false
+
+    /** Bumped when the host's address changes, so a picture from the old host is not staged. */
+    @Volatile private var webhostGeneration = 0
+
+    /**
+     * The next picture, already fetched and baked, waiting for a look at the image host. Showing it
+     * is then a local rename and a handful of assignments: no network, no 4K decode, no shading or
+     * frosting (all of which used to cost about two seconds on MFTR0, after the focus had landed).
+     * The owner, 2026-11-13: a picture should be ready before the focus arrives, not fetched while
+     * it waits — step away, deal the next one, and show it the next time the focus comes back.
+     */
+    private class WebhostStaged(val file: File, val home: Bitmap, val frost: Bitmap)
+
+    @Volatile private var staged: WebhostStaged? = null
+
+    /** A look came while the next picture was still on its way: show it the moment it is ready. */
+    @Volatile private var pendingShow = false
+
+    /** Whether the wallpaper or any tile shows the image host's picture. */
+    private fun webhostWanted() = selectedId == WEBHOST || perApp.containsValue(WEBHOST)
 
     /** The address the picture comes from: the owner's, or the one shipped with the build. */
     fun webHostUrl(): String = prefs.getString("webhost_url", null)?.takeIf { it.isNotBlank() } ?: WEBHOST_URL
@@ -691,9 +745,19 @@ object Wallpapers {
         val clean = normalizeHost(url) ?: return false
         prefs.edit { putString("webhost_url", clean) }
         DiagLog.i("image host set to $clean")
-        synchronized(thumbs) { thumbs.remove(WEBHOST) }
-        refreshWebHost(force = true)
+        // The staged picture came from the old host: it must not stand in for the new one's.
+        webhostGeneration++
+        dropStaged()
+        // Unlike a focus that found the buffer empty, changing the address is an explicit choice:
+        // the first picture from the new host goes on screen as soon as it is baked.
+        pendingShow = true
+        prefetchWebHost()
         return true
+    }
+
+    private fun dropStaged() {
+        staged = null
+        webhostNext.delete()
     }
 
     /** "192.168.2.7:5678" or "http://host/path" as a URL; null when it cannot be one. */
@@ -708,8 +772,9 @@ object Wallpapers {
     }
 
     /**
-     * The tile in [slot] has the image host's picture: coming to that tile deals a new one (the
-     * owner, 2026-11-04), so stepping along the row changes the picture with the tile.
+     * The tile in [slot] has the image host's picture: coming to that tile shows the picture dealt
+     * for it in advance (the owner, 2026-11-04; made instant 2026-11-13), so stepping along the
+     * row changes the picture with the tile without waiting for the network.
      */
     fun refreshPerAppHost(slot: Int) {
         if (selectedId != PER_APP || perApp[slot] != WEBHOST) return
@@ -717,23 +782,44 @@ object Wallpapers {
     }
 
     /**
-     * Fetches a picture from the owner's image host ([WEBHOST_URL]) and shows it, when the host is
-     * the wallpaper or one of the tiles'. Called each time Home comes back ([rotateIfDue]) — each
-     * refresh of the screen deals a new picture, as the server sends a different one per request.
-     * A fetch that fails keeps the last picture.
+     * Shows the staged picture and deals the one after it. Called when Home comes back, when the
+     * focus reaches a tile of the image host's, and when the picture is first chosen: never on a
+     * path that draws a frame, because everything expensive was done in [prefetchWebHost].
+     *
+     * A look that arrives while the next picture is still on its way neither waits nor changes the
+     * screen later: the picture already there stays, and the fetched one is shown the next time a
+     * look comes, in the same frame. Only a first install — nothing on disk at all — puts the first
+     * picture up as soon as it is baked. Quick key repeats used to flash a new picture under a
+     * tile the focus had already left (owner, 2026-11-13).
      */
     fun refreshWebHost(force: Boolean = false) {
-        if (!started) return
-        val wanted = selectedId == WEBHOST || perApp.containsValue(WEBHOST)
-        if (!wanted && !force) return
-        if (webhostFetching) return
+        if (!started || !webhostWanted()) return
         val now = SystemClock.elapsedRealtime()
         if (!force && now - webhostAt < WEBHOST_MIN_MS) return
         webhostAt = now
+        val ready = staged
+        if (ready != null) showStaged(ready)
+        else {
+            if (!webhostFile.exists()) pendingShow = true
+            prefetchWebHost()
+        }
+    }
+
+    /**
+     * Deals one picture from the image host ([WEBHOST_URL]) and bakes it, without showing anything.
+     * One picture is held and one fetch runs at a time, so an idle TV does not keep asking the host
+     * for pictures; [showStaged] asks for the next one as soon as it uses this one. A fetch that
+     * fails keeps the picture already on screen.
+     */
+    fun prefetchWebHost() {
+        if (!started || !webhostWanted()) return
+        if (staged != null || webhostFetching) return
         webhostFetching = true
         scope.launch(Dispatchers.IO) {
             val url = webHostUrl()
-            val tmp = File(app.cacheDir, "webhost.part")
+            val generation = webhostGeneration
+            val part = File(app.cacheDir, "webhost-next.part")
+            var next: WebhostStaged? = null
             try {
                 val ok = runCatching {
                     val c = URL(url).openConnection() as HttpURLConnection
@@ -742,37 +828,83 @@ object Wallpapers {
                     c.instanceFollowRedirects = true
                     try {
                         check(c.responseCode in 200..299) { "HTTP ${c.responseCode}" }
-                        c.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                        c.inputStream.use { input -> part.outputStream().use { input.copyTo(it) } }
                         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                        BitmapFactory.decodeFile(tmp.path, bounds)
+                        BitmapFactory.decodeFile(part.path, bounds)
                         check(bounds.outWidth > 0) { "not a picture" }
-                        check(tmp.renameTo(webhostFile)) { "could not move it in" }
-                    } finally {
-                        c.disconnect()
-                        if (tmp.exists()) tmp.delete()
-                    }
-                }.isSuccess
-                DiagLog.i("image host ${if (ok) "fetched" else "failed"} ($url)")
-                if (!ok) return@launch
-                synchronized(thumbs) { thumbs.remove(WEBHOST) }
-                withContext(Dispatchers.Main) {
-                    rebuildBackdropIfNeeded(WEBHOST)
-                    perApp.forEach { (slot, id) -> if (id == WEBHOST) {
-                        // The tile keeps the picture it has until the new one is baked over it.
-                        perAppJobs.remove(slot)?.cancel()
-                        clearPerBaked(slot)
-                    } }
-                    if (selectedId == PER_APP) preparePerApp(perApp.filterValues { it == WEBHOST }.keys.toList(), force = true)
-                }
+                        webhostNext.delete()
+                        check(part.renameTo(webhostNext)) { "could not keep the next picture" }
+                    } finally { c.disconnect() }
+                    // Bake while nobody is waiting. Frost first: shadeForHome draws into its input
+                    // when that bitmap is mutable (the same order rebuildBackdrop uses).
+                    val picture = Images.decodeCover(webhostNext, screenW, screenH) ?: error("could not decode it")
+                    val frost = Images.frost(picture)
+                    val home = Images.shadeForHome(picture)
+                    next = WebhostStaged(webhostNext, home, frost)
+                }.isSuccess && generation == webhostGeneration
+                if (!ok) next = null
+                DiagLog.i("image host ${if (next != null) "staged" else "failed"} ($url)")
             } finally {
+                part.delete()
                 webhostFetching = false
+                val ready = next
+                if (ready != null) {
+                    staged = ready
+                    withContext(Dispatchers.Main) { if (pendingShow) showStaged(ready) }
+                } else {
+                    webhostNext.delete()
+                    // The address changed while this was in flight: deal one from the new host.
+                    if (generation != webhostGeneration) {
+                        withContext(Dispatchers.Main) { prefetchWebHost() }
+                    }
+                }
             }
         }
     }
 
-    /** Bakes the wallpaper again when [id] is what Home shows under it now. */
-    private fun rebuildBackdropIfNeeded(id: String) {
-        if (selectedId == id || selectedId.startsWith(id)) rebuildBackdrop()
+    /**
+     * Puts the staged picture on screen. Nothing here touches the network or decodes a picture:
+     * the file is already on the TV and the two bitmaps are already baked, so the focus lands on
+     * the new picture in the same frame. Keeps them on disk for the next cold start, off this thread.
+     */
+    private fun showStaged(ready: WebhostStaged) {
+        if (staged !== ready) return
+        staged = null
+        pendingShow = false
+        // A bake of the old picture must not land on top of this one.
+        backdropJob?.cancel()
+        val slots = perApp.filterValues { it == WEBHOST }.keys.toList()
+        slots.forEach { perAppJobs.remove(it)?.cancel() }
+        // rename(2) replaces the old file atomically: if it fails, the picture on screen stays.
+        if (!ready.file.renameTo(webhostFile)) {
+            Log.w(TAG, "could not move the staged picture in")
+            return
+        }
+        val home = ready.home.asImageBitmap()
+        val glass = ready.frost.asImageBitmap()
+        synchronized(thumbs) { thumbs.remove(WEBHOST) }
+        var key: String? = null
+        if (selectedId == WEBHOST) {
+            backdrop = home
+            frosted = glass
+            key = bakedKey(Wallpaper(WEBHOST, WallpaperKind.Webhost, ""))
+            bakedKey = key
+        }
+        if (slots.isNotEmpty()) {
+            val pictures = perAppPictures.toMutableMap()
+            val glasses = perAppGlass.toMutableMap()
+            slots.forEach { pictures[it] = home; glasses[it] = glass }
+            perAppPictures = pictures
+            perAppGlass = glasses
+        }
+        val savedKey = key
+        scope.launch(Dispatchers.IO) {
+            if (savedKey != null) saveBaked(savedKey, ready.home, ready.frost)
+            slots.forEach { savePerBaked(it, WEBHOST, ready.home, ready.frost) }
+        }
+        DiagLog.i("image host: showed the staged picture")
+        // Deal the next one at once, while the focus is elsewhere or Home is in the background.
+        prefetchWebHost()
     }
 
     // ---- pictures ----
@@ -849,7 +981,13 @@ object Wallpapers {
     }
 
     /** Drops the thumbnails (about 330 KB each); the picker makes them again when it opens. */
-    fun trimMemory() = synchronized(thumbs) { thumbs.clear() }
+    fun trimMemory() {
+        synchronized(thumbs) { thumbs.clear() }
+        // The staged picture holds a full-size home bitmap as well as its frost: the price of
+        // showing it in the same frame. Give that memory back when the system is short of it;
+        // the file stays, and the next idle moment deals and bakes another one.
+        staged = null
+    }
 
     /** A 16:9 thumbnail for pickers and the phone page. Call off the main thread. */
     fun thumbnail(id: String): Bitmap? {
@@ -1381,6 +1519,28 @@ object Wallpapers {
 
     // ---- daily photos ----
 
+    /**
+     * Whether one of Bing's daily photos is on screen now: the wallpaper, a tile, "My Photos in
+     * turn" with no photos of the owner's, or the photo screensaver's pool in that same case
+     * ([photoPictures]). Bing is asked for a photo — once at a time, and only one is kept — only
+     * while this is true (owner, 2026-11-12).
+     */
+    fun dailyEnabled(): Boolean {
+        if (!started) return false
+        if (selectedId == LATEST_DAILY || selectedId.startsWith("daily:")) return true
+        if (selectedId == PER_APP && perApp.values.any { it == LATEST_DAILY || it.startsWith("daily:") }) return true
+        // With no photos of the owner's, both the rotating wallpaper and the photo screensaver
+        // fall back to the daily one.
+        if (items.none { it.kind == WallpaperKind.Photo } &&
+            (selectedId == ROTATE_PHOTOS || screensaver == ScreensaverMode.Photos)) return true
+        return false
+    }
+
+    /** Brings in the day's photo at once when a choice starts showing it; off the main thread. */
+    private fun kickDaily() {
+        if (dailyEnabled()) scope.launch { refreshDaily() }
+    }
+
     private fun readDailyIndex(): List<Triple<String, String, String>> = runCatching {
         val arr = JSONArray(File(dailyDir, "index.json").readText())
         (0 until arr.length()).map { i ->
@@ -1401,7 +1561,9 @@ object Wallpapers {
      * else a few minutes later (issue #129).
      */
     fun refreshDailyIfStale(networkCameUp: Boolean = false) {
-        if (!started) return
+        // No periodic check, network-recovery retry or midnight fetch while nothing shows a daily
+        // photo (owner, 2026-11-12).
+        if (!started || !dailyEnabled()) return
         val since = System.currentTimeMillis() - lastDailyRefresh
         val due = since >= 6 * 60 * 60 * 1000L ||
             (dailyFailed && (networkCameUp || since >= 10 * 60 * 1000L)) ||
@@ -1421,7 +1583,7 @@ object Wallpapers {
     /** Looks again in half an hour while today's photo is not out; Home may stay up all night. */
     private fun retryDailyLater() {
         dailyRetry?.cancel()
-        if (hasTodaysDaily()) return
+        if (!dailyEnabled() || hasTodaysDaily()) return
         dailyRetry = scope.launch {
             kotlinx.coroutines.delay(DAILY_RETRY_MS)
             refreshDailyIfStale()
@@ -1429,6 +1591,8 @@ object Wallpapers {
     }
 
     suspend fun refreshDaily() = io.withLock {
+        // A last guard for a fetch started just before the daily photo went out of use.
+        if (!dailyEnabled()) return@withLock
         lastDailyRefresh = System.currentTimeMillis()
         val added = withContext(Dispatchers.IO) {
             runCatching {
@@ -1439,38 +1603,53 @@ object Wallpapers {
                 val marketFile = File(dailyDir, "market")
                 // No file: kept before markets were told apart, which was always zh-CN.
                 val before = marketFile.takeIf { it.exists() }?.readText() ?: "zh-CN"
-                val json = JSONObject(get("https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=$market").decodeToString())
-                // Only once the new market's list is here: offline, the photos on hand stay.
-                if (before != market) dailyDir.listFiles { f -> f.extension == "jpg" }?.forEach { it.delete() }
-                if (before != market || !marketFile.exists()) marketFile.writeText(market)
-                val images = json.getJSONArray("images")
-                val index = JSONArray()
-                for (i in 0 until images.length()) {
-                    val img = images.getJSONObject(i)
-                    val date = img.getString("startdate")
-                    val file = File(dailyDir, "$date.jpg")
-                    if (!file.exists()) {
-                        // url is the 1920×1080 picture; a UI drawn above 1080p gets the UHD one, and
-                        // so does a portrait one, which shows only its middle, 1080 px tall in the small one.
-                        val path = if (screenW > 1920 || screenH > 1080) img.getString("urlbase") + "_UHD.jpg" else img.getString("url")
-                        val bytes = get("https://cn.bing.com" + path)
-                        file.writeBytes(bytes)
+                // One photo only (owner, 2026-11-12): Bing is asked for the latest alone, and the
+                // eight it used to list are no longer all downloaded and kept.
+                val json = JSONObject(get("https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=$market").decodeToString())
+                val img = json.getJSONArray("images").getJSONObject(0)
+                val date = img.getString("startdate")
+                val file = File(dailyDir, "$date.jpg")
+                // A changed market has a different picture for the same date, so it is fetched again.
+                // What is on screen stays until the new one is here and decodes (issue #129).
+                if (before != market || !file.exists()) {
+                    // url is the 1920×1080 picture; a UI drawn above 1080p gets the UHD one, and
+                    // so does a portrait one, which shows only its middle, 1080 px tall in the small one.
+                    val path = if (screenW > 1920 || screenH > 1080) img.getString("urlbase") + "_UHD.jpg" else img.getString("url")
+                    val part = File(dailyDir, "$date.part")
+                    try {
+                        part.writeBytes(get("https://cn.bing.com" + path))
+                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeFile(part.path, bounds)
+                        check(bounds.outWidth > 0) { "not a picture" }
+                        // The new picture is ready: only now may the old one be replaced.
+                        if (file.exists()) file.delete()
+                        check(part.renameTo(file)) { "could not move it in" }
+                    } finally {
+                        part.delete()
                     }
-                    val copyright = img.optString("copyright")
-                    val title = img.optString("title").ifBlank { copyright.substringBefore(" (").ifBlank { date } }
-                    index.put(JSONObject().put("date", date).put("title", title).put("caption", copyright))
                 }
+                if (before != market || !marketFile.exists()) marketFile.writeText(market)
+                val copyright = img.optString("copyright")
+                val title = img.optString("title").ifBlank { copyright.substringBefore(" (").ifBlank { date } }
+                val index = JSONArray().put(JSONObject().put("date", date).put("title", title).put("caption", copyright))
                 File(dailyDir, "index.json").writeText(index.toString())
-                // Keep only what Bing still lists.
-                val keep = (0 until index.length()).map { index.getJSONObject(it).getString("date") + ".jpg" }.toSet()
-                dailyDir.listFiles { f -> f.extension == "jpg" && f.name !in keep }?.forEach { it.delete() }
+                // The new one is in place: every other photo goes at once, so only one is kept.
+                dailyDir.listFiles { f -> f.extension == "jpg" && f.name != "$date.jpg" }?.forEach { it.delete() }
                 true
-            }.onFailure { Log.w(TAG, "daily photos unavailable", it) }.isSuccess.also { dailyFailed = !it }
+            }.onFailure { Log.w(TAG, "daily photo unavailable", it) }.isSuccess.also { dailyFailed = !it }
         }
         retryDailyLater()
         if (added) {
             synchronized(thumbs) { thumbs.remove(LATEST_DAILY) }
             rebuildList()
+            // The old dates have just gone from disk: retarget the tiles that named them now,
+            // rather than leaving them broken until the next cold start.
+            sanitizePerApp()
+            // A wallpaper pointing at yesterday's photo must not be left without a picture.
+            if (selectedId != LATEST_DAILY && selectedId.startsWith("daily:") && items.none { it.id == selectedId }) {
+                selectedId = LATEST_DAILY
+                prefs.edit { putString("selected", LATEST_DAILY) }
+            }
             if (selectedId.startsWith("daily:")) rebuildBackdrop()
         }
     }

@@ -458,7 +458,7 @@ private fun AerialSaver(
                 ?: (id to at)
         }
     }
-    // The films kept (AerialSet), from the wallpaper's: the wallpaper plays them in the same order.
+    // The one film kept (AerialSet), from the wallpaper's: the wallpaper plays the same one.
     val films = remember { mutableStateListOf<Aerial>().apply { addAll(AerialSet.playlist(context, startAt?.first)) } }
     val firstAtMs = remember { startAt?.takeIf { (id, _) -> films.first().id == id }?.second ?: 0L }
     // Its decoder starts on the film's own surface, not ExoPlayer's placeholder (AerialStream.player).
@@ -487,28 +487,31 @@ private fun AerialSaver(
         player.playWhenReady = true
     }
 
-    /** The next film kept, after one that would not play. */
+    /** After a film that would not play: with only one film kept, start it once more. */
     fun next() {
         playing = false
-        player.seekToNextMediaItem()
-        if (player.playbackState == Player.STATE_IDLE) player.prepare()
+        if (films.size <= 1) load(0) else {
+            player.seekToNextMediaItem()
+            if (player.playbackState == Player.STATE_IDLE) player.prepare()
+        }
     }
 
-    /** The viewer's left and right: back to a film kept, or a new one (AerialSet.addNew). */
+    /** Left starts the film over; right replaces it with a new one (AerialSet.addNew). */
     fun skip(step: Int) {
         if (step < 0) {
+            // No earlier film is kept any more (owner, 2026-11-12).
             playing = false
-            player.seekToPreviousMediaItem()
-            if (player.playbackState == Player.STATE_IDLE) player.prepare()
+            player.seekTo(0L)
             return
         }
         val new = AerialSet.addNew(context)
-        val at = player.currentMediaItemIndex + 1
-        films.add(at, new)
-        player.addMediaItem(at, AerialStream.mediaItem(new, quality, aerialsOverHttp))
+        // The running list must not grow with every skip: one film only, looped. Otherwise a few
+        // right presses brought the old films back into the rotation.
+        films.clear()
+        films.add(new)
+        index = 0
         playing = false
-        player.seekTo(at, 0L)
-        if (player.playbackState == Player.STATE_IDLE) player.prepare()
+        load(0)
     }
 
     DisposableEffect(player) {

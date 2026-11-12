@@ -49,15 +49,17 @@ import java.io.File
  * TVs is the maker's own fork with its own network handling (TclNuPlayer on TCL 75S365C retried a
  * failing load 10 times over 34 s before reporting it, and every film started on a fresh connection).
  *
- * - One player per screensaver or wallpaper with the films kept (AerialSet) as a playlist, round and
- *   round, so the next film loads while the current one ends and they follow without a black gap.
+ * - One player per screensaver or wallpaper, looping the one film kept (AerialSet): the wallpaper
+ *   and the screensaver play the same film, with no gap when one takes over from the other.
  * - Short network timeouts and a single retry: a slow edge of Apple's CDN costs seconds, not a minute.
  * - These files keep their index (moov) at the very end, so a cold start is two round trips to Apple
  *   (the index, then the start of the film) before the first frame; [prepareSeek] and [prepareStart]
  *   fetch those ahead where the next start is known.
- * - Playback writes what it plays to a disk cache of up to [keepBytes], in every format: the few
- *   films kept come round again and play from disk the second time (owner, 2026-10-29; issue #843
- *   asked for a kept copy rather than the same film fetched again and again).
+ * - Playback writes what it plays to a disk cache of up to [keepBytes], in every format: the film
+ *   comes round again and plays from disk the second time (owner, 2026-10-29; issue #843 asked for
+ *   a kept copy rather than the same film fetched again and again). Only one film is kept now
+ *   (owner, 2026-11-12): [AerialEvictor] drops the old film's spans the moment a new one begins
+ *   to arrive, so the cache never holds two films.
  */
 @OptIn(UnstableApi::class)
 object AerialStream {
@@ -70,8 +72,8 @@ object AerialStream {
     private const val CACHE_BYTES = 64L * 1024 * 1024
 
     /**
-     * The most a kept film may take: Apple's films are 0.2-2.2 GB each in Dolby Vision and 0.2-1.1 GB
-     * in 4K SDR, so the two of a short film fit and a long one is kept in part. Never more than a
+     * The most the one kept film may take: Apple's films are 0.2-2.2 GB each in Dolby Vision and
+     * 0.2-1.1 GB in 4K SDR, so a short film fits whole and a long one in part. Never more than a
      * quarter of the free space, for TVs with 8-16 GB in all (Sony 65X91J had 12 GB free, #843).
      */
     const val KEEP_MAX_BYTES = 3_000_000_000L
@@ -192,7 +194,9 @@ object AerialStream {
      * other format's player: the Dolby Vision screensaver going on from the aerial wallpaper's film,
      * and the wallpaper going on from the screensaver's.
      */
-    suspend fun prepareSeek(context: Context, film: Aerial, quality: AerialQuality, overHttp: Boolean) =
+    suspend fun prepareSeek(context: Context, film: Aerial, quality: AerialQuality, overHttp: Boolean) {
+        // Nothing fetches an aerial ahead of time when no wallpaper or screensaver shows one.
+        if (!Wallpapers.aerialEnabled()) return
         runInterruptible(Dispatchers.IO) {
             val cache = cache(context)
             val key = key(film, quality)
@@ -212,6 +216,7 @@ object AerialStream {
                 Log.i(TAG, "index of $key fetched in ${SystemClock.elapsedRealtime() - started} ms")
             }.onFailure { Log.w(TAG, "could not fetch the index of $key", it) }
         }
+    }
 
     /** About 2 s of Dolby Vision film (24 Mbps), 4 of 4K SDR: enough to start without the network. */
     private const val START_BYTES = 6L * 1024 * 1024
@@ -231,6 +236,7 @@ object AerialStream {
      * comes from the film's index, read with Media3's MP4 extractor.
      */
     suspend fun prepareStart(context: Context, film: Aerial, quality: AerialQuality, overHttp: Boolean, atMs: Long) {
+        if (!Wallpapers.aerialEnabled()) return
         prepareSeek(context, film, quality, overHttp)
         runInterruptible(Dispatchers.IO) {
             val cache = cache(context)
@@ -334,7 +340,12 @@ object AerialStream {
     }
 }
 
-/** Media3's least-recently-used evictor, with its limit read when it is needed ([AerialStream.keepBytes]). */
+/**
+ * Media3's least-recently-used evictor, with its limit read when it is needed
+ * ([AerialStream.keepBytes]), and only one film allowed in the cache: a span of a different film
+ * arriving means the new one is ready to take over, so the old one goes at once (owner, 2026-11-12).
+ * Keys are "film id@quality", so every format of the film being played is kept.
+ */
 @OptIn(UnstableApi::class)
 private class AerialEvictor(private val limit: () -> Long) : CacheEvictor {
     private val spans = java.util.TreeSet<CacheSpan> { a, b ->
@@ -342,10 +353,19 @@ private class AerialEvictor(private val limit: () -> Long) : CacheEvictor {
     }
     private var size = 0L
 
+    /** The film whose spans may stay; null until the first write (also clears a build's old set). */
+    private var film: String? = null
+
     override fun requiresCacheSpanTouches() = true
     override fun onCacheInitialized() = Unit
 
     override fun onStartFile(cache: Cache, key: String, position: Long, length: Long) {
+        val incoming = key.substringBefore('@')
+        if (film != incoming) {
+            film = incoming
+            // Snapshot first: removeSpan() calls onSpanRemoved(), which mutates spans.
+            spans.toList().filter { !it.key.startsWith("$incoming@") }.forEach { cache.removeSpan(it) }
+        }
         if (length != C.LENGTH_UNSET.toLong()) evict(cache, length)
     }
 
