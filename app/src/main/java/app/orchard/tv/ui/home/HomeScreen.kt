@@ -95,6 +95,7 @@ import app.orchard.tv.system.DiagLog
 import app.orchard.tv.system.LaunchFallback
 import app.orchard.tv.system.SystemProbe
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.delay
@@ -332,7 +333,7 @@ fun HomeScreen(
     // screensaver's own films.
     var filmFailed by remember(vm.screensaverVisible) { mutableStateOf(false) }
     val filmSaverChosen = remember(vm.screensaverVisible) {
-        vm.screensaverVisible && AerialFormats.screensaverCarriesWallpaper(appContext) &&
+        vm.screensaverVisible && saverCarriesWallpaper(appContext) &&
             (filmCover.value > 0.5f || focusedRow == 0 && overlay == Overlay.None && moving == null)
     }
     val filmSaver = filmSaverChosen && !filmFailed
@@ -684,24 +685,26 @@ fun HomeScreen(
         val tileFilm = if (Wallpapers.selectedId == Wallpapers.PER_APP)
             Wallpapers.perApp[shownSlot]?.takeIf { it == Wallpapers.LIVE || Wallpapers.isVideo(it) } else null
         val filmId = tileFilm ?: Wallpapers.selectedId
-        // Personalize and Control Center leave the video playing under them, rather than stopping
-        // it on a frame (the owner asked for it: the background went black under the sheet).
-        val filmHolds = Wallpapers.isVideo(filmId) &&
-            (overlay is Overlay.Wallpaper || overlay is Overlay.ControlCenter)
+        // Personalize and Control Center leave the wallpaper playing under them, rather than
+        // stopping it on a frame (the owner asked for it: the background went black under the
+        // sheet). The owner's videos got this in web8; the aerial film joins them (2026-11-11):
+        // filmMoves below no longer stops it under these two panels, filmHolds is the videos' own.
+        val filmUnderPanel = overlay is Overlay.Wallpaper || overlay is Overlay.ControlCenter
+        val filmHolds = Wallpapers.isVideo(filmId) && filmUnderPanel
 
         val dragState = rememberDraggableState { delta ->
             dragged = true
             scope.launch(start = CoroutineStart.UNDISPATCHED) { scroll.snapTo(scroll.value - delta) }
         }
-        // A moving wallpaper's film, under everything; it moves only on the shelf with nothing
-        // over it (in two rows the second row too, which is on screen over the same film, issue
-        // #810); the owner's videos there only once Home is still unless set to keep moving.
+        // A moving wallpaper's film, under everything; it moves on the shelf with nothing over it
+        // (in two rows the second row too, which is on screen over the same film, issue #810), and
+        // under the two settings panels, which leave it playing rather than stopping on a frame.
         // Beside Home rather than in it: Home is not drawn (alpha 0) under a whole frost or once
         // its picture stands in under Control Center, and a SurfaceView in a layer that is not
         // drawn cuts no hole in the window, so the paused film showed as the window's black
         // (Xiaomi MiTV-MFTR0, the aerial wallpaper under Control Center).
-        val filmMoves = vm.filmFront && overlay == Overlay.None && !vm.screensaverVisible && !pastShelf &&
-            !inGrid && moving == null
+        val filmMoves = vm.filmFront && (overlay == Overlay.None || filmUnderPanel) &&
+            !vm.screensaverVisible && !pastShelf && !inGrid && moving == null
         // The owner's own videos are set to play all the time (the owner, 2026-11-04): a key does not
         // stop them, and neither does the scroll — stopping on the second row and rising back to the
         // first let the player go and opened another, and the screen was black for the moment
@@ -744,6 +747,7 @@ fun HomeScreen(
                 cover = filmCover,
                 filmsId = filmId,
                 copyOnLeave = tileFilm == null,
+                lastInputAt = { vm.lastInputAt },
             )
             sourceInput != null -> SourceWallpaper(sourceInput, show = vm.resumed && !vm.screensaverVisible, cover = filmCover)
         }
@@ -806,12 +810,39 @@ fun HomeScreen(
             val clip = if (Wallpapers.selectedId == Wallpapers.LIVE) liveFilm.film?.id ?: pictureClip else null
             LaunchedEffect(clip) { Wallpapers.showClipGlass(clip) }
             val clipGlass = Wallpapers.clipGlass?.takeIf { it.first == clip }?.second
+            // The app's artwork is the picture ONLY in "Follow App" (and for a "Follow Tile"
+            // tile with no picture of its own). It used to be the unconditional fallback, so
+            // choosing Aerial, "Follow Tile" or the image host — all of which leave the
+            // backdrop null for a bake or a download — flashed the same fuzzy first app's
+            // artwork for a frame or two (the owner, 2026-11-12). Those modes now hold the
+            // last real wallpaper picture instead until their own picture is baked.
+            val followsApp = Wallpapers.selectedId == Wallpapers.AUTO ||
+                (Wallpapers.selectedId == Wallpapers.PER_APP && perAppPicture == null)
+            val wallpaperPicture = perAppPicture ?: Wallpapers.backdrop
+            val autoArt = ambientApp?.art?.backdrop.takeIf { followsApp }
+            var heldWallpaper by remember { mutableStateOf<ImageBitmap?>(null) }
+            SideEffect { if (wallpaperPicture != null) heldWallpaper = wallpaperPicture }
+            val rawBackdrop = wallpaperPicture ?: autoArt ?: heldWallpaper
+            // "Follow App" changes the sharp picture with every step of the focus. The plate
+            // used to re-bake its full-size glass on each step, so it blinked; one small glass
+            // is kept for the whole stay instead. The same serves a "Follow Tile" tile with no
+            // picture of its own (its default is "Follow App" now).
+            var autoGlass by remember { mutableStateOf<ImageBitmap?>(null) }
+            LaunchedEffect(followsApp, autoArt) {
+                if (!followsApp || autoArt == null) { autoGlass = null; return@LaunchedEffect }
+                if (autoGlass != null) return@LaunchedEffect
+                autoGlass = withContext(Dispatchers.Default) {
+                    android.graphics.Bitmap.createScaledBitmap(autoArt.asAndroidBitmap(), 320, 180, true).asImageBitmap()
+                }
+            }
             HomeBackground(
                 // The chosen wallpaper; in "Each App" the focused tile's own picture, and in
                 // "Follow App" mode, light from the focused app.
-                backdrop = perAppPicture ?: Wallpapers.backdrop ?: ambientApp?.art?.backdrop,
-                frosted = if (perAppPicture != null) perAppGlass
-                else Wallpapers.frosted.takeIf { Wallpapers.backdrop != null },
+                backdrop = rawBackdrop,
+                frosted = when {
+                    perAppPicture != null -> perAppGlass
+                    else -> Wallpapers.frosted.takeIf { Wallpapers.backdrop != null } ?: autoGlass
+                },
                 plate = plate,
                 scroll = { scroll.value },
                 collapse = collapsePx,
@@ -836,7 +867,7 @@ fun HomeScreen(
                     perAppPicture != null && filmPlane -> perAppGlass
                     else -> (Wallpapers.filmFrost ?: Wallpapers.frosted).takeIf { Wallpapers.moves() && Wallpapers.backdrop != null }
                 },
-                plateGlass = plateGlass,
+                plateGlass = plateGlass ?: autoGlass,
                 saverImage = saverImage,
                 saverReveal = { saverReveal.value },
                 saverPush = { saverPush.value },

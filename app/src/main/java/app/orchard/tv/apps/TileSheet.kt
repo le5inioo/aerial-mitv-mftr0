@@ -16,7 +16,7 @@ import java.io.File
  * Every tile on one picture, for comparing how apps are drawn before and after a change to
  * [TileArtFactory]. Started from a computer (see ConfigReceiver):
  *
- *   adb shell am broadcast -a app.orchard.tv.CONFIG -n app.orchard.tv/.guard.ConfigReceiver --es export_tiles before
+ *   adb shell am broadcast -a app.orchard.tv.CONFIG -n com.ts.launcher/app.orchard.tv.guard.ConfigReceiver --es export_tiles before
  *   adb pull /sdcard/Android/data/app.orchard.tv/files/tiles/before.png
  *
  * Installed apps come first, as Home draws them. APKs pushed to files/tiles/apks/ (from another

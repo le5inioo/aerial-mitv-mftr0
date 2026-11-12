@@ -18,7 +18,7 @@ import java.util.concurrent.Executors
  * logcat. The last lines are kept in memory and printed by
  *   adb shell dumpsys activity app.orchard.tv/.MainActivity
  * and, in a diagnostic build (`./gradlew -Pdiag ...`) or after
- *   adb shell am broadcast -a app.orchard.tv.CONFIG -n app.orchard.tv/.guard.ConfigReceiver --ez diag true
+ *   adb shell am broadcast -a app.orchard.tv.CONFIG -n com.ts.launcher/app.orchard.tv.guard.ConfigReceiver --ez diag true
  * also written to Android/data/app.orchard.tv/files/aerial-diag.log, which `adb pull` can fetch.
  */
 object DiagLog {

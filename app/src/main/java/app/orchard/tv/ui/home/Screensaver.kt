@@ -225,6 +225,18 @@ fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawingIn(image: ImageB
     }
 }
 
+/**
+ * Whether Home's screensaver carries the wallpaper's own player on rather than starting one of its
+ * own: aerials over the aerial wallpaper in its format (not Dolby Vision chosen by hand, which the
+ * wallpaper does not play), or the owner's videos over their video wallpaper. Then neither a new
+ * player in Home nor the system's dream (a new window, TCL MT5879) comes between them.
+ */
+fun saverCarriesWallpaper(context: android.content.Context): Boolean = when {
+    Wallpapers.selectedId == Wallpapers.LIVE -> Wallpapers.screensaver == ScreensaverMode.Aerial && AerialFormats.screensaverCarriesWallpaper(context)
+    Wallpapers.isVideo() -> Wallpapers.screensaver == ScreensaverMode.Videos
+    else -> false
+}
+
 /** Where a screensaver of aerials starts when it cannot carry Home's player on (AerialDream). */
 object AerialStart {
     /**

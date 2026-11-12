@@ -90,7 +90,7 @@
     <string name="wp_daily_latest">Daily Photo</string>
     <string name="wp_per_app_hint">A picture for each tile of the first row: move the focus and the background changes with it; a tile that falls to the second row keeps the row\'s last picture. Kept by tile number, so it stays when another app moves in.</string>
     <string name="wp_per_app_row">%1$d · %2$s</string>
-    <string name="wp_per_app_inherit">Default</string>
+    <string name="wp_per_app_inherit">Follow App</string>
     <string name="wp_per_app_change">Choose</string>
     <string name="wp_per_app_title">Wallpaper for tile %1$d</string>
     <string name="wp_per_app_pick_hint">Press Back to close. Pictures sent from your phone show up here too.</string>

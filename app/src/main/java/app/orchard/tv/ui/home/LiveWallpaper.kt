@@ -54,6 +54,7 @@ import kotlin.math.abs
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 /** How long Home sits still before the owner's videos start moving, unless set to keep moving. */
@@ -185,6 +186,13 @@ fun LiveWallpaper(
     var surface by remember { mutableStateOf<SurfaceView?>(null) }
     // Frames are reaching the screen: the first one has been drawn and the film is not stopped.
     var showing by remember { mutableStateOf(false) }
+    // A surface that went away (standby, the lock screen over Home) is a black hole in the window
+    // until the decoder draws on the new one. [surfaceFramed] says the *current* surface has its
+    // first frame; [surfaceLost] counts the surfaces that went away while the film was playing.
+    // The still then holds the screen and the film fades back in on that first frame (owner,
+    // 2026-11-12: a flash coming back from the lock screen with a moving wallpaper).
+    var surfaceFramed by remember { mutableStateOf(false) }
+    var surfaceLost by remember { mutableIntStateOf(0) }
     val reader = remember { FilmFrames.load(context); FrameReader(context) }
     // Plays as soon as Home shows it, and keys do not stop it (Wallpapers.keepsMoving).
     val play = moving || hold
@@ -230,6 +238,7 @@ fun LiveWallpaper(
         live.film = null
         live.stopped = false
         showing = false
+        surfaceFramed = false
         Wallpapers.dropFilmFrost()
     }
 
@@ -252,6 +261,7 @@ fun LiveWallpaper(
             addListener(object : Player.Listener {
                 override fun onRenderedFirstFrame() {
                     rendered = true
+                    surfaceFramed = true
                     live.moved = true
                     showing = isPlaying
                     failures = 0
@@ -444,7 +454,9 @@ fun LiveWallpaper(
         if (!play || !showing) return@LaunchedEffect
         if (pixelCopy == false && glassFrames) reader.open(id)
         // Under the screensaver no plate shows: a frame only so the glass is at hand where it stops.
-        sampleGlass({ player }, every = { if (inSaver) SAVER_GLASS_EVERY_MS else if (fileFramesShut(context)) IN_APP_GLASS_EVERY_MS else GLASS_EVERY_MS }) { at ->
+        sampleGlass({ player }, every = { if (inSaver) SAVER_GLASS_EVERY_MS else if (fileFramesShut(context)) IN_APP_GLASS_EVERY_MS else GLASS_EVERY_MS },
+            clip = { "${Wallpapers.selectedId}/$id" },
+            busy = { android.os.SystemClock.uptimeMillis() - lastInputNow() < GLASS_BUSY_MS }) { at ->
             val frame = surface?.let { copyGlass(it) }
                 ?: when {
                     pixelCopy == true -> null
@@ -653,11 +665,29 @@ fun LiveWallpaper(
             }
         }
     }
+    // The surface went away under standby or the lock screen: a SurfaceView with no surface is a
+    // black hole in the window, and the still is the only thing that can cover it. Hold it until
+    // the decoder draws the first frame on the new surface, then fade the film back in. A TV that
+    // never reports that frame is not left on a still for good (owner, 2026-11-12).
+    LaunchedEffect(surfaceLost) {
+        if (surfaceLost == 0 || player == null || !keepNow) return@LaunchedEffect
+        cover.snapTo(0f)
+        DiagLog.i("wallpaper film: surface gone, the still holds until its first frame")
+        val framed = withTimeoutOrNull(SURFACE_FRAME_WAIT_MS) {
+            snapshotFlow { surfaceFramed }.first { it }
+        }
+        if (framed == null) DiagLog.i("wallpaper film: no first frame on the new surface; fading the still out anyway")
+        if (!keepNow) return@LaunchedEffect
+        cover.animateTo(1f, tween(SURFACE_FADE_MS, easing = Motion.EaseOut))
+    }
     DisposableEffect(Unit) { onDispose { release() } }
 
     AndroidView(
         modifier = Modifier.fillMaxSize(),
-        factory = { ctx -> FilmSlot(ctx).also { surface = it.surface; player?.setVideoSurfaceView(it.surface) } },
+        factory = { ctx ->
+            FilmSlot(ctx, onSurfaceLost = { surfaceFramed = false; surfaceLost++ })
+                .also { surface = it.surface; player?.setVideoSurfaceView(it.surface) }
+        },
         onRelease = { player?.clearVideoSurfaceView(it.surface); surface = null },
     )
 }
@@ -820,6 +850,10 @@ private const val CATCH_UP_UNDER_FILM_MS = 5_000L
 /** How long Home stays black for the film after a screensaver in another format before showing the picture. */
 private const val FRESH_WAIT_MS = 4_000L
 
+/** After a surface is rebuilt: how long the still waits for a first frame, and how long the film fades in. */
+internal const val SURFACE_FRAME_WAIT_MS = 2_500L
+internal const val SURFACE_FADE_MS = 450
+
 /** The screensaver's fade in (Screensaver), and a little: Home is covered by then. */
 private const val SAVER_COVERS_MS = 1_400L
 
@@ -873,20 +907,41 @@ internal suspend fun sampleGlass(
     player: () -> ExoPlayer?,
     canTake: () -> Boolean = { true },
     every: () -> Long = { GLASS_EVERY_MS },
+    /** The film the frames belong to, so the panels' glass changes once as it rolls on. */
+    clip: () -> String? = { null },
+    /** True while keys or a scroll are in flight: leave the decoder to the UI animation. */
+    busy: () -> Boolean = { false },
     take: suspend (atMs: Long) -> Bitmap?,
 ) {
     // The first soon, for a film stopped moments after it moved.
     var wait = 800L
     var costly = 0
+    var lastClip = clip()
     while (glassFrames && canTake()) {
-        // In steps, so a shorter [every] (out of the screensaver) is kept to at once.
+        // In steps, so a shorter [every] (out of the screensaver) is kept to at once and a
+        // new film gets its glass without waiting out a whole period (the owner, 2026-11-12:
+        // the menu's background stayed on the film before through the whole next one).
         var waited = 0L
-        while (waited < minOf(wait, every())) {
+        var clipChanged = false
+        val period = minOf(wait, every())
+        while (waited < period) {
             delay(250)
             waited += 250
+            val now = clip()
+            if (now != null && now != lastClip) { clipChanged = true; break }
         }
         wait = Long.MAX_VALUE
         val p = player() ?: return
+        // Scrolling the shelf or a settings sheet: copying a 4K frame beside the film cost
+        // the UI 16 dropped frames on MiTV-MFTR0 (2026-10-28). Leave the decoder to the
+        // animation and try again shortly — unless a new film just started, whose glass
+        // is wanted at once however the owner is moving the focus.
+        if (busy() && !clipChanged) {
+            wait = GLASS_BUSY_RETRY_MS
+            continue
+        }
+        val atClip = clip()
+        lastClip = atClip
         val before = droppedFrames(p)
         val frame = take(p.currentPosition)
         // The frames the film dropped while one was taken, and just after: the copy or the decode held it up.
@@ -900,11 +955,22 @@ internal suspend fun sampleGlass(
             glassCostly = true
             break
         }
-        frame?.let { Wallpapers.useFilmFrost(it) }
+        frame?.let { Wallpapers.useFilmFrost(it, atClip) }
     }
     if (wait == 800L) delay(wait)
     Wallpapers.useStillFilmFrost()
 }
+
+/** How soon after the last key a frame may be taken for the glass; and how soon to try again. */
+internal const val GLASS_BUSY_MS = 1_200L
+private const val GLASS_BUSY_RETRY_MS = 500L
+
+/**
+ * A 4K aerial can make frame copies drop enough frames that sampling is shut down for the
+ * process. Switching to the owner's 1080p videos (or back) is a different load: let it try
+ * again, or the new wallpaper's panels would keep the last aerial's glass for good.
+ */
+internal fun resetGlassCost() { glassCostly = false }
 
 private fun droppedFrames(p: ExoPlayer): Int = p.videoDecoderCounters?.let { it.ensureUpdated(); it.droppedBufferCount } ?: 0
 

@@ -514,7 +514,7 @@ adb -s $XIAOMI_TV:5555 shell "dumpsys package dexopt | grep -A2 'app.orchard.tv\
 - **按操作测卡顿**：`python3 tools/perf.py <serial> [row row_hold grid cc wallpaper menu idle saver cold]`。脚本自动按键，读 `gfxinfo framestats`，打印中位数、p90、主线程和 GPU 时间。测之前先装 release 版并 compile speed。A/B 对比时用 `ConfigReceiver --es effects auto|full|lite`、`--es aerial_quality auto|1080p|4k|dolby_vision` 切换（这两项是户主的设置，测完要还原）。`setprop debug.hwui.overdraw show` 加上 `service call activity 1599295570` 可以看过度绘制，**测帧之前一定要关掉**，开着时 GPU 时间会多一半。
 - **立即预览屏保**：`adb shell am start -a app.orchard.tv.PREVIEW_SCREENSAVER -n app.orchard.tv/.MainActivity`；TCL 上测系统屏保：`am start -n com.android.systemui/.Somnambulator`。
 - **模拟小米的待机清理**：`adb shell am force-stop app.orchard.tv`，然后看日志里出现 `revived by the notification listener binding`。
-- **配置**：`adb shell am broadcast -a app.orchard.tv.CONFIG -n app.orchard.tv/.guard.ConfigReceiver --ez keep_adb true`。
+- **配置**：`adb shell am broadcast -a app.orchard.tv.CONFIG -n app.orchard.tv/.guard.ConfigReceiver --ez keep_adb true`。**定制版（applicationId `com.ts.launcher`）不能用短名**：接收器的类在代码命名空间 `app.orchard.tv` 下，短写法会被解析成 `com.ts.launcher.guard.ConfigReceiver`，广播静默丢弃且没有任何报错；要写全 `-n com.ts.launcher/app.orchard.tv.guard.ConfigReceiver`（`tools/install-ts.sh`、`restore.sh`、`selftest.sh` 已统一）。
 - **磁贴对比图**：`adb shell am broadcast -a app.orchard.tv.CONFIG -n app.orchard.tv/.guard.ConfigReceiver --es export_tiles before`，等日志 `AerialTiles` 出现 `Wrote`，再 `adb pull /sdcard/Android/data/app.orchard.tv/files/tiles/before.png`。改 `TileArt` 或 `TileRecipes` 前后各导一次。别的电视上的 App 不用装：把 APK 去掉 `lib/`、`assets/`、`*.dex` 之后推到 `files/tiles/apks/`，会按「装上了」的样子画在后面（名字后带「·」）。这个目录是自己建的，用完可以整个删掉。
 
 ## 必须遵守（踩过的坑）

@@ -100,7 +100,11 @@ esac
 
 if [ "${KEEP_ADB:-1}" = 1 ]; then
   echo "== keeping ADB on"
-  "$ADB" shell am broadcast -a "$CONFIG" -n "$PKG/.guard.ConfigReceiver" --ez keep_adb true >/dev/null 2>&1 || true
+  # The receiver's class is in the code namespace (app.orchard.tv), not under the applicationId.
+  # "-n $PKG/.guard.ConfigReceiver" resolves to com.ts.launcher.guard.ConfigReceiver, which does
+  # not exist: the broadcast was silently dropped and ADB stayed off after standby. Spell the
+  # class out, like GUARD and LISTENER do.
+  "$ADB" shell am broadcast -a "$CONFIG" -n "$PKG/app.orchard.tv.guard.ConfigReceiver" --ez keep_adb true >/dev/null 2>&1 || true
 fi
 
 "$ADB" shell am start -W -n "$HOME_ACT" >/dev/null 2>&1 || true

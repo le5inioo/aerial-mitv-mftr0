@@ -38,19 +38,14 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontVariation
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.orchard.tv.R
 import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.ui.theme.Bahnschrift
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.time.LocalDateTime
@@ -88,18 +83,11 @@ private val CardCorner = 12.dp
 private val CardW = 110.dp
 private val CardH = 156.dp
 
-// Bahnschrift Bold (DIN 1451 style), the user's pick. It is a Microsoft-bundled variable font, so
-// res/font/bahnschrift.ttf is git-ignored and only ever packed into local APK builds; the variable
-// weight axis tops out at 700, which is its heaviest cut. At 154sp the digit stands 72% of the
+// Bahnschrift Bold, the owner's pick for the flip clock (Theme.Bahnschrift, see Theme). Home's
+// large clock uses the TV's default face instead. At 154sp the digit stands 72% of the
 // card's height, the proportion picked from the previews.
-@OptIn(ExperimentalTextApi::class)
 private val FlipDigitStyle = TextStyle(
-    fontFamily = FontFamily(
-        Font(
-            R.font.bahnschrift, weight = FontWeight.Bold,
-            variationSettings = FontVariation.Settings(FontVariation.weight(700)),
-        )
-    ),
+    fontFamily = Bahnschrift,
     fontSize = 154.sp, color = DigitInk, letterSpacing = 0.sp, textAlign = TextAlign.Center,
     shadow = Shadow(DigitShadow, Offset(0f, 4f), blurRadius = 14f),
 )

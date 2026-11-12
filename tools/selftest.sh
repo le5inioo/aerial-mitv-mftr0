@@ -38,7 +38,9 @@ connect || { echo "Could not connect to $SERIAL. Check that ADB debugging is on,
 # </dev/null: adb forwards stdin, which under `curl | bash` is the rest of this script.
 sh_() { adb shell "$@" </dev/null 2>/dev/null | tr -d '\r'; }
 now() { perl -MTime::HiRes=time -e 'printf "%.1f", time'; }
-config() { sh_ am broadcast -a app.orchard.tv.CONFIG -n "$PKG/.guard.ConfigReceiver" "$@" | sed -n 's/.*data="\(.*\)"$/\1/p'; }
+# Full class name: ".guard.ConfigReceiver" is relative to the manifest package, which is the code
+# namespace, not necessarily the applicationId ($PKG on the com.ts.launcher builds).
+config() { sh_ am broadcast -a app.orchard.tv.CONFIG -n "$PKG/app.orchard.tv.guard.ConfigReceiver" "$@" | sed -n 's/.*data="\(.*\)"$/\1/p'; }
 
 # The package of the window with focus: mCurrentFocus, else the focused app (Android 5-9 differ).
 fg() {

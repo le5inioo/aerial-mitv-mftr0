@@ -61,8 +61,11 @@ fun VideoWallpaper(
      * 250 ms) and read as a stutter on every tile stepped past (the owner, 2026-11-06).
      */
     copyOnLeave: Boolean = true,
+    /** When a key was last pressed (uptimeMillis): frame copies wait for quiet while the UI moves. */
+    lastInputAt: () -> Long = { 0L },
 ) {
     val context = LocalContext.current
+    val lastInputNow by rememberUpdatedState(lastInputAt)
     var player by remember { mutableStateOf<ExoPlayer?>(null) }
     VideoSpeed(player)
     var surface by remember { mutableStateOf<SurfaceView?>(null) }
@@ -70,6 +73,10 @@ fun VideoWallpaper(
     // A frame of the film being played has been drawn: what the cover waits for before it fades
     // the picture away, and what a switch to another film's wallpaper sets again.
     var rendered by remember { mutableStateOf(false) }
+    // See LiveWallpaper: the surface disappears under standby / the lock screen, leaving a black
+    // hole in the window. Hold the still until the new surface has rendered its first frame.
+    var surfaceFramed by remember { mutableStateOf(false) }
+    var surfaceLost by remember { mutableStateOf(0) }
     val play = moving || hold
     val keepNow by rememberUpdatedState(keep)
     val scope = rememberCoroutineScope()
@@ -83,6 +90,7 @@ fun VideoWallpaper(
         player = null
         showing = false
         rendered = false
+        surfaceFramed = false
         Wallpapers.dropFilmFrost()
         released++
     }
@@ -105,6 +113,7 @@ fun VideoWallpaper(
             addListener(object : Player.Listener {
                 override fun onRenderedFirstFrame() {
                     rendered = true
+                    surfaceFramed = true
                     showing = isPlaying
                 }
 
@@ -117,14 +126,23 @@ fun VideoWallpaper(
                 // through every film after it (TCL MT9655, issue #1158). Each film's poster now.
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     val id = mediaItem?.mediaId ?: return
-                    if (copyGlassPossible || reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) return
                     scope.launch {
-                        val poster = withContext(Dispatchers.IO) { Wallpapers.videoPoster(id, Wallpapers.screenW, Wallpapers.screenH) } ?: return@launch
-                        Wallpapers.useLiveFrame(poster, id, 0L)
-                        // And the plate's glass while it moves, made once from the first film's picture
-                        // (sampleGlass): it kept that film's colours until Control Center was opened
-                        // (issue #1158 on 1.81, the reporter on MT9655).
-                        Wallpapers.useStillFilmFrost()
+                        val clip = "${Wallpapers.selectedId}/$id"
+                        // A new film, whether the carousel rolled on or another video wallpaper
+                        // was chosen (PLAYLIST_CHANGED). Its poster is on disk and small, so the
+                        // plate and the panels take its glass at once. Waiting for the next
+                        // frame sample left the menu's background on the film before — for good
+                        // on TVs where sampling was shut down as too costly (owner, 2026-11-12).
+                        val small = withContext(Dispatchers.IO) { Wallpapers.videoPoster(id, 320, 180) }
+                        if (small != null) Wallpapers.useFilmFrost(small, clip)
+                        else if (!copyGlassPossible) Wallpapers.useStillFilmFrost()
+                        // Where the video plane cannot be read, the poster is the picture too:
+                        // without it the picture and glass stayed the first film's through every
+                        // film after it (issue #1158 on 1.81, TCL MT9655).
+                        if (!copyGlassPossible) {
+                            val poster = withContext(Dispatchers.IO) { Wallpapers.videoPoster(id, Wallpapers.screenW, Wallpapers.screenH) }
+                            if (poster != null) Wallpapers.useLiveFrame(poster, id, 0L)
+                        }
                     }
                 }
 
@@ -153,7 +171,9 @@ fun VideoWallpaper(
     // owner's video may be 4K HEVC, and a second decoder beside the player's may not be there.
     LaunchedEffect(play, showing) {
         if (!play || !showing) return@LaunchedEffect
-        sampleGlass({ player }, canTake = { copyGlassPossible }) { surface?.let { copyGlass(it) } }
+        sampleGlass({ player }, canTake = { copyGlassPossible },
+            clip = { player?.currentMediaItem?.mediaId?.let { "${Wallpapers.selectedId}/$it" } },
+            busy = { android.os.SystemClock.uptimeMillis() - lastInputNow() < GLASS_BUSY_MS }) { surface?.let { copyGlass(it) } }
     }
 
     // Let go as Aerial stops, not at the next frame, which does not come then (rememberStops).
@@ -274,9 +294,27 @@ fun VideoWallpaper(
         }
     }
 
+    // Standby or the lock screen takes the surface away and leaves a black hole in the window.
+    // Keep the still over it until the first frame on the new surface, then fade the film back in
+    // (see LiveWallpaper; owner, 2026-11-12).
+    LaunchedEffect(surfaceLost) {
+        if (surfaceLost == 0 || player == null || !keepNow) return@LaunchedEffect
+        cover.snapTo(0f)
+        DiagLog.i("video wallpaper: surface gone, the still holds until its first frame")
+        val framed = withTimeoutOrNull(SURFACE_FRAME_WAIT_MS) {
+            snapshotFlow { surfaceFramed }.first { it }
+        }
+        if (framed == null) DiagLog.i("video wallpaper: no first frame on the new surface; fading the still out anyway")
+        if (!keepNow) return@LaunchedEffect
+        cover.animateTo(1f, tween(SURFACE_FADE_MS, easing = Motion.EaseOut))
+    }
+
     AndroidView(
         modifier = Modifier.fillMaxSize(),
-        factory = { ctx -> FilmSlot(ctx).also { surface = it.surface; player?.setVideoSurfaceView(it.surface) } },
+        factory = { ctx ->
+            FilmSlot(ctx, onSurfaceLost = { surfaceFramed = false; surfaceLost++ })
+                .also { surface = it.surface; player?.setVideoSurfaceView(it.surface) }
+        },
         onRelease = { player?.clearVideoSurfaceView(it.surface); surface = null },
     )
 }

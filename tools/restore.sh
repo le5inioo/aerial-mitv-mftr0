@@ -13,6 +13,10 @@ set -euo pipefail
 # do not follow $PKG — only the package prefix does.
 PKG=${PKG:-app.orchard.tv}
 CONFIG_ACTION=app.orchard.tv.CONFIG
+# The receiver's class belongs to the code namespace, not to $PKG: with PKG=com.ts.launcher the
+# short ".guard.ConfigReceiver" resolves to a class that does not exist and the broadcast is
+# silently dropped. The full class name works for either applicationId.
+CONFIG_RECEIVER="$PKG/app.orchard.tv.guard.ConfigReceiver"
 GUARD="$PKG/app.orchard.tv.guard.HomeGuardService"
 LISTENER="$PKG/app.orchard.tv.guard.RevivalListener"
 case "$TV" in *:*) SERIAL="$TV" ;; *) SERIAL="$TV:5555" ;; esac
@@ -20,7 +24,7 @@ export ANDROID_SERIAL="$SERIAL"
 adb connect "$SERIAL" >/dev/null 2>&1 || true
 
 # First take away what lets Aerial switch the guard back on, or it would simply do so.
-adb shell am broadcast -a "$CONFIG_ACTION" -n "$PKG/.guard.ConfigReceiver" --ez keep_adb false --ez own_screensaver false >/dev/null 2>&1 || true
+adb shell am broadcast -a "$CONFIG_ACTION" -n "$CONFIG_RECEIVER" --ez keep_adb false --ez own_screensaver false >/dev/null 2>&1 || true
 adb shell cmd notification disallow_listener "$LISTENER" >/dev/null 2>&1 || true
 # Android 6 and 7 have no `cmd`: take it out of the setting itself, leaving the other listeners.
 LISTENERS=$(adb shell settings get secure enabled_notification_listeners 2>/dev/null | tr -d '\r')

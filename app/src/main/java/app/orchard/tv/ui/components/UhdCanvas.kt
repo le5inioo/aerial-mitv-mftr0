@@ -260,7 +260,15 @@ object UhdCanvas {
  * itself moves into the window's film layer at this slot's place, and the slot clears its area in
  * the UI's buffer, the way a SurfaceView clears the window over its film.
  */
-class FilmSlot(context: Context) : FrameLayout(context) {
+class FilmSlot(
+    context: Context,
+    /**
+     * The surface is gone (standby, the lock screen over Home, the window hidden). A SurfaceView
+     * with no surface is a black hole in the window until the decoder draws on the new one, so
+     * the wallpapers hold their still over it and wait for the first frame (owner, 2026-11-12).
+     */
+    private val onSurfaceLost: (() -> Unit)? = null,
+) : FrameLayout(context) {
     val surface = SurfaceView(context)
     private var host: UhdCanvas.Host? = null
     private val at = IntArray(2)
@@ -269,6 +277,11 @@ class FilmSlot(context: Context) : FrameLayout(context) {
 
     init {
         addView(surface, LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        surface.holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) = Unit
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
+            override fun surfaceDestroyed(holder: SurfaceHolder) { onSurfaceLost?.invoke() }
+        })
     }
 
     override fun onAttachedToWindow() {

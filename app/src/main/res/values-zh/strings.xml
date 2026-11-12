@@ -89,7 +89,7 @@
     <string name="wp_daily_latest">每日一图</string>
     <string name="wp_per_app_hint">第一排每个磁贴各用一张壁纸：焦点移到哪个磁贴，背景就换成它的那张；挪到第二排的磁贴保持第一排最后那张。按序号记住，换了 App 也保留，随时可改。</string>
     <string name="wp_per_app_row">第 %1$d 号 · %2$s</string>
-    <string name="wp_per_app_inherit">默认</string>
+    <string name="wp_per_app_inherit">跟随 App</string>
     <string name="wp_per_app_change">选择</string>
     <string name="wp_per_app_title">第 %1$d 号磁贴的壁纸</string>
     <string name="wp_per_app_pick_hint">按返回键关闭；手机上上传的图片也会出现在这里。</string>

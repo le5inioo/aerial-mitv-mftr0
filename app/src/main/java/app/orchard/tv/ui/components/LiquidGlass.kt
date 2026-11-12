@@ -63,7 +63,8 @@ import kotlin.math.roundToInt
  */
 fun Modifier.liquidGlass(corner: Dp, bottomCorners: Boolean = true, seeThroughFilm: Boolean = false): Modifier = composed {
     // The glass a panel opened with stays while it is open, unless the wallpaper itself changes
-    // (chosen in Personalize). A moving film that stops as a panel opens gets its glass made again
+    // (chosen in Personalize) or a playing film rolls on to its next one (filmPanelGlass). A moving
+    // film that stops as a panel opens gets its glass made again
     // twice within the next second or so, from a frame near where it stopped and then from that
     // very frame (LiveWallpaper): followed, the menu's and Control Center's glass changed twice
     // just after they opened (the owner, Xiaomi MiTV-MFTR0). The next opening takes the newest.
@@ -78,13 +79,26 @@ fun Modifier.liquidGlass(corner: Dp, bottomCorners: Boolean = true, seeThroughFi
     // decoded in the app where the film was let go, which the film goes on from (owner, TCL
     // MT5879, issue #1238). Solid only until a picture exists.
     val solid = Wallpapers.moves() && Wallpapers.filmGlassless && Wallpapers.frosted == null
-    // Where the film's frames cannot be had otherwise, the latest glass of the moving film, decoded
-    // in the app (Wallpapers.filmFrost), over the picture's, which may be another shot. In "Each
-    // App" the shown tile's own frosted picture ([Wallpapers.panelFrost]) is what lies behind Home
-    // there; without it the panels were one flat colour and the Effects setting changed nothing.
-    val latest = (if (Wallpapers.moves() && Wallpapers.filmGlassless) Wallpapers.filmFrost ?: Wallpapers.frosted else Wallpapers.frosted)
-        .takeIf { Wallpapers.backdrop != null } ?: Wallpapers.panelFrost
-    val held = remember(Wallpapers.selectedId, latest == null) { latest }
+    // Over a moving wallpaper the glass of the film now showing (Wallpapers.filmPanelGlass), one
+    // frame per film: the panel follows the wallpaper as it rolls on to the next one (owner,
+    // 2026-11-11), but does not follow every frame sampled for the plate, which would change
+    // under its text every few seconds. Where the film's frames cannot be had otherwise, the
+    // latest glass decoded in the app (Wallpapers.filmFrost), over the picture's, which may be
+    // another shot. In "Each App" the shown tile's own frosted picture ([Wallpapers.panelFrost])
+    // is what lies behind Home there; without it the panels were one flat colour and the Effects
+    // setting changed nothing.
+    // Only the glass of the wallpaper now chosen: a switch between Aerial, the video carousel
+    // and a single video used to keep the previous film's glass until the next sample, which
+    // on a TV where sampling was shut down as too costly never came (owner, 2026-11-12).
+    val panelGlass = Wallpapers.filmPanelGlass?.takeIf { it.first.startsWith("${Wallpapers.selectedId}/") }
+    val latest = (when {
+        Wallpapers.moves() && panelGlass != null -> panelGlass.second
+        Wallpapers.moves() && Wallpapers.filmGlassless -> Wallpapers.filmFrost ?: Wallpapers.frosted
+        else -> Wallpapers.frosted
+    }).takeIf { Wallpapers.backdrop != null } ?: Wallpapers.panelFrost
+    // The glass a panel opened with stays while it is open: only a new wallpaper or the next film
+    // of a playing one takes it on, and then once, faded in by rememberFrostSwap below.
+    val held = remember(Wallpapers.selectedId, latest == null, panelGlass?.first) { latest }
     val (frost, under, swap) = rememberFrostSwap(held)
     var at by remember { mutableStateOf(Offset.Zero) }
     var root by remember { mutableStateOf(IntSize.Zero) }

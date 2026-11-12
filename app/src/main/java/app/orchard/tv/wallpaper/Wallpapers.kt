@@ -20,6 +20,7 @@ import app.orchard.tv.guard.GuardSetup
 import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.system.DiagLog
 import app.orchard.tv.ui.home.fileFramesJam
+import app.orchard.tv.ui.home.resetGlassCost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,7 +32,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import kotlin.random.Random
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -348,8 +348,17 @@ object Wallpapers {
     }
 
     fun select(id: String) {
+        val previousId = selectedId
         selectedId = id
         prefs.edit { putString("selected", id) }
+        // The panels' glass belongs to the film it was taken from. Left in place, a switch
+        // between Aerial, the video carousel and a single video kept showing the old film's
+        // frame until the next sample (seconds away, or never on a TV where sampling was
+        // shut down as too costly). The new wallpaper's own picture takes over at once.
+        filmPanelGlass = null
+        // The new film may be a different resolution: a 4K aerial that made frame copies too
+        // costly must not leave the owner's videos without a sampler for the rest of the run.
+        if (id != previousId) resetGlassCost()
         // Out of "Each App", the tiles' own pictures go with the mode. Kept over from a stay in
         // it, they stood in for the wallpaper in every other mode: the picture and the plate
         // changed with every tile stepped, under a photo wallpaper that never moved (the owner,
@@ -367,10 +376,9 @@ object Wallpapers {
     // ---- a picture for each tile ----
 
     /**
-     * A tile whose picture is gone (a photo deleted from the phone page) goes back to the "默认"
-     * choice of its picker — it follows the wallpaper again (the owner, 2026-11-04). Home gives a
-     * tile in that state a random built-in ([inheritPicture]), so nothing is assigned here that
-     * would stick in the tile's settings.
+     * A tile whose picture is gone (a photo deleted from the phone page) goes back to the
+     * "Follow App" default of its picker (the owner, 2026-11-04). Nothing is assigned here that
+     * would stick in the tile's settings: Home shows the focused app's artwork instead.
      */
     private fun sanitizePerApp() {
         val next = perApp.toMutableMap()
@@ -465,8 +473,18 @@ object Wallpapers {
         if (!started || selectedId != PER_APP) return
         for (slot in slots) {
             val choice = perApp[slot]
-            // "默认": no picture of its own — a random built-in for the day (inheritPicture).
-            val id = choice ?: inheritPicture(slot)
+            // The default is "Follow App": no picture of its own, so Home shows the artwork of
+            // the app the focus is on, exactly as the "Follow App" wallpaper does. It used to
+            // bake a random built-in instead, which ignored the app in the tile (the owner,
+            // 2026-11-12).
+            if (choice == null) {
+                perAppJobs.remove(slot)?.cancel()
+                perAppPictures = perAppPictures - slot
+                perAppGlass = perAppGlass - slot
+                clearPerBaked(slot)
+                continue
+            }
+            val id = choice
             if (!force && (perAppPictures.containsKey(slot) || perAppJobs[slot]?.isActive == true)) continue
             // [force]: a new picture is on its way for this tile — bake it over the old one, which
             // stays on screen until the new one is in (no flash of the wallpaper underneath).
@@ -879,7 +897,15 @@ object Wallpapers {
                 else picture?.let(Images::shadeForHome) to frost
             }
             backdrop = bmp?.asImageBitmap()
-            frosted = frost?.asImageBitmap()
+            val glass = frost?.asImageBitmap()
+            frosted = glass
+            // A moving wallpaper just chosen: its panels take this first picture (the film's
+            // last stopped frame, or its poster) at once, so switching between Aerial, the
+            // video carousel and one video changes the menu's background immediately rather
+            // than waiting for the first frame sampled from the new player.
+            if (moves(id) && filmPanelGlass == null && glass != null) {
+                filmPanelGlass = "$id/start" to glass
+            }
             if (key != null && bmp != null && frost != null) saveBaked(key, bmp, frost)
         }
     }
@@ -1240,10 +1266,24 @@ object Wallpapers {
     var filmFrost by mutableStateOf<ImageBitmap?>(null); private set
     private var filmFrostOf: Bitmap? = null
 
-    suspend fun useFilmFrost(frame: Bitmap) {
+    /**
+     * The panels' glass while a moving wallpaper plays: the first frame taken of the film now
+     * showing, keyed by that film. The plate's [filmFrost] keeps up with the film every few
+     * seconds, but a panel that followed it changed under its own text; the glass a panel opened
+     * with therefore stays (LiquidGlass). Keyed by the film, it follows the wallpaper as it rolls
+     * on to the next one instead of staying on a frame of the film before (owner, 2026-11-11).
+     * Not cleared when the film starts again: the same film keeps the same glass, so a panel does
+     * not flicker as the player restarts.
+     */
+    var filmPanelGlass by mutableStateOf<Pair<String, ImageBitmap>?>(null); private set
+
+    suspend fun useFilmFrost(frame: Bitmap, clip: String? = null) {
         if (!moves()) return
-        filmFrost = withContext(Dispatchers.Default) { Images.frost(frame) }.asImageBitmap()
+        val glass = withContext(Dispatchers.Default) { Images.frost(frame) }.asImageBitmap()
+        filmFrost = glass
         filmFrostOf = frame
+        // One glass per film, not one per frame: the panel changes once as the film changes.
+        if (clip != null && filmPanelGlass?.first != clip) filmPanelGlass = clip to glass
     }
 
     /**
@@ -1280,10 +1320,16 @@ object Wallpapers {
 
     /** Shows [clip]'s glass if it has one: from memory, else from disk. */
     suspend fun showClipGlass(clip: String?) {
-        if (clip == null || clipGlass?.first == clip) return
+        if (clip == null) return
         val file = File(clipGlassDir, "$clip.png")
-        val bmp = withContext(Dispatchers.IO) { if (file.exists()) BitmapFactory.decodeFile(file.path) else null }
-        if (bmp != null) clipGlass = clip to bmp.asImageBitmap()
+        val bmp = withContext(Dispatchers.IO) { if (file.exists()) BitmapFactory.decodeFile(file.path) else null } ?: return
+        val glass = bmp.asImageBitmap()
+        if (clipGlass?.first != clip) clipGlass = clip to glass
+        // The aerial films roll on to a new one: its glass is wanted by the panels even where
+        // taking frames while the film moves was shut down as too costly (glassCostly). The
+        // key matches the one sampleGlass uses, so a running sampler will not make it twice.
+        val key = "${selectedId}/$clip"
+        if (moves() && filmPanelGlass?.first != key) filmPanelGlass = key to glass
     }
 
     /** [frame], a small frame of [clip], becomes its glass unless it has one already. */
@@ -1328,15 +1374,10 @@ object Wallpapers {
         items = listOf(live) + videos + daily + builtins + photos + auto + perAppCard + listOf(webhost) + inputs
     }
 
-    /**
-     * The picture a tile without its own choice ("默认" in the tile's picker) shows: a random one
-     * of the built-ins, drawn anew each day per tile (the owner, 2026-11-04 — a deleted tile
-     * picture falls back to this rather than to a built-in picked by the tile's place).
-     */
-    fun inheritPicture(slot: Int): String {
-        val pool = FEATURED_BUILTINS.sorted()
-        return pool[Random(slot * 31 + photoSlot()).nextInt(pool.size)]
-    }
+    // A tile without its own choice ("Follow App" in the tile's picker) has no baked picture:
+    // Home shows the focused app's artwork instead (see [preparePerApp]), as the "Follow App"
+    // wallpaper does. It used to bake a random built-in for the day; the owner asked for the
+    // app's own light instead (2026-11-12).
 
     // ---- daily photos ----
 

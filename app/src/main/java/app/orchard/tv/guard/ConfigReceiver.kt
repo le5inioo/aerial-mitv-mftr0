@@ -21,7 +21,10 @@ import kotlinx.coroutines.launch
 
 /**
  * Options set from a computer over ADB, e.g.
- *   adb shell am broadcast -a app.orchard.tv.CONFIG -n app.orchard.tv/.guard.ConfigReceiver --ez keep_adb true
+ *   adb shell am broadcast -a app.orchard.tv.CONFIG -n com.ts.launcher/app.orchard.tv.guard.ConfigReceiver --ez keep_adb true
+ * Spell the receiver's class out: it lives in the code namespace (app.orchard.tv), while the
+ * applicationId on the Xiaomi builds is com.ts.launcher, so the short ".guard.ConfigReceiver"
+ * resolves to a class that is not there and the broadcast is silently dropped.
  *   ... --ez own_screensaver true   (keep Aerial as the system screensaver; see GuardSetup)
  *   ... --ez guard_off_in_standby true  (Home Guard leaves at screen off, back at screen on;
  *                                   for TVs that do not wake with it enabled, issue #371)

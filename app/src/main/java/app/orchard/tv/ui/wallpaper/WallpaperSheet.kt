@@ -1068,10 +1068,11 @@ private fun PerAppRow(slot: Int, label: String, note: (String?) -> Unit, first: 
 
 /**
  * The pictures one of Home's first tiles may take, the same spread the wallpaper row offers —
- * the aerial films, the owner's videos and the set-top inputs included — with "默认" in front
- * and "跟随磁贴" itself left out. A tile shows a still whatever it picks: the bake takes a
- * film's poster or last stopped frame, an input's and the aerial's stand-in picture. "Auto" is
- * the one card not offered: it has no picture of its own to bake.
+ * the aerial films, the owner's videos and the set-top inputs included — with the wallpaper
+ * row's "Follow App" as its default in front, and "Follow Tile" itself left out. The default
+ * bakes nothing: Home shows the artwork of the app the focus is on (the owner, 2026-11-12).
+ * A tile shows a still for anything else: the bake takes a film's poster or last stopped
+ * frame, an input's and the aerial's stand-in picture.
  */
 @Composable
 private fun PerAppPicker(slot: Int, label: String, chosen: String?, onDismiss: () -> Unit, onPick: (String?) -> Unit) {
@@ -1200,7 +1201,7 @@ private fun SaverVideoPicker(onDismiss: () -> Unit) {
     }
 }
 
-/** The card that takes an app's own picture away: it follows the wallpaper again. */
+/** The default card: the tile takes no picture of its own, so Home follows the focused app's artwork. */
 @Composable
 private fun InheritCard(selected: Boolean, focusRequester: FocusRequester?, label: Int = R.string.wp_per_app_inherit, onClick: () -> Unit) {
     Pressable(onClick = onClick, focusRequester = focusRequester, focusedScale = 1.08f) { state ->
