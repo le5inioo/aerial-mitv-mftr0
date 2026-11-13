@@ -31,6 +31,7 @@ import app.orchard.tv.ui.components.FilmSlot
 import app.orchard.tv.system.DiagLog
 import app.orchard.tv.wallpaper.ScreensaverVideo
 import app.orchard.tv.wallpaper.ScreensaverVideos
+import app.orchard.tv.wallpaper.Wallpapers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
@@ -40,18 +41,24 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun VideoSaver(steps: SharedFlow<Int>, onUnavailable: () -> Unit, only: String? = null) {
     val context = LocalContext.current
+    // The carousel ("My Videos, In Turn") holds one video and loops it; a chosen one (Personalize)
+    // loops that one. The next becomes the held one when the screensaver is left (advance).
+    val rolling = only == null
     val films by produceState<List<ScreensaverVideo>?>(null, only) {
         val all = withContext(Dispatchers.IO) { ScreensaverVideos.all(context) }
-        // One film picked to loop (Personalize); gone from the TV, all of them in turn again.
-        value = (only?.takeIf { id -> all.any { it.id == id } }?.let { id -> all.filter { it.id == id } }
-            ?: all).shuffled()
+        value = when {
+            all.isEmpty() -> emptyList()
+            only != null && all.any { it.id == only } -> all.filter { it.id == only }
+            rolling -> listOfNotNull(Wallpapers.rollingVideo())
+            else -> all.shuffled()
+        }
     }
-    LocalFilms(films, steps, onUnavailable)
+    LocalFilms(films, steps, onUnavailable, rolling = rolling)
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
+private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, onUnavailable: () -> Unit, rolling: Boolean = false) {
     val context = LocalContext.current
     val player = remember {
         // As AerialSaver does: Home's wallpaper film starts again as Home resumes for a moment
@@ -113,7 +120,12 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, o
             }
         }
         player.addListener(listener)
-        onDispose { player.removeListener(listener); player.release() }
+        onDispose {
+            // Left the "My Videos, In Turn" screensaver: the next video becomes the held one
+            // (owner, 2026-11-13). A chosen video (Personalize) keeps its own place.
+            if (rolling) Wallpapers.advanceRollingVideo()
+            player.removeListener(listener); player.release()
+        }
     }
     // The list is read off the main thread, but the film's view is there from the first frame: a
     // SurfaceView added to the dream's window after its first frame never got a surface, and the

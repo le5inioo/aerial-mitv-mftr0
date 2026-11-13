@@ -219,6 +219,11 @@ fun LiveWallpaper(
 
     fun release() {
         reader.close()
+        // Left the aerial wallpaper (into an app, or a screensaver it does not carry on): the next
+        // film is warmed and becomes the held one, so coming back plays it without waiting on the
+        // network (owner, 2026-11-13). When the wallpaper switches away from aerial entirely, the
+        // selection is no longer aerial and this is skipped.
+        if (Wallpapers.aerialEnabled()) AerialSet.advance(context)
         // Let go somewhere past its picture with no frame taken (into an app, or the screensaver's
         // own films): the film goes on from there next time, and the picture catches up then.
         // Where it is let go still showing (the wallpaper changed away from the film), its last

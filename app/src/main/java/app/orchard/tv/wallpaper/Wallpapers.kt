@@ -317,6 +317,9 @@ object Wallpapers {
         loadPerAppBaked()
         rebuildBackdrop()
         if (dailyEnabled()) refreshDaily()
+        // Warm the aerial film while idle, so showing it needs no network; it rolls forward on
+        // leaving (AerialSet.advance), owner, 2026-11-13.
+        if (aerialEnabled()) AerialSet.prepareCurrent(app)
         // Fill both rings while nobody is looking. A first install has no picture on disk at all,
         // so the first one goes on screen as soon as it is baked.
         scope.launch {
@@ -388,6 +391,9 @@ object Wallpapers {
             perAppGlass = emptyMap()
         }
         rebuildBackdrop()
+        // The aerial film is warmed while idle, so showing it (wallpaper or screensaver) needs no
+        // network; it rolls forward on leaving (AerialSet.advance), owner, 2026-11-13.
+        if (id == LIVE || (id == PER_APP && perApp.containsValue(LIVE))) AerialSet.prepareCurrent(app)
         // A first choice shows the picture dealt in advance, rather than waiting for Home to come
         // back to it; the one after that is dealt while this one is on screen.
         if (id == WEBHOST) refreshWebHost(force = true)
@@ -675,6 +681,9 @@ object Wallpapers {
         chosenScreensaver = mode
         prefs.edit { putString("screensaver", mode.key) }
         GuardSetup.screensaverModeChanged(app)
+        // The aerial film is warmed while idle, so showing it needs no network; it rolls forward on
+        // leaving (AerialSet.advance), owner, 2026-11-13.
+        if (mode == ScreensaverMode.Aerial) AerialSet.prepareCurrent(app)
         // The photo screensaver falls back to the daily photo when the owner has no photos.
         if (!wasDaily && dailyEnabled()) kickDaily()
     }
@@ -746,6 +755,25 @@ object Wallpapers {
             onStaged = { if (webhostPool.pendingShow) refreshWebHost(force = true) },
         )
     }
+
+    /**
+     * The owner's videos as a source that plays one at a time: the held one loops while the wallpaper
+     * or screensaver shows it, and the next is warmed (here, just chosen — the files are already on
+     * disk) and takes its place on leaving, so the library is never held on the TV at once
+     * (owner, 2026-11-13). The files are kept; "drop" means only that the next one becomes the held.
+     */
+    private val videosPool: VideoPool by lazy {
+        VideoPool(prefs, "videos", scope, catalog = { ScreensaverVideos.all(app).map { it.id } })
+    }
+
+    /** The one owner video held to loop now, or null while none are on the TV. Off the main thread. */
+    fun rollingVideo(): ScreensaverVideo? {
+        val id = videosPool.current() ?: return null
+        return ScreensaverVideos.all(app).firstOrNull { it.id == id }
+    }
+
+    /** Leaves the held owner video: the next one becomes the held, looping one from then on. */
+    fun advanceRollingVideo() = videosPool.advance()
 
     /** Decode, frost and shade one of the pool's files; called off the main thread. */
     private fun bakeStill(f: File): Pair<Bitmap, Bitmap>? {

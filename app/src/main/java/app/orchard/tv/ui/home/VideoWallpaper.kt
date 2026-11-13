@@ -86,6 +86,9 @@ fun VideoWallpaper(
     var released by remember { mutableStateOf(0) }
 
     fun release() {
+        // Left the "My Videos, In Turn" wallpaper: the next video becomes the held one, looping from
+        // then on (owner, 2026-11-13). A single chosen video (video:<id>) keeps its own place.
+        if (filmsId == Wallpapers.VIDEOS) Wallpapers.advanceRollingVideo()
         player?.release()
         player = null
         showing = false
@@ -96,7 +99,12 @@ fun VideoWallpaper(
     }
 
     suspend fun open(): ExoPlayer? {
-        val films = withContext(Dispatchers.IO) { Wallpapers.videoFilms(filmsId) }
+        // The carousel ("My Videos, In Turn") holds one video and loops it; the next is warmed on
+        // leaving (Wallpapers.advanceRollingVideo). A single chosen video (video:<id>) plays as is.
+        val films = withContext(Dispatchers.IO) {
+            if (filmsId == Wallpapers.VIDEOS) listOfNotNull(Wallpapers.rollingVideo())
+            else Wallpapers.videoFilms(filmsId)
+        }
         if (films.isEmpty()) return null
         // Where the picture on screen came from, so moving again does not cut to another place.
         val spot = Wallpapers.videoSpot()
@@ -238,7 +246,11 @@ fun VideoWallpaper(
     // frame slow to come (a cold file) has the poster stand in, for the while it takes.
     LaunchedEffect(filmsId) {
         val p = player ?: return@LaunchedEffect
-        val films = withContext(Dispatchers.IO) { Wallpapers.videoFilms(filmsId) }
+        // The carousel holds one video and loops it; a single chosen video plays as is.
+        val films = withContext(Dispatchers.IO) {
+            if (filmsId == Wallpapers.VIDEOS) listOfNotNull(Wallpapers.rollingVideo())
+            else Wallpapers.videoFilms(filmsId)
+        }
         // The same films as now — two tiles taking one video: keep playing, do not even move.
         val now = (0 until p.mediaItemCount).map { p.getMediaItemAt(it).mediaId }
         if (now == films.map { it.id }) {

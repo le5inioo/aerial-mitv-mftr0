@@ -242,14 +242,11 @@ object AerialStart {
     /**
      * Where a screensaver of aerials starts: the film and moment the aerial wallpaper or the last
      * screensaver left (one spot for both, whatever the wallpaper, so the two are always the same
-     * film), or the day's new film from its start (AerialSet.takeDaily).
+     * film). It rolls forward only when the wallpaper or screensaver is left, not by the day.
      */
     fun start(context: android.content.Context): Pair<String, Long>? {
-        AerialSet.takeDaily(context)?.let { film ->
-            DiagLog.i("today's new film ${film.id}")
-            Wallpapers.leaveLiveFilm(film.id, 0L)
-            return film.id to 0L
-        }
+        // The held film rolls forward only when the wallpaper or screensaver is left (AerialSet.advance),
+        // not by the day: the same one stays until then (owner, 2026-11-13).
         return LiveFilm.onHome?.spot() ?: Wallpapers.liveSpot()
     }
 
@@ -264,9 +261,9 @@ object AerialStart {
             aerialQualityCap?.takeIf { it.ordinal < q.ordinal } ?: q
         }
         val live = LiveFilm.onHome
-        // A new day starts the screensaver on its new film, from the start (start()).
-        val (id, at) = if (AerialSet.due(context)) AerialSet.nextNew(context).id to 0L
-            else live?.spot()?.let { (id, at) -> id to at + if (live.moving) leadMs else 0L } ?: Wallpapers.liveSpot() ?: return
+        // The held film, from where Home left it (it rolls forward only on leaving, not by the day).
+        val (id, at) = live?.spot()?.let { (id, at) -> id to at + if (live.moving) leadMs else 0L }
+            ?: Wallpapers.liveSpot() ?: return
         val film = Aerials.all(context).firstOrNull { it.id == id } ?: return
         AerialStream.prepareStart(context, film, quality, aerialsOverHttp, at)
         // And the frame it starts on, as Home's picture to come back on (issue #1238).
@@ -295,8 +292,6 @@ private fun FilmCarry(film: LiveFilm, now: LocalDateTime, steps: SharedFlow<Int>
     }
     val context = LocalContext.current
     LaunchedEffect(steps) { steps.collect { film.skip(context, it) } }
-    // A new day's film comes in as the screensaver starts, over the wallpaper's film (AerialSet).
-    LaunchedEffect(Unit) { if (AerialSet.due(context)) film.skip(context, 1) }
     Labels(caption, now, showTime = false, shade = false)
 }
 
@@ -575,6 +570,9 @@ private fun AerialSaver(
         onDispose {
             AerialStart.running = false
             if (shownAny) player.currentMediaItem?.mediaId?.let { leave(it, player.currentPosition, persist = true) }
+            // Left the aerial screensaver: the next film is warmed and becomes the held one, so the
+            // wallpaper — or the next screensaver — shows it without waiting on the network.
+            AerialSet.advance(context)
             handler.removeCallbacksAndMessages(null)
             player.removeListener(listener)
             player.release()
