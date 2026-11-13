@@ -608,7 +608,14 @@ fun HomeScreen(
             }
         }
 
-        val ambientApp = apps.getOrNull(focusedIndex) ?: apps.firstOrNull()
+        // "Follow App": the grid (Home's second page) keeps the light of the app the shelf was
+        // left on. The owner wants that page to show the first page's focused wallpaper rather
+        // than change as the focus moves among the grid's own apps (2026-11-13). Coming back to
+        // the shelf and stepping to another app updates it, so the next visit shows that one.
+        var shelfFocusKey by remember { mutableStateOf<String?>(null) }
+        SideEffect { if (!inGrid && focusedKey != null) shelfFocusKey = focusedKey }
+        val ambientApp = (if (inGrid) apps.firstOrNull { it.key == shelfFocusKey } else null)
+            ?: apps.getOrNull(focusedIndex) ?: apps.firstOrNull()
         // "Each App" (Personalize): the picture chosen for the tile in focus, by the tile's place —
         // 1 is the leftmost — so it stays when the owner puts another app there. Only the first
         // row's tiles have one, up to six of them: the tiles that fall to the second row (the fifth
@@ -828,13 +835,26 @@ fun HomeScreen(
             // used to re-bake its full-size glass on each step, so it blinked; one small glass
             // is kept for the whole stay instead. The same serves a "Follow Tile" tile with no
             // picture of its own (its default is "Follow App" now).
+            //
+            // The grid — Home's second page, once scrolled down — draws this glass over the whole
+            // screen, not the sharp picture. Keeping one glass frozen here left that page showing
+            // the first app's light whichever tile had the focus (the owner, 2026-11-13). So the
+            // grid's glass follows the focus too, while the plate below still keeps the first one:
+            // re-scaling the app's light to 320×180 costs little, and a plate that changed at
+            // every step is what used to blink (2026-11-06).
             var autoGlass by remember { mutableStateOf<ImageBitmap?>(null) }
+            var plateAutoGlass by remember { mutableStateOf<ImageBitmap?>(null) }
             LaunchedEffect(followsApp, autoArt) {
-                if (!followsApp || autoArt == null) { autoGlass = null; return@LaunchedEffect }
-                if (autoGlass != null) return@LaunchedEffect
-                autoGlass = withContext(Dispatchers.Default) {
+                if (!followsApp || autoArt == null) {
+                    autoGlass = null
+                    plateAutoGlass = null
+                    return@LaunchedEffect
+                }
+                val glass = withContext(Dispatchers.Default) {
                     android.graphics.Bitmap.createScaledBitmap(autoArt.asAndroidBitmap(), 320, 180, true).asImageBitmap()
                 }
+                autoGlass = glass
+                if (plateAutoGlass == null) plateAutoGlass = glass
             }
             HomeBackground(
                 // The chosen wallpaper; in "Each App" the focused tile's own picture, and in
@@ -868,7 +888,7 @@ fun HomeScreen(
                     perAppPicture != null && filmPlane -> perAppGlass
                     else -> (Wallpapers.filmFrost ?: Wallpapers.frosted).takeIf { Wallpapers.moves() && Wallpapers.backdrop != null }
                 },
-                plateGlass = plateGlass ?: autoGlass,
+                plateGlass = plateGlass ?: plateAutoGlass,
                 saverImage = saverImage,
                 saverReveal = { saverReveal.value },
                 saverPush = { saverPush.value },
@@ -876,6 +896,9 @@ fun HomeScreen(
                 wallpaper = if (perAppPicture != null) "perapp:$shownSlot" else Wallpapers.selectedId,
                 glassAwaitsStop = Wallpapers.selectedId == Wallpapers.LIVE && clipGlass == null,
                 gridGlass = clipGlass,
+                // The same holds for a "Follow Tile" tile with no picture of its own: its default
+                // follows the app's light, so its grid glass must follow the focus too.
+                glassFollowsFocus = followsApp,
             )
 
             // Before Android 7 there is no picture of Home under Control Center (issue #466), so the

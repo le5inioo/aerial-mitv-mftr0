@@ -265,6 +265,12 @@ fun HomeBackground(
      * 2026-11-06). Null: the plate takes the picture's glass as before.
      */
     plateGlass: ImageBitmap? = null,
+    /**
+     * "Follow App": the grid's glass belongs to the app in focus and changes with every step. The
+     * usual hold — a new glass of the same wallpaper waits until the grid is out of sight (a film
+     * stopped on a new frame) — would keep the first app's light on the second page forever.
+     */
+    glassFollowsFocus: Boolean = false,
 ) {
     val shade = remember { Images.homeShade.asImageBitmap() }
     Box(Modifier.fillMaxSize()) {
@@ -276,7 +282,7 @@ fun HomeBackground(
             drawImage(shade, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()), filterQuality = FilterQuality.Low, alpha = stopped)
         }
         Box(Modifier.fillMaxSize().diagLayer("picture")) {
-            Pictures(backdrop, gridGlass ?: frosted, filmGlass.takeIf { glassAwaitsStop }, wallpaper, scroll, collapse, cover, filmStopped, toSaver)
+            Pictures(backdrop, gridGlass ?: frosted, filmGlass.takeIf { glassAwaitsStop }, wallpaper, scroll, collapse, cover, filmStopped, toSaver, glassFollowsFocus)
         }
         if (saverImage != null) Canvas(Modifier.fillMaxSize()) {
             val a = saverReveal()
@@ -319,6 +325,7 @@ private fun Pictures(
     cover: () -> Float,
     filmStopped: () -> Float,
     toSaver: () -> Float,
+    glassFollowsFocus: Boolean = false,
 ) {
     // The grid's glass goes as the film carries on into the screensaver, as the apps do: the
     // screensaver over it is see-through, and the film showed frosted under it.
@@ -326,6 +333,15 @@ private fun Pictures(
     fun moving(): Boolean = filmGlass != null && cover() > 0.01f && filmStopped() < 0.99f
     var held by remember { mutableStateOf(frosted to wallpaper) }
     LaunchedEffect(frosted, wallpaper) {
+        // "Follow App": every step of the focus has its own glass. The wallpaper's key stays the
+        // same ("auto"), and AnimatedContent below keys on it — a new glass under that same key
+        // would not start a transition and the first app's light would stay on the second page.
+        if (glassFollowsFocus) {
+            held = frosted to "$wallpaper/${System.identityHashCode(frosted)}"
+            return@LaunchedEffect
+        }
+        // A new glass of the same wallpaper waits until the grid is out of sight, where a film
+        // stopped on a new frame may have one.
         if (wallpaper == held.second) snapshotFlow { gridGlass() < 0.01f || moving() }.first { it }
         held = frosted to wallpaper
     }
@@ -364,7 +380,12 @@ private fun Pictures(
         targetState = held,
         contentKey = { it.second },
         transitionSpec = {
-            (fadeIn(tween(450, easing = Motion.EaseOut)) togetherWith ExitTransition.KeepUntilTransitionsFinished).using(null)
+            // "Follow App" swaps the grid's glass at every step of the focus. A 450 ms fade there
+            // would draw two full-screen glasses for as long as keys keep coming (MFTR0: 90th
+            // percentile 20 -> 30 ms a frame); the glass is a soft colour, so a cut reads fine.
+            val ms = if (glassFollowsFocus) 0 else 450
+            val exit = if (glassFollowsFocus) ExitTransition.None else ExitTransition.KeepUntilTransitionsFinished
+            (fadeIn(tween(ms, easing = Motion.EaseOut)) togetherWith exit).using(null)
         },
         modifier = Modifier.fillMaxSize(),
         label = "glass",
