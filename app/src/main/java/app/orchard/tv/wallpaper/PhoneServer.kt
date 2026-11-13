@@ -233,6 +233,26 @@ class PhoneServer private constructor(
                     }
                     json(state().put("saved", ok))
                 }
+                session.method == Method.POST && path == "/api/icon/pick-all" -> {
+                    // One tap on the phone page: every app the library has a picture for uses it,
+                    // including firmware tiles Aerial draws itself (they take a picture only once
+                    // picked). Apps outside the library are left alone; a picture the owner picked
+                    // among an app's choices is kept, but a picture uploaded from the phone is
+                    // replaced. One changed() redraws Home once, however many apps were affected.
+                    var replaced = 0
+                    AppCatalog.loaded.forEach { a ->
+                        val pkg = a.key
+                        if (IconLibrary.choices(pkg).isEmpty()) return@forEach
+                        val hadCustom = CustomIcons.has(pkg)
+                        val already = IconLibrary.pick(pkg) == IconLibrary.Pick.Library
+                        if (!hadCustom && already) return@forEach
+                        if (hadCustom) CustomIcons.clear(pkg)
+                        IconLibrary.choose(pkg, IconLibrary.Pick.Library, IconLibrary.chosen(pkg)?.id)
+                        replaced++
+                    }
+                    if (replaced > 0) runBlocking(Dispatchers.Main) { CustomIcons.changed(); IconLibrary.changed() }
+                    json(state().put("saved", true).put("replaced", replaced))
+                }
                 session.method == Method.POST && path == "/api/icon/reset" -> {
                     val pkg = form(session)["app"].orEmpty()
                     if (installed(pkg)) { CustomIcons.clear(pkg); onMain { CustomIcons.changed() } }

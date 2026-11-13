@@ -309,6 +309,13 @@
     <p class="foot" id="kidsFoot"></p>
   </div>
   <div id="homeBody"></div>
+  <div id="iconBatchBox">
+    <h2 data-i18n="icon_batch_h"></h2>
+    <div class="list">
+      <button class="item center tint" id="iconBatchBtn" type="button" data-i18n="icon_batch_btn"></button>
+    </div>
+    <p class="foot" data-i18n="icon_batch_hint"></p>
+  </div>
   <div id="inputsBox" hidden>
     <h2 data-i18n="inputs_h"></h2>
     <div class="list" id="inputs"></div>
@@ -410,7 +417,7 @@ let state = null, stateJson = '';
 
 // The language: ?lang=ru in the address, else the one picked under More (kept on the phone), else the
 // first of the phone's preferred languages that has a table, else English. Keys are in KEYS, one array of texts per language.
-const KEYS = ["screensaver", "screensaver_short", "ss_aerial", "ss_photos", "ss_clock", "focus", "focus_high", "focus_standard", "weather", "city_ph", "set", "upload_label", "feedback_h", "feedback_hint", "diag_show", "diag_copy", "diag_github", "hint_aerial", "hint_photos", "hint_clock", "g_live", "g_live_sub", "g_daily", "g_daily_sub", "g_photo", "g_builtin", "g_auto", "toast_wallpaper", "aria_delete", "confirm_delete", "wx_clear", "wx_partlycloudy", "wx_cloudy", "wx_fog", "wx_rain", "wx_snow", "wx_thunder", "wx_chosen", "wx_auto_btn", "toast_auto", "wx_guessed", "wx_none", "tag_source", "aria_rename", "toast_renamed", "toast_name_reset", "toast_rename_fail", "aria_reset_icon", "toast_icon_reset", "focus_hint_standard", "focus_hint_high", "daily_title", "daily_caption", "rotate_title", "rotate_caption", "empty_photos", "add_second", "toast_tv_updated", "sending_n", "toast_added", "toast_no_photos", "toast_send_fail", "toast_city_set", "toast_city_nf", "toast_set_fail", "toast_sending_icon", "toast_icon_set", "toast_icon_bad", "diag_collecting", "toast_diag_fail", "toast_copied", "toast_copy_manual", "language", "hint_follows", "ss_videos", "hint_videos", "videos_h", "videos_upload", "videos_hint", "videos_empty", "confirm_video_delete", "toast_videos_added", "toast_video_bad", "sending_video", "hint_system", "tab_home", "tab_more", "current_wp", "cancel", "save", "name_ph", "rename_hint", "change_icon", "this_tv", "folder_count", "folder_ph", "inputs_h", "inputs_hint", "rename_hint_app", "was_named", "arrange_hint", "arrange_unready", "hidden_h", "hidden_none", "hidden_locked", "show_app", "hide_app", "to_folder", "new_folder", "out_of_folder", "ungroup", "ungroup_confirm", "folder_hint", "toast_hidden", "toast_shown", "toast_in_folder", "toast_out_folder", "toast_ungrouped", "tab_looks", "looks_title", "show_on_home", "source_device", "source_plain", "source_device_hint", "tv_model", "sw_always", "sw_always_sub", "sw_weather", "sw_saver_time", "sw_saver_time_sub", "g_source_sub", "icon_h", "icon_library", "icon_own", "icon_custom", "toast_icon_picked", "drop_hint", "drop_sub", "drop_none", "toast_diag_paste", "kids_h", "elders_h", "kids_used", "kids_left", "kids_nolimit", "kids_allowed", "kids_lock_day", "kids_lock_late", "kids_lock_break", "kids_pin_ph", "kids_unlock", "kids_wrong", "kids_need_pin", "kids_locked_foot", "kids_add", "kids_day", "kids_leave_k", "kids_leave_e", "kids_paused", "kids_resume", "kids_min", "kids_hm", "kids_erase", "kids_hr", "kids_both", "kids_off_line", "kids_settings", "kids_no_pin", "kids_pin_foot", "ks_meta", "ks_on", "ks_on_sub", "ks_block", "ks_block_sub", "ks_block_noguard", "ks_time_h", "ks_weekday", "ks_weekend", "ks_minutes", "ks_nolimit", "ks_window", "ks_from", "ks_to", "ks_break", "ks_break_every", "ks_break_len", "ks_time_foot", "ks_apps", "ks_apps_sub", "ks_input", "ks_save", "ks_saved", "ks_invalid", "ks_for", "per_app_h", "per_app_hint", "per_app_inherit", "saver_loop", "per_app_apply", "per_app_auto_on", "g_webhost", "wh_url_hint", "toast_webhost_set", "toast_webhost_bad", "ss_flipclock", "hint_flipclock", "ss_webhost", "hint_webhost", "ss_system", "hint_system_mode"];
+const KEYS = ["screensaver", "screensaver_short", "ss_aerial", "ss_photos", "ss_clock", "focus", "focus_high", "focus_standard", "weather", "city_ph", "set", "upload_label", "feedback_h", "feedback_hint", "diag_show", "diag_copy", "diag_github", "hint_aerial", "hint_photos", "hint_clock", "g_live", "g_live_sub", "g_daily", "g_daily_sub", "g_photo", "g_builtin", "g_auto", "toast_wallpaper", "aria_delete", "confirm_delete", "wx_clear", "wx_partlycloudy", "wx_cloudy", "wx_fog", "wx_rain", "wx_snow", "wx_thunder", "wx_chosen", "wx_auto_btn", "toast_auto", "wx_guessed", "wx_none", "tag_source", "aria_rename", "toast_renamed", "toast_name_reset", "toast_rename_fail", "aria_reset_icon", "toast_icon_reset", "focus_hint_standard", "focus_hint_high", "daily_title", "daily_caption", "rotate_title", "rotate_caption", "empty_photos", "add_second", "toast_tv_updated", "sending_n", "toast_added", "toast_no_photos", "toast_send_fail", "toast_city_set", "toast_city_nf", "toast_set_fail", "toast_sending_icon", "toast_icon_set", "toast_icon_bad", "diag_collecting", "toast_diag_fail", "toast_copied", "toast_copy_manual", "language", "hint_follows", "ss_videos", "hint_videos", "videos_h", "videos_upload", "videos_hint", "videos_empty", "confirm_video_delete", "toast_videos_added", "toast_video_bad", "sending_video", "hint_system", "tab_home", "tab_more", "current_wp", "cancel", "save", "name_ph", "rename_hint", "change_icon", "this_tv", "folder_count", "folder_ph", "inputs_h", "inputs_hint", "rename_hint_app", "was_named", "arrange_hint", "arrange_unready", "hidden_h", "hidden_none", "hidden_locked", "show_app", "hide_app", "to_folder", "new_folder", "out_of_folder", "ungroup", "ungroup_confirm", "folder_hint", "toast_hidden", "toast_shown", "toast_in_folder", "toast_out_folder", "toast_ungrouped", "tab_looks", "looks_title", "show_on_home", "source_device", "source_plain", "source_device_hint", "tv_model", "sw_always", "sw_always_sub", "sw_weather", "sw_saver_time", "sw_saver_time_sub", "g_source_sub", "icon_h", "icon_library", "icon_own", "icon_custom", "toast_icon_picked", "drop_hint", "drop_sub", "drop_none", "toast_diag_paste", "kids_h", "elders_h", "kids_used", "kids_left", "kids_nolimit", "kids_allowed", "kids_lock_day", "kids_lock_late", "kids_lock_break", "kids_pin_ph", "kids_unlock", "kids_wrong", "kids_need_pin", "kids_locked_foot", "kids_add", "kids_day", "kids_leave_k", "kids_leave_e", "kids_paused", "kids_resume", "kids_min", "kids_hm", "kids_erase", "kids_hr", "kids_both", "kids_off_line", "kids_settings", "kids_no_pin", "kids_pin_foot", "ks_meta", "ks_on", "ks_on_sub", "ks_block", "ks_block_sub", "ks_block_noguard", "ks_time_h", "ks_weekday", "ks_weekend", "ks_minutes", "ks_nolimit", "ks_window", "ks_from", "ks_to", "ks_break", "ks_break_every", "ks_break_len", "ks_time_foot", "ks_apps", "ks_apps_sub", "ks_input", "ks_save", "ks_saved", "ks_invalid", "ks_for", "per_app_h", "per_app_hint", "per_app_inherit", "saver_loop", "per_app_apply", "per_app_auto_on", "g_webhost", "wh_url_hint", "toast_webhost_set", "toast_webhost_bad", "ss_flipclock", "hint_flipclock", "ss_webhost", "hint_webhost", "ss_system", "hint_system_mode", "icon_batch_h", "icon_batch_btn", "icon_batch_hint", "toast_icon_batch_done", "toast_icon_batch_none"];
 const TEXTS = {
  "zh": [
   "屏幕保护程序",
@@ -622,7 +629,12 @@ const TEXTS = {
   "图床",
   "每 20 秒从个人图床取一张新图；按左右键立即换一张。",
   "内置",
-  "用电视自带的屏保（比如小米的那些画面），Aerial 不再显示自己的屏保。"
+  "用电视自带的屏保（比如小米的那些画面），Aerial 不再显示自己的屏保。",
+  "高清图标",
+  "一键替换高清图标",
+  "图标库目前只收录了一些主流应用的高清图标，未收录的应用请自行手动替换。",
+  "已替换 {n} 个应用的图标",
+  "所有收录的应用已在使用高清图标"
  ],
 
  "en": [
@@ -835,7 +847,12 @@ const TEXTS = {
   "Host",
   "A new picture from your image host every 20 seconds; left and right ask for one now.",
   "Built-in",
-  "The TV's own screensaver, as it came with the TV (Xiaomi's pictures, for one). Aerial shows none of its own."
+  "The TV's own screensaver, as it came with the TV (Xiaomi's pictures, for one). Aerial shows none of its own.",
+  "HD Icons",
+  "Replace all icons with HD art",
+  "The icon library currently covers only some mainstream apps. For apps it does not cover, replace their icons manually.",
+  "Replaced icons for {n} apps",
+  "Every covered app already uses HD art"
  ],
 
  "ru": [
@@ -1048,7 +1065,12 @@ const TEXTS = {
   "Хост",
   "Новая картинка с вашего хоста изображений каждые 20 секунд; влево и вправо — сразу следующая.",
   "Своя",
-  "Заставка самого телевизора, как задумал производитель (например, картины Xiaomi). Aerial свою не показывает."
+  "Заставка самого телевизора, как задумал производитель (например, картины Xiaomi). Aerial свою не показывает.",
+  "HD-значки",
+  "Заменить все значки на HD",
+  "В библиотеке пока есть значки лишь для некоторых популярных приложений. Для остальных замените значки вручную.",
+  "Заменены значки у {n} приложений",
+  "Все приложения из библиотеки уже используют HD-значки"
  ],
 
  "uk": [
@@ -1261,7 +1283,12 @@ const TEXTS = {
   "Хостинг",
   "Нова картинка з вашого хостингу зображень що 20 секунд; вліво та вправо — одразу наступна.",
   "Своя",
-  "Заставка самого телевізора, як задумав виробник (наприклад, картини Xiaomi). Aerial свою не показує."
+  "Заставка самого телевізора, як задумав виробник (наприклад, картини Xiaomi). Aerial свою не показує.",
+  "HD-іконки",
+  "Замінити всі іконки на HD",
+  "У бібліотеці поки що є іконки лише для деяких популярних застосунків. Для решти замініть іконки вручну.",
+  "Замінено іконки для {n} застосунків",
+  "Усі застосунки з бібліотеки вже використовують HD-іконки"
  ],
 
  "kk": [
@@ -1474,7 +1501,12 @@ const TEXTS = {
   "Хостым",
   "Сурет хостңыздан әр 20 секунд сайын жаңа сурет; солға және оңға — бірден келесісі.",
   "Жүйе",
-  "Теледидардың өз экран сақтағышы (мысалы, Xiaomi суреттері). Aerial өзінікін көрсетпейді."
+  "Теледидардың өз экран сақтағышы (мысалы, Xiaomi суреттері). Aerial өзінікін көрсетпейді.",
+  "HD белгішелері",
+  "Барлық белгішелерді HD-ға ауыстыру",
+  "Белгішелер кітапханасында әзірге тек кейбір танымал қолданбалардың белгішелері бар. Қалған қолданбалардың белгішелерін өзіңіз қолмен ауыстырыңыз.",
+  "{n} қолданбаның белгішесі ауыстырылды",
+  "Кітапханадағы барлық қолданбалар HD белгішелерін қолдануда"
  ]
 };
 const LANGS = Object.keys(TEXTS);
@@ -2075,6 +2107,7 @@ function renderArrange(push) {
   else buildHomeView(view, L);
   $('#homeBody').replaceChildren(view);
   $('#inputsBox').hidden = !(state.inputs || []).length || !!folderTile;
+  $('#iconBatchBox').hidden = !!folderTile;
   if (tab) setTitle();
   placeShelves();
   if (push) window.scrollTo(0, 0);
@@ -2584,6 +2617,20 @@ function kidsSettings() {
 }
 $('#kidsPinForm').onsubmit = e => { e.preventDefault(); const v = $('#kidsPin').value.trim(); if (v.length === 4) kidsUnlock(v); };
 $('#kidsPin').oninput = e => { const v = e.target.value.trim(); if (v.length === 4) kidsUnlock(v); };
+
+/* One tap: every app the icon library covers uses its HD picture (apps outside it are untouched). */
+$('#iconBatchBtn').onclick = async () => {
+  const btn = $('#iconBatchBtn');
+  btn.disabled = true;
+  try {
+    const next = await api('api/icon/pick-all', {});
+    if (!next.saved) throw new Error('not saved');
+    take(next);
+    const n = next.replaced || 0;
+    toast(n ? t('toast_icon_batch_done', { n }) : t('toast_icon_batch_none'));
+  } catch (err) { toast(t('toast_set_fail')); }
+  finally { btn.disabled = false; }
+};
 
 function render() {
   if (!state) return;
