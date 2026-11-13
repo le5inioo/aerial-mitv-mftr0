@@ -101,7 +101,7 @@
     <string name="ss_aerial">Аерозйомка</string>
     <string name="ss_photos">Фото</string>
     <string name="ss_clock">Годинник</string>
-    <string name="ss_flipclock">Табло</string>
+    <string name="ss_flipclock">Фліп-годинник</string>
     <string name="ss_flipclock_hint">Перегортаються картки годин, хвилин і секунд, 24-годинний формат</string>
     <string name="ss_webhost">Хостинг</string>
     <string name="ss_webhost_hint">Нова картинка з вашого хостингу зображень що 20 секунд; вліво та вправо — одразу наступна.</string>

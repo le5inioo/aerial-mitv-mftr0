@@ -108,7 +108,7 @@
     <string name="ss_aerial">航拍</string>
     <string name="ss_photos">照片</string>
     <string name="ss_clock">时钟</string>
-    <string name="ss_flipclock">翻页</string>
+    <string name="ss_flipclock">翻页时钟</string>
     <string name="ss_flipclock_hint">翻页卡片显示 24 小时制的时、分、秒</string>
     <string name="ss_webhost">图床</string>
     <string name="ss_webhost_hint">每 20 秒从个人图床取一张新图；按左右键立即换一张。</string>
