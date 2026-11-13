@@ -111,13 +111,13 @@ class LiveFilm {
     internal var insert: ((Aerial) -> Unit)? = null
 
     /**
-     * The viewer's left and right in the screensaver carrying this film: right brings in a new
-     * film (AerialSet.addNew), left starts this one over — only one film is kept now
-     * (owner, 2026-11-12).
+     * The viewer's right in the screensaver carrying this film: a new film (AerialSet.addNew).
+     * Only one film is kept (owner, 2026-11-12); left no longer steps in any screensaver
+     * (owner, 2026-11-14).
      */
     fun skip(context: android.content.Context, step: Int) {
-        val p = player ?: return
-        if (step < 0) p.seekTo(0L) else insert?.invoke(AerialSet.addNew(context))
+        if (step <= 0 || player == null) return
+        insert?.invoke(AerialSet.addNew(context))
     }
 
     /** The film and the moment showing now, while a player has it. */

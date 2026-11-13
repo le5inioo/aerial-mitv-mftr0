@@ -57,6 +57,21 @@ internal class VideoPool(
         }
     }
 
+    /**
+     * The same, but at once: the remote's right must hand the caller the new entry so it can
+     * switch the player's media item before returning. The owner's videos need no warming (the
+     * files are already on disk), so there is nothing to wait for here.
+     */
+    @Synchronized
+    fun advanceNow(): String? {
+        val all = catalog()
+        if (all.isEmpty()) return null
+        val i = if (index in all.indices) index else 0
+        index = (i + 1) % all.size
+        persist()
+        return all[index]
+    }
+
     /** Leaves the held entry: the next one is warmed and becomes the held one. Cycles. */
     fun advance() = advanceAsync { all ->
         val i = if (index in all.indices) index else 0

@@ -42,7 +42,7 @@ import kotlinx.coroutines.withContext
 internal fun VideoSaver(steps: SharedFlow<Int>, onUnavailable: () -> Unit, only: String? = null) {
     val context = LocalContext.current
     // The carousel ("My Videos, In Turn") holds one video and loops it; a chosen one (Personalize)
-    // loops that one. The next becomes the held one when the screensaver is left (advance).
+    // loops that one. Right rolls the held one on; leaving no longer does (owner, 2026-11-14).
     val rolling = only == null
     val films by produceState<List<ScreensaverVideo>?>(null, only) {
         val all = withContext(Dispatchers.IO) { ScreensaverVideos.all(context) }
@@ -81,10 +81,23 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, o
     // Films that have shown a frame this time: a pause in one of those is not a broken file.
     val shown = remember { HashSet<String>() }
 
+    /** Right only: the carousel's next held video in this same player (left no longer steps). */
     fun skip(step: Int) {
-        if (player.mediaItemCount == 0) return
-        if (step < 0) player.seekToPreviousMediaItem() else player.seekToNextMediaItem()
-        if (player.playbackState == Player.STATE_IDLE) player.prepare()
+        if (step <= 0 || player.mediaItemCount == 0) return
+        if (rolling) {
+            // A one-item queue with REPEAT_MODE_ALL only started the same film over on
+            // seekToNextMediaItem, so right looked broken. Roll the held video and switch the
+            // media item in place instead (owner, 2026-11-14).
+            val next = Wallpapers.nextRollingVideo() ?: return
+            DiagLog.i("local screensaver right: ${next.id}")
+            playing = false
+            player.setMediaItem(MediaItem.Builder().setUri(next.file.toUri()).setMediaId(next.id).build(), 0L)
+            player.prepare()
+            player.playWhenReady = true
+        } else {
+            player.seekToNextMediaItem()
+            if (player.playbackState == Player.STATE_IDLE) player.prepare()
+        }
     }
     fun failed() {
         playing = false
@@ -121,9 +134,9 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, o
         }
         player.addListener(listener)
         onDispose {
-            // Left the "My Videos, In Turn" screensaver: the next video becomes the held one
-            // (owner, 2026-11-13). A chosen video (Personalize) keeps its own place.
-            if (rolling) Wallpapers.advanceRollingVideo()
+            // No roll on leaving: when the video wallpaper carries the film this saver never
+            // starts at all, and where it does (a picture wallpaper) the owner wants the same
+            // film on Home's return. Right is the only thing that changes it (owner, 2026-11-14).
             player.removeListener(listener); player.release()
         }
     }

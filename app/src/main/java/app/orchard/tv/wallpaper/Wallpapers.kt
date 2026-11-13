@@ -775,6 +775,17 @@ object Wallpapers {
     /** Leaves the held owner video: the next one becomes the held, looping one from then on. */
     fun advanceRollingVideo() = videosPool.advance()
 
+    /**
+     * The remote's right while the carousel shows: rolls to the next owner video at once and
+     * returns it, so the showing player can switch its media item in place instead of opening a
+     * second decoder. Home's wallpaper and its screensaver share that one player, so both change
+     * together (owner, 2026-11-14).
+     */
+    fun nextRollingVideo(): ScreensaverVideo? {
+        val id = videosPool.advanceNow() ?: return null
+        return ScreensaverVideos.all(app).firstOrNull { it.id == id }
+    }
+
     /** Decode, frost and shade one of the pool's files; called off the main thread. */
     private fun bakeStill(f: File): Pair<Bitmap, Bitmap>? {
         val picture = Images.decodeCover(f, screenW, screenH) ?: return null

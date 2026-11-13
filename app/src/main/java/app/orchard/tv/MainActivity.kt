@@ -953,7 +953,8 @@ class MainActivity : ComponentActivity() {
         if (event.action == KeyEvent.ACTION_DOWN) keysDown += event.keyCode else keysDown -= event.keyCode
         // The key that wakes the screensaver only wakes it, silently.
         if (!vm.screensaverVisible && event.keyCode != swallowKeyUp) Sounds.onKey(event)
-        // Left / right step through the films or photos and keep the screensaver up.
+        // Right steps to the next film or photo and keeps the screensaver up; every other key
+        // (left included) wakes it — left no longer starts a film over (owner, 2026-11-14).
         if (vm.screensaverVisible && vm.screensaverSkips.onKey(event)) return true
         if (vm.screensaverVisible && loneLift) {
             DiagLog.i("key ${KeyEvent.keyCodeToString(event.keyCode)} lifted with no press; ending the screensaver")

@@ -321,6 +321,8 @@ fun HomeScreen(
     // The aerial wallpaper's film, and how far it shows through.
     val filmCover = remember { Animatable(0f) }
     val liveFilm = remember { LiveFilm() }
+    // The owner's videos have their own handle: a screensaver of them carries that player on too.
+    val videoLiveFilm = remember { VideoLiveFilm() }
     DisposableEffect(liveFilm) {
         LiveFilm.onHome = liveFilm
         onDispose { if (LiveFilm.onHome === liveFilm) LiveFilm.onHome = null }
@@ -750,12 +752,15 @@ fun HomeScreen(
             // through the window's black while another player opens.
             Wallpapers.isVideo(filmId) -> VideoWallpaper(
                 moving = videoMoves,
-                keep = vm.filmFront && !vm.screensaverVisible,
-                hold = filmHolds,
+                // The screensaver carries this player on (filmSaver): do not let go of it, or the
+                // surface leaves a black hole and release() rolls to another film on the way back.
+                keep = vm.filmFront && (!vm.screensaverVisible || filmSaver),
+                hold = filmHolds || (filmSaver && vm.filmFront),
                 cover = filmCover,
                 filmsId = filmId,
                 copyOnLeave = tileFilm == null,
                 lastInputAt = { vm.lastInputAt },
+                live = videoLiveFilm,
             )
             sourceInput != null -> SourceWallpaper(sourceInput, show = vm.resumed && !vm.screensaverVisible, cover = filmCover)
         }
@@ -1302,6 +1307,10 @@ fun HomeScreen(
         NoticeBanner(vm.notice, Modifier.align(Alignment.TopCenter).padding(top = 24.dp), vm.noticeGlyph)
 
         Screensaver(visible = vm.screensaverVisible, apps = apps, now = now, skips = vm.screensaverSkips, carry = when {
+                // A video wallpaper has its own player, not the aerials' LiveFilm: handing that
+                // empty handle to FilmCarry was what blacked the screen out and left right doing
+                // nothing (owner, 2026-11-14).
+                filmSaver && Wallpapers.isVideo(filmId) -> SaverCarry.Video(videoLiveFilm)
                 filmSaver -> SaverCarry.Film(liveFilm)
                 stillCarry != null -> stillCarry
                 else -> null

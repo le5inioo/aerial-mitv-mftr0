@@ -38,6 +38,24 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
+ * Home's handle on the owner's video wallpaper, for the screensaver that carries it on (as
+ * [LiveFilm] does for the aerials). The screensaver starts no player of its own: the film keeps
+ * moving on Home's own surface through the whole Home → screensaver → Home shot, so there is
+ * neither a black gap nor a fight for the one 4K decoder. Right rolls the held video on inside
+ * that same player; left is no longer a step (the owner, 2026-11-14).
+ */
+class VideoLiveFilm {
+    internal var player: ExoPlayer? = null
+
+    /** Rolls the held video on inside the wallpaper's own player. */
+    internal var next: (() -> Unit)? = null
+
+    fun skip(step: Int) {
+        if (step > 0 && player != null) next?.invoke()
+    }
+}
+
+/**
  * The owner's own videos behind Home (issues #410, #583), sent from the phone page as for the video
  * screensaver: silent, filling the screen, one after another or just the one chosen on a loop (#762).
  * They play all the while Home shows them: a key does not stop them, and neither does scrolling the
@@ -63,6 +81,8 @@ fun VideoWallpaper(
     copyOnLeave: Boolean = true,
     /** When a key was last pressed (uptimeMillis): frame copies wait for quiet while the UI moves. */
     lastInputAt: () -> Long = { 0L },
+    /** Home's handle on this player, so the screensaver carries it on instead of opening one. */
+    live: VideoLiveFilm? = null,
 ) {
     val context = LocalContext.current
     val lastInputNow by rememberUpdatedState(lastInputAt)
@@ -87,7 +107,10 @@ fun VideoWallpaper(
 
     fun release() {
         // Left the "My Videos, In Turn" wallpaper: the next video becomes the held one, looping from
-        // then on (owner, 2026-11-13). A single chosen video (video:<id>) keeps its own place.
+        // then on (owner, 2026-11-13). Not while its screensaver carries this player on: Home →
+        // screensaver → Home is one shot, and releasing here both blacked the screen out and made
+        // Home come back on a different film (owner, 2026-11-14). A single chosen video keeps its
+        // own place.
         if (filmsId == Wallpapers.VIDEOS) Wallpapers.advanceRollingVideo()
         player?.release()
         player = null
@@ -96,6 +119,24 @@ fun VideoWallpaper(
         surfaceFramed = false
         Wallpapers.dropFilmFrost()
         released++
+    }
+
+    /**
+     * The remote's right while the carousel shows (Home or its screensaver, one player): the held
+     * video rolls on and this player switches to it in place. Same surface, same decoder — no gap,
+     * and the picture behind Home and the screensaver is the same film (owner, 2026-11-14).
+     */
+    fun nextFilm() {
+        if (filmsId != Wallpapers.VIDEOS) return
+        val p = player ?: return
+        val next = Wallpapers.nextRollingVideo() ?: return
+        DiagLog.i("video wallpaper right: ${next.id}")
+        rendered = false
+        showing = false
+        p.setMediaItem(MediaItem.Builder().setUri(next.file.toUri()).setMediaId(next.id).build(), 0L)
+        p.prepare()
+        p.playWhenReady = true
+        Wallpapers.dropFilmFrost()
     }
 
     suspend fun open(): ExoPlayer? {
@@ -287,6 +328,12 @@ fun VideoWallpaper(
             if (cover.value < 0.99f) cover.animateTo(1f, tween(320, easing = Motion.EaseOut))
         }
     }
+    // The screensaver's handle on this player. It changes as the player is opened or let go, so
+    // the handle never points at a released one (and comes back with the next player).
+    LaunchedEffect(player, live) {
+        live?.player = player
+        live?.next = if (player != null) ({ nextFilm() }) else null
+    }
     DisposableEffect(Unit) {
         onDispose {
             DiagLog.i("video wallpaper view gone (${filmsId.takeLast(8)})")
@@ -303,6 +350,8 @@ fun VideoWallpaper(
                 player?.currentMediaItem?.mediaId?.let { Wallpapers.leaveVideoFilm(it, player?.currentPosition ?: 0L) }
             }
             release()
+            live?.player = null
+            live?.next = null
         }
     }
 
