@@ -1564,7 +1564,8 @@ object Wallpapers {
         val builtins = Gradients.presets.map { Wallpaper("grad:${it.key}", WallpaperKind.Builtin, if (zh) it.nameZh else it.nameEn) }
         val photos = (photoDir.listFiles { f -> f.extension == "jpg" } ?: emptyArray())
             .sortedByDescending { it.lastModified() }
-            .map { Wallpaper("photo:${it.nameWithoutExtension}", WallpaperKind.Photo, if (zh) "我的照片" else "My Photo") }
+            // Each upload keeps its file name, so the phone can tell the pictures apart.
+            .map { Wallpaper("photo:${it.nameWithoutExtension}", WallpaperKind.Photo, it.name) }
         val auto = Wallpaper(AUTO, WallpaperKind.Auto, if (zh) "跟随 App" else "Follow App")
         val perAppCard = Wallpaper(PER_APP, WallpaperKind.Builtin, if (zh) "跟随磁贴" else "Follow Tile")
         val live = Wallpaper(LIVE, WallpaperKind.Live, if (zh) "航拍" else "Aerial")
@@ -1659,8 +1660,20 @@ object Wallpapers {
 
     // ---- uploads ----
 
+    /** A name the owner recognises: the phone's file name, kept readable, safe and unique. */
+    private fun photoName(raw: String): String {
+        val stem = raw.substringAfterLast('/').substringAfterLast('\\').substringBeforeLast('.')
+            .filter { it.isLetterOrDigit() || it == '-' || it == '_' || it == ' ' }
+            .trim().take(60)
+        val base = stem.ifBlank { System.currentTimeMillis().toString(36) }
+        var name = base
+        var n = 1
+        while (File(photoDir, "$name.jpg").exists()) name = "$base-${n++}"
+        return name
+    }
+
     /** Stores an uploaded picture, downscaled to at most 2560 px wide, and returns its id. */
-    suspend fun addPhoto(input: InputStream): String? = io.withLock {
+    suspend fun addPhoto(input: InputStream, originalName: String = ""): String? = io.withLock {
         val id = withContext(Dispatchers.IO) {
             val tmp = File.createTempFile("upload", ".bin", app.cacheDir)
             try {
@@ -1675,7 +1688,7 @@ object Wallpapers {
                 while (wide / (sample * 2) >= 2560) sample *= 2
                 val decoded = BitmapFactory.decodeFile(tmp.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return@withContext null
                 val bmp = Images.upright(decoded, orientation)
-                val name = System.currentTimeMillis().toString(36)
+                val name = photoName(originalName)
                 File(photoDir, "$name.jpg").outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 90, it) }
                 bmp.recycle()
                 "photo:$name"

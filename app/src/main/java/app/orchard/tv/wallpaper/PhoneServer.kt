@@ -43,6 +43,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.Inet4Address
+import java.net.URLDecoder
 import java.security.SecureRandom
 
 /**
@@ -457,11 +458,15 @@ class PhoneServer private constructor(private val context: Context, private val 
         val files = HashMap<String, String>()
         session.parseBody(files)
         var added = 0
-        // NanoHTTPD stores each part in a temp file; several photos arrive as photo, photo1, photo2...
-        files.values.forEach { path ->
+        // NanoHTTPD keys each part by its field name and stores the bytes in a temp file.
+        // The phone puts the original file name, percent-encoded so any script survives,
+        // after the first colon in that field name (the owner, 2026-11-13).
+        files.entries.forEach { (field, path) ->
             val f = File(path)
             if (f.exists() && f.length() > 0) {
-                val id = f.inputStream().use { input -> runBlocking(Dispatchers.Main) { Wallpapers.addPhoto(input) } }
+                val encoded = field.takeIf { it.startsWith("photo") }?.substringAfter(':', "").orEmpty()
+                val name = if (encoded.isEmpty()) "" else runCatching { URLDecoder.decode(encoded, "UTF-8") }.getOrDefault("")
+                val id = f.inputStream().use { input -> runBlocking(Dispatchers.Main) { Wallpapers.addPhoto(input, name) } }
                 if (id != null) added++
             }
         }
