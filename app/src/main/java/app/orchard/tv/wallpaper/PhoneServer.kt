@@ -44,24 +44,29 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.Inet4Address
 import java.net.URLDecoder
-import java.security.SecureRandom
 
 /**
  * The page a phone opens after scanning the TV's QR code: choose a wallpaper and the screensaver,
  * send photos, give an app's tile a picture of one's own, and name the weather's city. Choosing
  * pictures or typing a place with a remote is slow; with a phone it is not.
  *
- * It listens on the local network while Aerial runs (see [listen]), and every address carries a
- * random token shown only on the TV (the QR code and the address under it), so another device on
- * the network cannot use it by guessing. The token stays the same from one start to the next.
+ * It listens on the local network while Aerial runs (see [listen]) at one fixed address,
+ * http://<tv-ip>:8790/Aerial (the owner, 2026-11-13), so the page can be bookmarked once and
+ * stays the same after a reinstall or a change of the TV's IP. A token address saved by an
+ * older build is still accepted, so bookmarks made before this change keep working.
  */
-class PhoneServer private constructor(private val context: Context, private val token: String) : NanoHTTPD(PORT) {
+class PhoneServer private constructor(
+    private val context: Context,
+    private val legacyToken: String?,
+) : NanoHTTPD(PORT) {
 
     override fun serve(session: IHTTPSession): Response {
-        val prefix = "/$token"
         val uri = session.uri
-        if (!uri.startsWith(prefix)) return text(Response.Status.NOT_FOUND, "Not found")
-        val path = uri.removePrefix(prefix).ifEmpty { "/" }
+        val prefixes = listOfNotNull("/$PATH", legacyToken?.let { "/$it" })
+        // A whole segment: /AerialOther is not the panel, and /aerial is as good as /Aerial.
+        val prefix = prefixes.firstOrNull { p -> uri.equals(p, true) || uri.startsWith("$p/", true) }
+            ?: return text(Response.Status.NOT_FOUND, "Not found")
+        val path = uri.substring(prefix.length).ifEmpty { "/" }
         return runCatching {
             // In Kids and Elders mode the page changes nothing without the parental PIN: anyone on
             // the network with the address (a child with a phone) could otherwise undo the mode.
@@ -586,6 +591,8 @@ class PhoneServer private constructor(private val context: Context, private val 
 
     companion object {
         const val PORT = 8790
+        /** The fixed path of the phone page: http://<tv-ip>:8790/Aerial (the owner, 2026-11-13). */
+        const val PATH = "Aerial"
         private const val TAG = "AerialPhone"
         /** Enough for a batch of phone photos at full size. */
         private const val MAX_UPLOAD = 200L * 1024 * 1024
@@ -604,7 +611,7 @@ class PhoneServer private constructor(private val context: Context, private val 
         fun listen(context: Context): PhoneServer? {
             running?.let { if (it.isAlive) return it }
             return runCatching {
-                PhoneServer(context.applicationContext, token(context)).also {
+                PhoneServer(context.applicationContext, legacyToken(context)).also {
                     it.start(SOCKET_READ_TIMEOUT, true)
                     running = it
                 }
@@ -614,24 +621,14 @@ class PhoneServer private constructor(private val context: Context, private val 
         /** The address to put in the QR code, listening first if need be, or null offline. */
         fun start(context: Context): String? {
             val ip = lanAddress(context) ?: return null
-            val server = listen(context) ?: return null
-            return "http://$ip:$PORT/${server.token}/"
+            listen(context) ?: return null
+            return "http://$ip:$PORT/$PATH"
         }
 
-        /**
-         * Kept from one start to the next, so the address can be bookmarked on a computer and the
-         * phone's tab still works the next day.
-         */
-        private fun token(context: Context): String {
+        /** A bookmark made before the address became fixed still opens the page after an upgrade. */
+        private fun legacyToken(context: Context): String? {
             val prefs = context.getSharedPreferences("phone_page", Context.MODE_PRIVATE)
-            prefs.getString("token", null)?.takeIf { it.length == 8 }?.let { return it }
-            return newToken().also { prefs.edit().putString("token", it).apply() }
-        }
-
-        private fun newToken(): String {
-            val alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
-            val rnd = SecureRandom()
-            return (1..8).map { alphabet[rnd.nextInt(alphabet.length)] }.joinToString("")
+            return prefs.getString("token", null)?.takeIf { it.length == 8 && it != PATH }
         }
 
         fun lanAddress(context: Context): String? {
