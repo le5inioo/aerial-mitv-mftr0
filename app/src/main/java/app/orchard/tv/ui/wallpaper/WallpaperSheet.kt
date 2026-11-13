@@ -612,7 +612,9 @@ private fun WallpaperRows(takeFocus: Boolean) {
             val videos = items.filter { it.kind == WallpaperKind.Video && it.id != Wallpapers.VIDEOS }
             if (videos.size > 1 || selected == Wallpapers.VIDEOS) add(Wallpaper(Wallpapers.VIDEOS, WallpaperKind.Video, videosTitle))
             addAll(videos)
-            if (items.any { it.kind == WallpaperKind.Daily }) add(Wallpaper(Wallpapers.LATEST_DAILY, WallpaperKind.Daily, dailyTitle))
+            // "Daily Photo" is a choice in its own right, offered even before the first picture
+            // arrives: picking it is what starts the download (owner, 2026-11-13).
+            add(Wallpaper(Wallpapers.LATEST_DAILY, WallpaperKind.Daily, dailyTitle))
             addAll(items.filter { it.kind == WallpaperKind.Daily && it.id == selected })
             addAll(items.filter { it.kind == WallpaperKind.Builtin && (it.id in Wallpapers.FEATURED_BUILTINS || (it.id == selected && it.id != Wallpapers.PER_APP)) })
             addAll(items.filter { it.kind == WallpaperKind.Auto })
@@ -1117,7 +1119,8 @@ private fun perAppChoices(): List<Wallpaper> {
     val all = Wallpapers.items
     val rotateTitle = stringResource(R.string.wp_photos_rotate)
     val videosTitle = stringResource(R.string.wp_videos_rotate)
-    return remember(all, rotateTitle, videosTitle) {
+    val dailyTitle = stringResource(R.string.wp_daily_latest)
+    return remember(all, rotateTitle, videosTitle, dailyTitle) {
         // Live films, the image host, My Photos (and their rotation with two or more), My Videos
         // (and each film), the day's photo, the built-ins, the inputs last.
         buildList {
@@ -1129,6 +1132,10 @@ private fun perAppChoices(): List<Wallpaper> {
             val videos = all.filter { it.kind == WallpaperKind.Video && it.id != Wallpapers.VIDEOS }
             if (videos.isNotEmpty()) add(Wallpaper(Wallpapers.VIDEOS, WallpaperKind.Video, videosTitle))
             addAll(videos)
+            // "Daily Photo" is a choice, not a photo on disk: it always follows the newest one.
+            // The dated cards below only exist once a picture has been downloaded, and a tile
+            // that wants the daily photo must be able to ask for it before that (owner, 2026-11-13).
+            add(Wallpaper(Wallpapers.LATEST_DAILY, WallpaperKind.Daily, dailyTitle))
             addAll(all.filter { it.kind == WallpaperKind.Daily })
             addAll(all.filter { it.kind == WallpaperKind.Builtin && it.id != Wallpapers.PER_APP })
             addAll(all.filter { it.kind == WallpaperKind.Source })

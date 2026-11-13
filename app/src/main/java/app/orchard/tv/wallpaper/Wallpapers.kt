@@ -408,6 +408,10 @@ object Wallpapers {
         val newestDaily = items.firstOrNull { it.kind == WallpaperKind.Daily }?.id
         var changed = false
         for ((slot, id) in perApp) {
+            // "Daily Photo" always points at the newest one: it is valid with no file on disk,
+            // and before the first download resolve() has nothing to find. Dropping it here
+            // would silently undo the owner's choice at the next start (owner, 2026-11-13).
+            if (id == LATEST_DAILY) continue
             // A slot whose picture is gone — a photo or a film deleted — falls back too: the
             // lists are rebuilt first, so what the pickers offer is what resolve() answers for.
             if (resolve(id) != null) continue
@@ -538,7 +542,12 @@ object Wallpapers {
     // ---- the tiles' pictures, kept for the next start ----
 
     /** What a tile's picture was baked from: the picture, the tile, the screen and Aerial's version. */
-    private fun perBakedKey(slot: Int, id: String) = "$id|$slot|${screenW}x$screenH|${BuildConfig.VERSION_CODE}"
+    private fun perBakedKey(slot: Int, id: String): String {
+        // "Daily Photo" is a moving target: keep its baked picture under the concrete date it
+        // came from, so a new day's photo is not read back as yesterday's (owner, 2026-11-13).
+        val concrete = if (id == LATEST_DAILY) resolve(LATEST_DAILY)?.id ?: id else id
+        return "$concrete|$slot|${screenW}x$screenH|${BuildConfig.VERSION_CODE}"
+    }
 
     private fun perFiles(slot: Int) = Triple(
         File(perBakedDir, "slot$slot.key"),
@@ -1645,6 +1654,12 @@ object Wallpapers {
             // The old dates have just gone from disk: retarget the tiles that named them now,
             // rather than leaving them broken until the next cold start.
             sanitizePerApp()
+            // A tile that chose "Daily Photo" had nothing to bake until this download landed.
+            // Bake it now, and again whenever the photo changes from one day to the next.
+            if (selectedId == PER_APP) {
+                val dailySlots = perApp.filterValues { it == LATEST_DAILY || it.startsWith("daily:") }.keys.toList()
+                if (dailySlots.isNotEmpty()) preparePerApp(dailySlots, force = true)
+            }
             // A wallpaper pointing at yesterday's photo must not be left without a picture.
             if (selectedId != LATEST_DAILY && selectedId.startsWith("daily:") && items.none { it.id == selectedId }) {
                 selectedId = LATEST_DAILY

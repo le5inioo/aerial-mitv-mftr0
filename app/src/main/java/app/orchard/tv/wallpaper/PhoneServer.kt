@@ -104,7 +104,8 @@ class PhoneServer private constructor(private val context: Context, private val 
                     val slot = f["slot"]?.toIntOrNull() ?: 0
                     val id = f["id"].orEmpty()
                     val ok = slot in 1..Wallpapers.PER_APP_SLOTS &&
-                        (id.isEmpty() || Wallpapers.items.any { it.id == id && !Wallpapers.isVideo(it.id) })
+                        (id.isEmpty() || id == Wallpapers.LATEST_DAILY ||
+                            Wallpapers.items.any { it.id == id && !Wallpapers.isVideo(it.id) })
                     if (ok) onMain { Wallpapers.setPerApp(slot, id.ifEmpty { null }) }
                     json(state().put("saved", ok))
                 }
