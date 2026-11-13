@@ -1483,8 +1483,6 @@ const hints = { aerial: t('hint_aerial'), photos: t('hint_photos'), clock: t('hi
 const groups = [
   ['live', t('g_live'), t('g_live_sub')],
   ['perapp', t('per_app_h'), ''],
-  ['webhost', t('g_webhost'), ''],
-  ['auto', t('g_auto'), ''],
   ['daily', t('g_daily'), t('g_daily_sub')],
   ['photo', t('g_photo'), ''],
   ['builtin', t('g_builtin'), ''],
@@ -1663,9 +1661,9 @@ function renderWallpapers() {
   for (const [kind, title, sub] of groups) {
     // Moving: the aerial films and the owner's videos.
     let list = state.wallpapers.filter(w => w.kind === kind || (kind === 'live' && w.kind === 'video'));
-    // "Each app" has a section of its own, ahead of the owner's photos, rather than a place among the
-    // built-ins (the owner, 2026-11-04).
-    if (kind === 'perapp') list = state.wallpapers.filter(w => w.id === 'perapp');
+    // Image Carousel holds the three ways of picking a picture: Follow Tile, the picture
+    // host and Follow App, in that order (the owner, 2026-11-13).
+    if (kind === 'perapp') list = ['perapp', 'webhost', 'auto'].map(id => state.wallpapers.find(w => w.id === id)).filter(Boolean);
     if (kind === 'builtin') list = list.filter(w => w.id !== 'perapp');
     // Each video on its own; the card that plays them in turn only for two or more (#762), as on the TV.
     if (kind === 'live' && list.filter(w => w.kind === 'video').length < 3 && state.selected !== 'videos:mine') list = list.filter(w => w.id !== 'videos:mine');
@@ -1691,8 +1689,8 @@ function renderWallpapers() {
       const perApp = perAppList();
       if (perApp) { root.appendChild(perApp); root.appendChild(el('p', 'foot', t('per_app_hint'))); }
     }
-    // The picture host's address, to change servers without a new build (the owner, 2026-11-04).
-    if (kind === 'webhost') {
+    // The picture host's address travels with its card into Image Carousel (the owner, 2026-11-04).
+    if (kind === 'perapp') {
       const l = el('div', 'list');
       const f = el('form', 'item field');
       const inp = el('input'); inp.type = 'text'; inp.id = 'webhostUrl'; inp.value = state.webhostUrl || '';
