@@ -1072,6 +1072,7 @@ class MainActivity : ComponentActivity() {
         // Home coming back shows the picture the image host dealt in advance, wherever the
         // refresh starts from (an app, the screensaver, or Home again); it throttles itself.
         Wallpapers.refreshWebHost()
+        Wallpapers.noteDailyShown()
         Weather.refreshIfStale()
         Updates.checkIfStale()
     }
@@ -1118,8 +1119,9 @@ class MainActivity : ComponentActivity() {
         HomeGuardService.onAerialResumed()
         Updates.onHomeResumed()
         vm.refreshSystem()
-        // Same as startWork: Home is in front again, so the staged picture may be shown.
+        // Same as startWork: Home is in front again, so the next dealt picture may be shown.
         Wallpapers.refreshWebHost()
+        Wallpapers.noteDailyShown()
         if (!resumedInProcess) {
             resumedInProcess = true
             val age = if (Build.VERSION.SDK_INT >= 24) SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime() else -1L

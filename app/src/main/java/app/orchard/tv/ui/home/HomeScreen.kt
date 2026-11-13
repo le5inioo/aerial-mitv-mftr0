@@ -650,10 +650,10 @@ fun HomeScreen(
         LaunchedEffect(Wallpapers.selectedId, perAppSlot) {
             if (Wallpapers.selectedId == Wallpapers.PER_APP) perAppSlot?.let {
                 Wallpapers.preparePerApp(listOf(it))
-                // A tile that takes the image host's picture shows the one dealt for it in advance:
-                // stepping along the row changes the picture with the tile in the same frame, with
-                // no network wait (the owner, 2026-11-04; made instant 2026-11-13).
-                Wallpapers.refreshPerAppHost(it)
+                // A tile of the image host or of "Daily Photo" shows the next picture dealt for
+                // it in advance: stepping along the row changes the picture with the tile in the
+                // same frame, with no network wait (the owner, 2026-11-04; pools 2026-11-13).
+                Wallpapers.noteTileShown(it)
             }
         }
         // Pictures kept by package name before this build: moved to the tiles their apps hold now.

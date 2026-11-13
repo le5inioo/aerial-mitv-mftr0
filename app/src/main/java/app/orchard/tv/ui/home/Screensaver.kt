@@ -749,6 +749,8 @@ private fun PhotoSaver(
     // Restarts on every slide, so a step from the remote also restarts the 18 s wait.
     LaunchedEffect(pool, slide) {
         if (pool.isEmpty()) return@LaunchedEffect
+        // A slide from the daily ring counts as one of its uses (owner, 2026-11-13).
+        Wallpapers.noteSaverPhoto()
         if (carried == null || slide != 0) {
             val wp = pool[slide.mod(pool.size)]
             val bmp = withContext(Dispatchers.Default) { Wallpapers.picture(wp, Wallpapers.screenW, Wallpapers.screenH)?.asImageBitmap() }
