@@ -322,13 +322,6 @@
   <div class="hero" id="hero"><img id="heroImg" alt=""><div class="cap"><small data-i18n="current_wp"></small><b id="heroTitle"></b></div></div>
   <div id="sections"></div>
 
-  <div id="perAppBox" hidden>
-    <h2 class="big" data-i18n="per_app_h"></h2>
-    <label class="item"><span class="txt" data-i18n="per_app_apply"></span><input class="switch" type="checkbox" id="swPerApp"></label>
-    <div class="list" id="perAppList"></div>
-    <p class="foot" data-i18n="per_app_hint"></p>
-  </div>
-
   <h2 class="big" data-i18n="screensaver"></h2>
   <div class="list" id="ss" role="radiogroup" data-i18n-aria-label="screensaver_short">
     <button class="item" role="radio" data-mode="aerial"><span class="txt"><span data-i18n="ss_aerial"></span><span class="sub" data-i18n="hint_aerial"></span></span><svg class="tick" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
@@ -1693,6 +1686,11 @@ function renderWallpapers() {
     const g = el('div', 'grid');
     list.forEach(w => g.appendChild(card(w)));
     root.appendChild(g);
+    // Only while "Follow Tile" is selected: the first row's tiles, right under its card.
+    if (kind === 'perapp' && state.selected === 'perapp') {
+      const perApp = perAppList();
+      if (perApp) { root.appendChild(perApp); root.appendChild(el('p', 'foot', t('per_app_hint'))); }
+    }
     // The picture host's address, to change servers without a new build (the owner, 2026-11-04).
     if (kind === 'webhost') {
       const l = el('div', 'list');
@@ -1812,25 +1810,15 @@ window.addEventListener('drop', e => {
   if (videos.length) sendVideos(videos);
 });
 
-/* Each App: the first row's tiles, one picture or film each, by place (as on the TV). */
-function renderPerApp() {
-  const box = $('#perAppBox'), list = $('#perAppList');
+/* Each App: the first row's tiles, one picture or film each, by place (as on the TV).
+   Built into the "Image Carousel" group, under the "Follow Tile" card, and only shown
+   while that card is the chosen wallpaper — there is no separate on/off switch. */
+function perAppList() {
   const home = (state.layout && state.layout.home) || [];
   const slots = Math.min(state.perAppSlots || 6, home.length);
-  if (!slots) { box.hidden = true; return; }
-  box.hidden = false;
+  if (!slots) return null;
+  const list = el('div', 'list');
   const cur = state.perApp || {};
-  const sw = $('#swPerApp');
-  sw.checked = state.selected === 'perapp';
-  sw.onchange = async () => {
-    const on = sw.checked;
-    try {
-      await api('api/wallpaper', { id: on ? 'perapp' : 'auto' });
-      await refresh();
-      toast(on ? t('per_app_auto_on') : t('toast_wallpaper'));
-    } catch (e) { sw.checked = !on; toast(t('toast_set_fail')); }
-  };
-  list.replaceChildren();
   for (let i = 0; i < slots; i++) {
     const tile = home[i], slot = i + 1, id = cur[String(slot)] || '';
     const row = el('button', 'item');
@@ -1843,6 +1831,7 @@ function renderPerApp() {
     row.onclick = () => perAppSheet(slot, tile.label, id);
     list.appendChild(row);
   }
+  return list;
 }
 function perAppSheet(slot, label, current) {
   openSheet(body => {
@@ -2565,7 +2554,6 @@ function render() {
   stateJson = json;
   renderKids();
   renderWallpapers();
-  renderPerApp();
   renderScreensaver();
   renderMore();
   renderInputs();
