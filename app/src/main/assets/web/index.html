@@ -216,6 +216,12 @@
   .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--tertiary); margin: 0 auto 14px; }
   .sheet .pic { border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; background: var(--fill); width: 62%; margin: 0 auto; }
   .sheet .pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  /* A picker's cards are full-width cells, not the one centred preview above: the name under
+     each picture starts at the picture's left edge (owner, 2026-11-14). */
+  .sheet .grid .wp .pic { width: 100%; margin: 0; }
+  .sheet .grid .wp .t, .sheet .grid .wp .c { margin-left: 0; margin-right: 0; }
+  .wp .pic.inherit { display: flex; align-items: center; justify-content: center; color: var(--secondary); }
+  .wp .pic.inherit > svg { width: 26px; height: 26px; opacity: .55; }
   .item .ithumb { width: 64px; aspect-ratio: 16 / 9; border-radius: 6px; object-fit: cover; margin-right: 12px; flex: none; background: var(--fill); }
   .sheet h3 { text-align: center; font-size: 17px; font-weight: 600; margin: 12px 0 2px; }
   .sheet .meta { text-align: center; font-size: 13px; color: var(--secondary); margin: 0 0 16px; }
@@ -616,7 +622,7 @@ const TEXTS = {
   "给谁用",
   "图片轮播",
   "给第一排的每个磁贴各选一张图片，按位置记忆；磁贴挪到第二排后保持离开时的壁纸。",
-  "跟随壁纸",
+  "跟随 App",
   "屏保循环",
   "启用「图片轮播」",
   "已应用「图片轮播」，电视已更新",
@@ -834,7 +840,7 @@ const TEXTS = {
   "For",
   "Image Carousel",
   "Give each tile of Home's first row its own picture, kept by its place in the row.",
-  "Follow the wallpaper",
+  "Follow App",
   "Screensaver loop",
   "Turn on Image Carousel",
   "Image Carousel applied, TV updated",
@@ -1052,7 +1058,7 @@ const TEXTS = {
   "Для кого",
   "Карусель изображений",
   "Первым шести плиткам главного экрана — своя картинка, по их месту: плитка, ушедшая во второй ряд, оставляет картинку, с которой ушла.",
-  "Как у обоев",
+  "Следовать за приложением",
   "Цикл заставки",
   "Включить карусель изображений",
   "Карусель изображений включена, ТВ обновлён",
@@ -1270,7 +1276,7 @@ const TEXTS = {
   "Для кого",
   "Карусель зображень",
   "Першим шести плиткам головного екрана — своє зображення, за місцем: плитка, що перейшла в другий ряд, лишає зображення, з яким пішла.",
-  "Як у шпалер",
+  "Слідувати за застосунком",
   "Цикл заставки",
   "Увімкнути карусель зображень",
   "Карусель зображень увімкнено, ТВ оновлено",
@@ -1488,7 +1494,7 @@ const TEXTS = {
   "Кімге",
   "Сурет каруселі",
   "Басты экранның алғашқы алты плиткасына — өз суреті, орны бойынша: екінші қатарға көшкен плитка кеткен суретін сақтайды.",
-  "Тұсқағазбен бірге",
+  "Қолданбаға ілесу",
   "Экран қорғаушы циклі",
   "Сурет каруселін қосу",
   "Сурет каруселі іске қосилды, ТВ жаңартилды",
@@ -1557,7 +1563,8 @@ const ICON = {
   close: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   chev: '<svg class="chev" width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 6-6 6"/></svg>',
   tick: '<svg class="tick" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
-  plus: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'
+  plus: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  follow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="8" height="8" rx="2"/><rect x="13" y="4" width="8" height="8" rx="2"/><rect x="3" y="14" width="8" height="6" rx="2"/><path d="M14 17h7m-3-3 3 3-3 3"/></svg>'
 };
 
 function toast(msg, first) {
@@ -1908,16 +1915,21 @@ function perAppSheet(slot, label, current) {
   openSheet(body => {
     body.appendChild(el('h3', '', t('per_app_h') + ' · ' + slot));
     body.appendChild(el('p', 'meta', label));
-    const l = el('div', 'list');
-    action(l, t('per_app_inherit'), current ? 'tint' : '', async () => {
+    // One grid, every cell the same shape: "Follow App" first, then the pictures. It used to be
+    // a centred text row above the pictures; the owner asked for a card like the rest (2026-11-14).
+    const g = el('div', 'grid');
+    const inherit = el('button', 'wp');
+    inherit.setAttribute('aria-selected', current ? 'false' : 'true');
+    inherit.innerHTML = `<div class="pic inherit">${ICON.follow}<span class="check">${ICON.check}</span></div><div class="t"></div><div class="c"></div>`;
+    inherit.querySelector('.t').textContent = t('per_app_inherit');
+    inherit.onclick = async () => {
       closeSheet();
       try { take(await api('api/perapp', { slot: slot, id: '' })); toast(t('toast_tv_updated')); } catch (e) { toast(t('toast_set_fail')); }
-    });
-    body.appendChild(l);
-    // The owner's own pictures first, right after "默认", as on the TV (2026-11-04).
+    };
+    g.appendChild(inherit);
+    // The owner's own pictures first, right after "Follow App", as on the TV (2026-11-04).
     const pick = kind => state.wallpapers.filter(w => w.id !== 'perapp' && w.kind === kind);
     const opts = [...pick('photo'), ...pick('webhost'), ...pick('daily'), ...pick('builtin')];
-    const g = el('div', 'grid');
     for (const w of opts) {
       const b = el('button', 'wp');
       b.setAttribute('aria-selected', w.id === current ? 'true' : 'false');

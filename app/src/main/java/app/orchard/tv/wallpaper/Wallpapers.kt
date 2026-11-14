@@ -1576,7 +1576,8 @@ object Wallpapers {
         val photos = (photoDir.listFiles { f -> f.extension == "jpg" } ?: emptyArray())
             .sortedByDescending { it.lastModified() }
             // Each upload keeps its file name, so the phone can tell the pictures apart.
-            .map { Wallpaper("photo:${it.nameWithoutExtension}", WallpaperKind.Photo, it.name) }
+            // The ".jpg" is storage only: the owner asked for a clean title (2026-11-14).
+            .map { Wallpaper("photo:${it.nameWithoutExtension}", WallpaperKind.Photo, it.nameWithoutExtension) }
         val auto = Wallpaper(AUTO, WallpaperKind.Auto, if (zh) "跟随 App" else "Follow App")
         val perAppCard = Wallpaper(PER_APP, WallpaperKind.Builtin, if (zh) "跟随磁贴" else "Follow Tile")
         val live = Wallpaper(LIVE, WallpaperKind.Live, if (zh) "航拍" else "Aerial")

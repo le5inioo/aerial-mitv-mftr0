@@ -1188,8 +1188,9 @@ private fun PerAppPicker(
             )
             Spacer(Modifier.height(12.dp))
             LazyRow(
+                modifier = Modifier.pickerRowRoom(),
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
-                contentPadding = PaddingValues(start = 4.dp, end = 24.dp, top = 8.dp, bottom = 8.dp),
+                contentPadding = PaddingValues(start = 14.dp, end = 24.dp, top = 8.dp, bottom = 8.dp),
             ) {
                 item(key = "inherit") {
                     InheritCard(selected = chosen == null, focusRequester = first) { onPick(null) }
@@ -1239,8 +1240,9 @@ private fun SaverVideoPicker(onDismiss: () -> Unit) {
             )
             Spacer(Modifier.height(12.dp))
             LazyRow(
+                modifier = Modifier.pickerRowRoom(),
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
-                contentPadding = PaddingValues(start = 4.dp, end = 24.dp, top = 8.dp, bottom = 8.dp),
+                contentPadding = PaddingValues(start = 14.dp, end = 24.dp, top = 8.dp, bottom = 8.dp),
             ) {
                 item(key = "all") {
                     InheritCard(
@@ -1258,6 +1260,19 @@ private fun SaverVideoPicker(onDismiss: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Room for a picker's first card to grow into. The first card takes focus as the picker opens and
+ * [Pressable] scales it by 8%; with only 4 dp of leading padding the row clipped the left edge of
+ * its white frame (owner, 2026-11-14). The row is moved back by the same amount it gained, so the
+ * cards stay where they were under the titles; the vertical clip leaves room for the zoom too.
+ */
+private fun Modifier.pickerRowRoom(): Modifier = offset(x = (-10).dp).drawWithContent {
+    val focusRoom = 16.dp.toPx()
+    clipRect(top = -focusRoom, bottom = size.height + focusRoom) {
+        this@drawWithContent.drawContent()
     }
 }
 
