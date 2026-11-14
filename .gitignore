@@ -28,5 +28,6 @@ tools/rescue-*.log
 # Build products kept next to the source while testing, never committed
 *.apk
 
-# Bahnschrift is a Microsoft-bundled font: pack it into local APK builds only, never commit.
+# The full Bahnschrift face is a Microsoft-bundled font: keep it out of the tree. Only the
+# digit subset app/src/main/res/font/flipdigits.ttf is committed (copyright records kept).
 app/src/main/res/font/bahnschrift.ttf

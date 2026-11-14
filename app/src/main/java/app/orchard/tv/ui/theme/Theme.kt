@@ -77,15 +77,17 @@ val InterText = inter(14f)
 val InterDisplay = inter(32f)
 
 /**
- * Bahnschrift Bold (DIN 1451 style), the owner's pick for the flip clock's digits. It is a
- * Microsoft-bundled variable font, so res/font/bahnschrift.ttf is git-ignored and only ever
- * packed into local APK builds; the variable weight axis tops out at 700, which is its heaviest
- * cut. Home's large clock uses the TV's own default face instead.
+ * "Flip Digits" Bold (DIN 1451 style), the owner's pick for the flip clock's digits.
+ * res/font/flipdigits.ttf is an 11-character subset of Bahnschrift: 0-9, the colon, and the
+ * few glyphs its layout features reference. The variable wght/wdth axes are left intact, so
+ * FontVariation.weight(700) resolves to exactly the same outlines as before; the full 371 KB
+ * Microsoft face is no longer shipped. Its copyright and licence name records are preserved
+ * in the subset. Home's large clock uses the TV's own default face instead.
  */
 @OptIn(ExperimentalTextApi::class)
-val Bahnschrift = FontFamily(
+val FlipDigits = FontFamily(
     Font(
-        R.font.bahnschrift, weight = FontWeight.Bold,
+        R.font.flipdigits, weight = FontWeight.Bold,
         variationSettings = FontVariation.Settings(FontVariation.weight(700)),
     )
 )

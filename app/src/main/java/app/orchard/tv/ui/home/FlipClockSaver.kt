@@ -45,7 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.orchard.tv.settings.AerialSettings
-import app.orchard.tv.ui.theme.Bahnschrift
+import app.orchard.tv.ui.theme.FlipDigits
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.time.LocalDateTime
@@ -66,7 +66,7 @@ import kotlin.math.sin
 /** One top-fall-plus-bottom-rise cycle, in milliseconds. */
 private const val FLIP_MS = 460
 
-/** Bahnschrift's digit cap height as a fraction of the font size, measured from the face itself. */
+/** The digit cap height as a fraction of the font size, measured from the face itself. */
 private const val CAP_HEIGHT = 0.729f
 
 // Dark charcoal cards with a faint light-to-dark gradient (shade toward the hinge) and pale
@@ -83,11 +83,11 @@ private val CardCorner = 12.dp
 private val CardW = 110.dp
 private val CardH = 156.dp
 
-// Bahnschrift Bold, the owner's pick for the flip clock (Theme.Bahnschrift, see Theme). Home's
+// Flip Digits Bold, the digit-only subset of Bahnschrift (Theme.FlipDigits, see Theme). Home's
 // large clock uses the TV's default face instead. At 154sp the digit stands 72% of the
 // card's height, the proportion picked from the previews.
 private val FlipDigitStyle = TextStyle(
-    fontFamily = Bahnschrift,
+    fontFamily = FlipDigits,
     fontSize = 154.sp, color = DigitInk, letterSpacing = 0.sp, textAlign = TextAlign.Center,
     shadow = Shadow(DigitShadow, Offset(0f, 4f), blurRadius = 14f),
 )
