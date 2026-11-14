@@ -83,6 +83,7 @@ import app.orchard.tv.R
 import app.orchard.tv.guard.GuardSetup
 import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.settings.ClockHours
+import app.orchard.tv.settings.FlipClockColorMode
 import app.orchard.tv.settings.Restricted
 import app.orchard.tv.settings.RestrictedKind
 import app.orchard.tv.settings.FocusStyle
@@ -380,6 +381,16 @@ fun WallpaperSheet(
                         R.string.ss_seconds, stringResource(R.string.ss_seconds_hint), note,
                         listOf(true to R.string.st_on, false to R.string.st_off),
                         AerialSettings.flipClockSeconds, AerialSettings::chooseFlipClockSeconds,
+                    )
+                    if (Wallpapers.screensaver == ScreensaverMode.FlipClock) Choices(
+                        R.string.ss_color, stringResource(R.string.ss_color_hint), note,
+                        listOf(
+                            FlipClockColorMode.White to R.string.ss_color_white,
+                            FlipClockColorMode.Wallpaper to R.string.ss_color_wallpaper,
+                            FlipClockColorMode.Custom to R.string.ss_color_custom,
+                        ),
+                        AerialSettings.flipClockColorMode,
+                        choose = { AerialSettings.chooseFlipClockColor(it) },
                     )
                     // The videos screensaver plays them all in turn; one of them may be picked to
                     // loop instead, until another is picked or it is deleted. A second-level menu:

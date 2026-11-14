@@ -107,6 +107,11 @@
     <string name="ss_webhost_hint">Нова картинка з вашого хостингу зображень що 20 секунд; вліво та вправо — одразу наступна.</string>
     <string name="ss_seconds">Показувати секунди</string>
     <string name="ss_seconds_hint">Вимкнено — лише години та хвилини.</string>
+    <string name="ss_color">Колір фліп-годинника</string>
+    <string name="ss_color_white">Білий за замовчуванням</string>
+    <string name="ss_color_wallpaper">Як на шпалерах</string>
+    <string name="ss_color_custom">Свій</string>
+    <string name="ss_color_hint">Виберіть колір цифр фліп-годинника. Код свого кольору вводиться на сторінці телефона.</string>
     <string name="wp_phone_title">Налаштування з телефона чи комп\'ютера</string>
     <string name="wp_phone_body">Відскануйте код або відкрийте адресу нижче в браузері комп\'ютера, щоб надсилати фото й відео, змінювати значки застосунків і вибирати місто для погоди. Пристрій і телевізор мають бути в одній мережі.</string>
     <string name="wp_phone_offline">Підключіть телевізор до мережі, щоб налаштувати його з телефона чи комп\'ютера.</string>

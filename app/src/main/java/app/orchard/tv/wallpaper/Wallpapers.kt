@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -1010,6 +1011,40 @@ object Wallpapers {
         WallpaperKind.Video -> videoPicture(wp.id, w, h) ?: Gradients.render(Gradients.presets.first(), w, h)
         WallpaperKind.Source -> Gradients.byKey(SOURCE_PICTURE)?.let { Gradients.render(it, w, h) }
         WallpaperKind.Webhost -> webhostFile.takeIf { it.exists() }?.let { Images.decodeCover(it, w, h) }
+    }
+
+    /**
+     * The average colour of the wallpaper up before the screensaver came on, for the flip clock's
+     * "follow wallpaper" digit colour. A small picture is enough; an average too dark to read on the
+     * black screensaver is lifted to a legibility floor (so digits stay visible) while keeping its
+     * hue. Null when no picture can be had (Auto wallpaper, or a decode that failed) — callers fall
+     * back to white.
+     */
+    suspend fun currentWallpaperColor(): Color? = withContext(Dispatchers.IO) {
+        val wp = resolve(selectedId) ?: resolve(DEFAULT_FALLBACK) ?: return@withContext null
+        val bmp = picture(wp, 64, 36) ?: return@withContext null
+        val px = IntArray(bmp.width * bmp.height)
+        bmp.getPixels(px, 0, bmp.width, 0, 0, bmp.width, bmp.height)
+        var r = 0L; var g = 0L; var b = 0L; var n = 0L
+        for (c in px) {
+            if ((c ushr 24 and 0xff) < 128) continue
+            r += (c and 0xff).toLong()
+            g += (c shr 8 and 0xff).toLong()
+            b += (c shr 16 and 0xff).toLong()
+            n++
+        }
+        if (n == 0L) return@withContext null
+        val rr = (r / n).toInt(); val gg = (g / n).toInt(); val bb = (b / n).toInt()
+        // Relative luminance (sRGB): lift a too-dark average so the digits read on black.
+        val lum = (0.2126f * rr + 0.7152f * gg + 0.0722f * bb) / 255f
+        if (lum >= 0.30f) Color(0xFF000000.toInt() or (rr shl 16) or (gg shl 8) or bb)
+        else {
+            val k = 0.30f / lum.coerceAtLeast(0.01f)
+            Color(0xFF000000.toInt() or
+                ((rr * k).toInt().coerceIn(0, 255) shl 16) or
+                ((gg * k).toInt().coerceIn(0, 255) shl 8) or
+                (bb * k).toInt().coerceIn(0, 255))
+        }
     }
 
     /** The frame one of [id]'s films last stopped on, else the first film's poster or opening frame. */

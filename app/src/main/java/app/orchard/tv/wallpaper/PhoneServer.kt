@@ -18,6 +18,7 @@ import app.orchard.tv.apps.SourceDevice
 import app.orchard.tv.apps.SourceLooks
 import app.orchard.tv.apps.TileArtFactory
 import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.settings.FlipClockColorMode
 import app.orchard.tv.settings.KidsLock
 import app.orchard.tv.settings.Restricted
 import app.orchard.tv.settings.RestrictedKind
@@ -125,6 +126,14 @@ class PhoneServer private constructor(
                 session.method == Method.POST && path == "/api/screensaver" -> {
                     val mode = ScreensaverMode.of(form(session)["mode"])
                     onMain { Wallpapers.chooseScreensaver(mode) }
+                    json(state())
+                }
+                session.method == Method.POST && path == "/api/flipclock-color" -> {
+                    // The flip clock's digit colour (Personalize): mode is white|wallpaper|custom,
+                    // and hex is the six-digit RGB when custom.
+                    val f = form(session)
+                    val mode = FlipClockColorMode.of(f["mode"])
+                    onMain { AerialSettings.chooseFlipClockColor(mode, f["hex"]) }
                     json(state())
                 }
                 session.method == Method.POST && path == "/api/savervideo" -> {
@@ -303,6 +312,8 @@ class PhoneServer private constructor(
             .put("wallpaperAlwaysMoves", AerialSettings.wallpaperAlwaysMoves)
             .put("showWeather", AerialSettings.showWeather)
             .put("screensaverClock", AerialSettings.screensaverClock)
+            .put("flipClockColor", AerialSettings.flipClockColorMode.key)
+            .put("flipClockColorHex", AerialSettings.flipClockColorHex)
             .put("wallpapers", list)
             .put("apps", JSONArray().apply {
                 // Pinned inputs first, then apps by the name Home shows. [default] is the name a
