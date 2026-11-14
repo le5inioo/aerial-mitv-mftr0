@@ -1222,7 +1222,14 @@ class MainActivity : ComponentActivity() {
         if (HomeGuardService.isStockHome(app.packageName) &&
             HomeGuardService.openStockLauncher(app.packageName) { startStockLauncher(app) }
         ) return
-        val options = bounds?.asFocusedTile()?.let {
+        // Xiaomi's system apps (the app store, Settings, PatchWall) lay their H5 home pages out
+        // once, while the launch transition is still running. A scale-up animation makes the
+        // framework pass the focused tile's rect as the new intent's source bounds, and those
+        // apps keep that narrower width after the animation ends: the page sits in the left
+        // ~1160 px of a 1920 px window with an empty right third, until the process is killed
+        // (MiTV-MFTR0, web45). System apps take the stock transition; third-party apps still
+        // grow out of their tile.
+        val options = if (!app.removable) null else bounds?.asFocusedTile()?.let {
             ActivityOptions.makeScaleUpAnimation(
                 window.decorView, it.left.toInt(), it.top.toInt(), it.width.toInt(), it.height.toInt(),
             ).toBundle().apply {
