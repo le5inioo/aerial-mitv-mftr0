@@ -77,7 +77,10 @@
   .switch:disabled { opacity: .5; }
 
   /* Wallpaper cards. */
+  /* Two previews up top: the wallpaper on the left, the screensaver on the right. */
+  .heroes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 14px; }
   .hero { position: relative; margin-top: 14px; border-radius: 16px; overflow: hidden; background: var(--fill); aspect-ratio: 16 / 9; }
+  .heroes .hero { margin-top: 0; }
   .hero img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .hero .cap {
     position: absolute; left: 0; right: 0; bottom: 0; padding: 32px 16px 12px; color: #fff;
@@ -332,7 +335,10 @@
 
 <!-- Wallpaper and screensaver -->
 <section data-tab="looks" hidden>
-  <div class="hero" id="hero"><img id="heroImg" alt=""><div class="cap"><small data-i18n="current_wp"></small><b id="heroTitle"></b></div></div>
+  <div class="heroes">
+    <div class="hero" id="hero"><img id="heroImg" alt=""><div class="cap"><small data-i18n="current_wp"></small><b id="heroTitle"></b></div></div>
+    <div class="hero" id="saverHero"><img id="saverImg" alt=""><div class="cap"><small data-i18n="current_ss"></small><b id="saverTitle"></b></div></div>
+  </div>
   <div id="sections"></div>
 
   <h2 class="big" data-i18n="screensaver"></h2>
@@ -423,7 +429,7 @@ let state = null, stateJson = '';
 
 // The language: ?lang=ru in the address, else the one picked under More (kept on the phone), else the
 // first of the phone's preferred languages that has a table, else English. Keys are in KEYS, one array of texts per language.
-const KEYS = ["screensaver", "screensaver_short", "ss_aerial", "ss_photos", "ss_clock", "focus", "focus_high", "focus_standard", "weather", "city_ph", "set", "upload_label", "feedback_h", "feedback_hint", "diag_show", "diag_copy", "diag_github", "hint_aerial", "hint_photos", "hint_clock", "g_live", "g_live_sub", "g_daily", "g_daily_sub", "g_photo", "g_builtin", "g_auto", "toast_wallpaper", "aria_delete", "confirm_delete", "wx_clear", "wx_partlycloudy", "wx_cloudy", "wx_fog", "wx_rain", "wx_snow", "wx_thunder", "wx_chosen", "wx_auto_btn", "toast_auto", "wx_guessed", "wx_none", "tag_source", "aria_rename", "toast_renamed", "toast_name_reset", "toast_rename_fail", "aria_reset_icon", "toast_icon_reset", "focus_hint_standard", "focus_hint_high", "daily_title", "daily_caption", "rotate_title", "rotate_caption", "empty_photos", "add_second", "toast_tv_updated", "sending_n", "toast_added", "toast_no_photos", "toast_send_fail", "toast_city_set", "toast_city_nf", "toast_set_fail", "toast_sending_icon", "toast_icon_set", "toast_icon_bad", "diag_collecting", "toast_diag_fail", "toast_copied", "toast_copy_manual", "language", "hint_follows", "ss_videos", "hint_videos", "videos_h", "videos_upload", "videos_hint", "videos_empty", "confirm_video_delete", "toast_videos_added", "toast_video_bad", "sending_video", "hint_system", "tab_home", "tab_more", "current_wp", "cancel", "save", "name_ph", "rename_hint", "change_icon", "this_tv", "folder_count", "folder_ph", "inputs_h", "inputs_hint", "rename_hint_app", "was_named", "arrange_hint", "arrange_unready", "hidden_h", "hidden_none", "hidden_locked", "show_app", "hide_app", "to_folder", "new_folder", "out_of_folder", "ungroup", "ungroup_confirm", "folder_hint", "toast_hidden", "toast_shown", "toast_in_folder", "toast_out_folder", "toast_ungrouped", "tab_looks", "looks_title", "show_on_home", "source_device", "source_plain", "source_device_hint", "tv_model", "sw_always", "sw_always_sub", "sw_weather", "sw_saver_time", "sw_saver_time_sub", "g_source_sub", "icon_h", "icon_library", "icon_own", "icon_custom", "toast_icon_picked", "drop_hint", "drop_sub", "drop_none", "toast_diag_paste", "kids_h", "elders_h", "kids_used", "kids_left", "kids_nolimit", "kids_allowed", "kids_lock_day", "kids_lock_late", "kids_lock_break", "kids_pin_ph", "kids_unlock", "kids_wrong", "kids_need_pin", "kids_locked_foot", "kids_add", "kids_day", "kids_leave_k", "kids_leave_e", "kids_paused", "kids_resume", "kids_min", "kids_hm", "kids_erase", "kids_hr", "kids_both", "kids_off_line", "kids_settings", "kids_no_pin", "kids_pin_foot", "ks_meta", "ks_on", "ks_on_sub", "ks_block", "ks_block_sub", "ks_block_noguard", "ks_time_h", "ks_weekday", "ks_weekend", "ks_minutes", "ks_nolimit", "ks_window", "ks_from", "ks_to", "ks_break", "ks_break_every", "ks_break_len", "ks_time_foot", "ks_apps", "ks_apps_sub", "ks_input", "ks_save", "ks_saved", "ks_invalid", "ks_for", "per_app_h", "per_app_hint", "per_app_inherit", "saver_loop", "per_app_apply", "per_app_auto_on", "g_webhost", "wh_url_hint", "toast_webhost_set", "toast_webhost_bad", "ss_flipclock", "hint_flipclock", "ss_webhost", "hint_webhost", "ss_system", "hint_system_mode", "icon_batch_h", "icon_batch_btn", "icon_batch_hint", "toast_icon_batch_done", "toast_icon_batch_none"];
+const KEYS = ["screensaver", "screensaver_short", "ss_aerial", "ss_photos", "ss_clock", "focus", "focus_high", "focus_standard", "weather", "city_ph", "set", "upload_label", "feedback_h", "feedback_hint", "diag_show", "diag_copy", "diag_github", "hint_aerial", "hint_photos", "hint_clock", "g_live", "g_live_sub", "g_daily", "g_daily_sub", "g_photo", "g_builtin", "g_auto", "toast_wallpaper", "aria_delete", "confirm_delete", "wx_clear", "wx_partlycloudy", "wx_cloudy", "wx_fog", "wx_rain", "wx_snow", "wx_thunder", "wx_chosen", "wx_auto_btn", "toast_auto", "wx_guessed", "wx_none", "tag_source", "aria_rename", "toast_renamed", "toast_name_reset", "toast_rename_fail", "aria_reset_icon", "toast_icon_reset", "focus_hint_standard", "focus_hint_high", "daily_title", "daily_caption", "rotate_title", "rotate_caption", "empty_photos", "add_second", "toast_tv_updated", "sending_n", "toast_added", "toast_no_photos", "toast_send_fail", "toast_city_set", "toast_city_nf", "toast_set_fail", "toast_sending_icon", "toast_icon_set", "toast_icon_bad", "diag_collecting", "toast_diag_fail", "toast_copied", "toast_copy_manual", "language", "hint_follows", "ss_videos", "hint_videos", "videos_h", "videos_upload", "videos_hint", "videos_empty", "confirm_video_delete", "toast_videos_added", "toast_video_bad", "sending_video", "hint_system", "tab_home", "tab_more", "current_wp", "cancel", "save", "name_ph", "rename_hint", "change_icon", "this_tv", "folder_count", "folder_ph", "inputs_h", "inputs_hint", "rename_hint_app", "was_named", "arrange_hint", "arrange_unready", "hidden_h", "hidden_none", "hidden_locked", "show_app", "hide_app", "to_folder", "new_folder", "out_of_folder", "ungroup", "ungroup_confirm", "folder_hint", "toast_hidden", "toast_shown", "toast_in_folder", "toast_out_folder", "toast_ungrouped", "tab_looks", "looks_title", "show_on_home", "source_device", "source_plain", "source_device_hint", "tv_model", "sw_always", "sw_always_sub", "sw_weather", "sw_saver_time", "sw_saver_time_sub", "g_source_sub", "icon_h", "icon_library", "icon_own", "icon_custom", "toast_icon_picked", "drop_hint", "drop_sub", "drop_none", "toast_diag_paste", "kids_h", "elders_h", "kids_used", "kids_left", "kids_nolimit", "kids_allowed", "kids_lock_day", "kids_lock_late", "kids_lock_break", "kids_pin_ph", "kids_unlock", "kids_wrong", "kids_need_pin", "kids_locked_foot", "kids_add", "kids_day", "kids_leave_k", "kids_leave_e", "kids_paused", "kids_resume", "kids_min", "kids_hm", "kids_erase", "kids_hr", "kids_both", "kids_off_line", "kids_settings", "kids_no_pin", "kids_pin_foot", "ks_meta", "ks_on", "ks_on_sub", "ks_block", "ks_block_sub", "ks_block_noguard", "ks_time_h", "ks_weekday", "ks_weekend", "ks_minutes", "ks_nolimit", "ks_window", "ks_from", "ks_to", "ks_break", "ks_break_every", "ks_break_len", "ks_time_foot", "ks_apps", "ks_apps_sub", "ks_input", "ks_save", "ks_saved", "ks_invalid", "ks_for", "per_app_h", "per_app_hint", "per_app_inherit", "saver_loop", "per_app_apply", "per_app_auto_on", "g_webhost", "wh_url_hint", "toast_webhost_set", "toast_webhost_bad", "ss_flipclock", "hint_flipclock", "ss_webhost", "hint_webhost", "ss_system", "hint_system_mode", "icon_batch_h", "icon_batch_btn", "icon_batch_hint", "toast_icon_batch_done", "toast_icon_batch_none", "current_ss"];
 const TEXTS = {
  "zh": [
   "屏幕保护程序",
@@ -640,7 +646,8 @@ const TEXTS = {
   "一键替换高清图标",
   "图标库目前只收录了一些主流应用的高清图标，未收录的应用请自行手动替换。",
   "已替换 {n} 个应用的图标",
-  "所有收录的应用已在使用高清图标"
+  "所有收录的应用已在使用高清图标",
+  "当前屏保"
  ],
 
  "en": [
@@ -858,7 +865,8 @@ const TEXTS = {
   "Replace all icons with HD art",
   "The icon library currently covers only some mainstream apps. For apps it does not cover, replace their icons manually.",
   "Replaced icons for {n} apps",
-  "Every covered app already uses HD art"
+  "Every covered app already uses HD art",
+  "Current Screensaver"
  ],
 
  "ru": [
@@ -1076,7 +1084,8 @@ const TEXTS = {
   "Заменить все значки на HD",
   "В библиотеке пока есть значки лишь для некоторых популярных приложений. Для остальных замените значки вручную.",
   "Заменены значки у {n} приложений",
-  "Все приложения из библиотеки уже используют HD-значки"
+  "Все приложения из библиотеки уже используют HD-значки",
+  "Текущая заставка"
  ],
 
  "uk": [
@@ -1294,7 +1303,8 @@ const TEXTS = {
   "Замінити всі іконки на HD",
   "У бібліотеці поки що є іконки лише для деяких популярних застосунків. Для решти замініть іконки вручну.",
   "Замінено іконки для {n} застосунків",
-  "Усі застосунки з бібліотеки вже використовують HD-іконки"
+  "Усі застосунки з бібліотеки вже використовують HD-іконки",
+  "Поточна заставка"
  ],
 
  "kk": [
@@ -1512,7 +1522,8 @@ const TEXTS = {
   "Барлық белгішелерді HD-ға ауыстыру",
   "Белгішелер кітапханасында әзірге тек кейбір танымал қолданбалардың белгішелері бар. Қалған қолданбалардың белгішелерін өзіңіз қолмен ауыстырыңыз.",
   "{n} қолданбаның белгішесі ауыстырылды",
-  "Кітапханадағы барлық қолданбалар HD белгішелерін қолдануда"
+  "Кітапханадағы барлық қолданбалар HD белгішелерін қолдануда",
+  "Ағымдағы экран қорғаушы"
  ]
 };
 const LANGS = Object.keys(TEXTS);
@@ -1811,9 +1822,45 @@ async function sendPhotos(files) {
   } catch (err) { uploading = 0; stateJson = ''; render(); toast(t('toast_send_fail')); }
 }
 
+/* The second hero: which screensaver is on now, with a picture of what it shows.
+   Clock, flip clock and the TV's own screensaver have no picture, so they get a drawing;
+   a missing film or an image host that cannot be reached falls back to the same art. */
+const SAVER_ART = {
+  clock: '<circle cx="320" cy="168" r="84" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="6"/><path d="M320 168v-54M320 168l44 26" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>',
+  flipclock: '<g fill="#fff" fill-opacity=".9" font-family="Arial,sans-serif" font-size="104" font-weight="700" text-anchor="middle"><text x="248" y="224">12</text><text x="416" y="224">34</text></g><path d="M332 118v122" stroke="#fff" stroke-opacity=".28" stroke-width="4"/>',
+  system: '<rect x="206" y="96" width="228" height="146" rx="14" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="7"/><path d="M282 270h76M320 242v28" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="7" stroke-linecap="round"/>',
+  none: '<path d="M118 250l98-104 68 74 62-52 108 82z" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="6" stroke-linejoin="round"/><circle cx="406" cy="128" r="21" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="6"/>'
+};
+function saverArt(mode) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><rect width="640" height="360" fill="#111620"/>${SAVER_ART[mode] || SAVER_ART.none}</svg>`;
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+function saverPreviewId(mode) {
+  switch (mode) {
+    case 'aerial': return 'aerial:live';
+    case 'photos': return state.rotatePhotos || 'photos:rotate';
+    case 'videos': return state.saverVideo ? 'video:' + state.saverVideo : 'videos:mine';
+    case 'webhost': return 'webhost';
+    default: return ''; // clock / flipclock / system are drawn, not fetched
+  }
+}
+function renderSaverHero() {
+  const mode = state.screensaver || 'aerial';
+  const id = saverPreviewId(mode);
+  const src = id ? `${base}thumb/${encodeURIComponent(id)}` : saverArt(mode);
+  const img = $('#saverImg');
+  if (img.dataset.src !== src) {
+    img.dataset.src = src; img.dataset.mode = mode;
+    img.onerror = () => { img.onerror = null; img.dataset.src = ''; img.src = saverArt(img.dataset.mode); };
+    img.src = src;
+  }
+  $('#saverTitle').textContent = t('ss_' + mode);
+}
+
 /* Screensaver tab. */
 let sendingVideo = '';
 function renderScreensaver() {
+  renderSaverHero();
   document.querySelectorAll('#ss [data-mode]').forEach(b => b.setAttribute('aria-checked', b.dataset.mode === state.screensaver ? 'true' : 'false'));
   // "System" is now an ordinary choice here, so the old TV-side hint no longer applies.
   $('#ssFoot').textContent = state.screensaverFollows ? t('hint_follows') : '';
