@@ -130,6 +130,9 @@ object Wallpapers {
     private val webhostDir by lazy { File(app.filesDir, "webhost-pool").apply { mkdirs() } }
     private val liveFrame by lazy { File(app.filesDir, "live-frame.jpg") }
     private val videoFrame by lazy { File(app.filesDir, "video-frame.jpg") }
+    /** A sample picture kept for the image host's card, so the picker need not ask the host each time. */
+    private val webhostPreviewFile by lazy { File(app.filesDir, "webhost-preview.jpg") }
+    private var webhostPreviewAt = 0L
 
     /** TV inputs that can play behind Home, by TvInputInfo id and name; set as Home lists inputs. */
     private var sources: List<Pair<String, String>> = emptyList()
@@ -917,6 +920,9 @@ object Wallpapers {
 
     private const val WEBHOST_MIN_MS = 10_000L
 
+    /** One preview attempt a minute at most, so a host that is off is not asked on every look. */
+    private const val WEBHOST_PREVIEW_TRY_MS = 60_000L
+
     /** Whether the wallpaper or any tile shows the image host's picture. */
     private fun webhostWanted() = selectedId == WEBHOST || perApp.containsValue(WEBHOST)
 
@@ -1009,7 +1015,42 @@ object Wallpapers {
             ?: Gradients.render(Gradients.presets.first(), w, h)
         WallpaperKind.Video -> videoPicture(wp.id, w, h) ?: Gradients.render(Gradients.presets.first(), w, h)
         WallpaperKind.Source -> Gradients.byKey(SOURCE_PICTURE)?.let { Gradients.render(it, w, h) }
-        WallpaperKind.Webhost -> webhostFile.takeIf { it.exists() }?.let { Images.decodeCover(it, w, h) }
+        // The host may so far have fed only the screensaver, which keeps no file: fall back to the
+        // sample the picker keeps (see [webhostPreview]) so the picture is not blank meanwhile.
+        WallpaperKind.Webhost -> (webhostFile.takeIf { it.exists() } ?: webhostPreviewFile.takeIf { it.exists() })
+            ?.let { Images.decodeCover(it, w, h) }
+    }
+
+    /**
+     * A picture for the image host's card. The screensaver keeps its frames in memory only, so when
+     * nothing has yet been written for the wallpaper the card was blank. Use what is on disk;
+     * failing that, ask the host once (briefly) and keep the answer for the next look.
+     * Call off the main thread.
+     */
+    private fun webhostPreview(w: Int, h: Int): Bitmap? {
+        webhostFile.takeIf { it.exists() }?.let { f -> Images.decodeCover(f, w, h)?.let { return it } }
+        webhostPreviewFile.takeIf { it.exists() }?.let { f -> Images.decodeCover(f, w, h)?.let { return it } }
+        // Do not hammer a host that is off: one attempt a minute at most.
+        val now = SystemClock.elapsedRealtime()
+        if (now - webhostPreviewAt < WEBHOST_PREVIEW_TRY_MS) return null
+        webhostPreviewAt = now
+        return runCatching {
+            val c = URL(webHostUrl()).openConnection() as HttpURLConnection
+            c.connectTimeout = 3_000
+            c.readTimeout = 8_000
+            c.instanceFollowRedirects = true
+            try {
+                check(c.responseCode in 200..299) { "HTTP ${c.responseCode}" }
+                val bytes = c.inputStream.use { it.readBytes() }
+                val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@runCatching null
+                runCatching {
+                    val part = File(webhostPreviewFile.path + ".part")
+                    part.outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+                    part.renameTo(webhostPreviewFile)
+                }
+                Images.cover(bmp, w, h)
+            } finally { c.disconnect() }
+        }.getOrNull()
     }
 
     /** The frame one of [id]'s films last stopped on, else the first film's poster or opening frame. */
@@ -1081,6 +1122,9 @@ object Wallpapers {
             WallpaperKind.Auto -> Gradients.render(Gradients.autoThumb, 384, 216)
             // Not kept while no frame of the film can be had: the next look tries again (issue #1158).
             WallpaperKind.Video -> videoPicture(id, 384, 216) ?: return Gradients.render(Gradients.presets.first(), 384, 216)
+            // Not kept when the host gave nothing: a later look tries again (the thumbnail used to
+            // be blank while only the screensaver had ever asked the host, the owner 2026-11-14).
+            WallpaperKind.Webhost -> webhostPreview(384, 216) ?: return Gradients.render(Gradients.presets.first(), 384, 216)
             else -> picture(wp, 384, 216)
         }
         if (b != null) synchronized(thumbs) { if (version == pictureVersion) thumbs[id] = b }
