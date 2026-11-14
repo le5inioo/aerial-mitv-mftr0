@@ -107,11 +107,6 @@
     <string name="ss_webhost_hint">Новая картинка с вашего хоста изображений каждые 20 секунд; влево и вправо — сразу следующая.</string>
     <string name="ss_seconds">Показывать секунды</string>
     <string name="ss_seconds_hint">Выключено — только часы и минуты.</string>
-    <string name="ss_color">Цвет флип-часов</string>
-    <string name="ss_color_white">Белый по умолчанию</string>
-    <string name="ss_color_wallpaper">Как на обоях</string>
-    <string name="ss_color_custom">Свой</string>
-    <string name="ss_color_hint">Выберите цвет цифр флип-часов. Код своего цвета вводится на странице телефона.</string>
     <string name="wp_phone_title">Настройка с телефона или компьютера</string>
     <string name="wp_phone_body">Отсканируйте код или откройте адрес ниже в браузере компьютера, чтобы отправлять фото и видео, менять значки приложений и выбирать город для погоды. Устройство и телевизор должны быть в одной сети.</string>
     <string name="wp_phone_offline">Подключите телевизор к сети, чтобы настроить его с телефона или компьютера.</string>

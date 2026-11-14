@@ -107,11 +107,6 @@
     <string name="ss_webhost_hint">Сурет хостңыздан әр 20 секунд сайын жаңа сурет; солға және оңға — бірден келесісі.</string>
     <string name="ss_seconds">Секундтарды көрсету</string>
     <string name="ss_seconds_hint">Өшірілсе — тек сағат пен минут.</string>
-    <string name="ss_color">Флип-сағат түсі</string>
-    <string name="ss_color_white">Әдепкі ақ</string>
-    <string name="ss_color_wallpaper">Тұсқағаз сияқты</string>
-    <string name="ss_color_custom">Өзіндік</string>
-    <string name="ss_color_hint">Флип-сағаттың сан түсін таңдаңыз. Өз түсінің кодын телефон бетінен енгізесіз.</string>
     <string name="wp_phone_title">Телефоннан немесе компьютерден баптау</string>
     <string name="wp_phone_body">Фото мен бейнелерді жіберу, қолданба белгішелерін өзгерту және ауа райына арналған қаланы орнату үшін кодты сканерлеңіз немесе төмендегі мекенжайды компьютер браузерінде ашыңыз. Құрылғы мен теледидар бір желіде болуы керек.</string>
     <string name="wp_phone_offline">Телефоннан немесе компьютерден баптау үшін теледидарды желіге қосыңыз.</string>

@@ -115,11 +115,6 @@
     <string name="ss_webhost_hint">A new picture from your image host every 20 seconds; left and right ask for one now.</string>
     <string name="ss_seconds">Show seconds</string>
     <string name="ss_seconds_hint">Off leaves the hours and minutes alone.</string>
-    <string name="ss_color">Flip clock colour</string>
-    <string name="ss_color_white">Default white</string>
-    <string name="ss_color_wallpaper">Follow wallpaper</string>
-    <string name="ss_color_custom">Custom</string>
-    <string name="ss_color_hint">Pick the flip clock\'s digit colour. The custom code is typed on the phone page.</string>
     <string name="wp_phone_title">Set up from a phone or computer</string>
     <string name="wp_phone_body">Scan the code, or open the address below in a computer\'s browser, to send photos and videos, change app icons and set the weather\'s city. It must be on the same network as the TV.</string>
     <string name="wp_phone_offline">Connect the TV to a network to set it up from a phone or computer.</string>

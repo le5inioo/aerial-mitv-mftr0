@@ -45,8 +45,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.orchard.tv.settings.AerialSettings
-import app.orchard.tv.settings.FlipClockColorMode
-import app.orchard.tv.wallpaper.Wallpapers
 import app.orchard.tv.ui.theme.FlipDigits
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -97,19 +95,6 @@ private val FlipDigitStyle = TextStyle(
 @Composable
 internal fun FlipClockSaver() {
     val now by rememberSecondly()
-    // The digit colour, as chosen in Personalize: the default pale grey, the wallpaper's average,
-    // or a custom hex. Read here so a change while the screensaver is up takes effect at once.
-    val mode = AerialSettings.flipClockColorMode
-    val hex = AerialSettings.flipClockColorHex
-    var wallColor by remember { mutableStateOf<Color?>(null) }
-    LaunchedEffect(mode) {
-        wallColor = if (mode == FlipClockColorMode.Wallpaper) Wallpapers.currentWallpaperColor() else null
-    }
-    val ink = when (mode) {
-        FlipClockColorMode.White -> DigitInk
-        FlipClockColorMode.Custom -> hexToColor(hex) ?: DigitInk
-        FlipClockColorMode.Wallpaper -> wallColor ?: DigitInk
-    }
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
         // A slow drift, not a spot per minute: the clock creeps a fraction of a pixel a second
         // along a Lissajous curve, so card edges never sit on one pixel group for hours, and the
@@ -132,8 +117,8 @@ internal fun FlipClockSaver() {
             val text = if (seconds) "%02d%02d%02d".format(now.hour, now.minute, now.second)
             else "%02d%02d".format(now.hour, now.minute)
             text.forEachIndexed { i, c ->
-                if (i > 0 && i % 2 == 0) Colons(ink)
-                FlipDigit(c, ink)
+                if (i > 0 && i % 2 == 0) Colons()
+                FlipDigit(c)
             }
         }
     }
@@ -160,7 +145,7 @@ private fun rememberSecondly(): State<LocalDateTime> {
 
 /** One digit card with the split-flap animation over it. */
 @Composable
-private fun FlipDigit(digit: Char, ink: Color) {
+private fun FlipDigit(digit: Char) {
     var current by remember { mutableStateOf(digit) }
     var previous by remember { mutableStateOf(digit) }
     val flip = remember { Animatable(1f) } // 1 = settled, showing only the current digit
@@ -177,10 +162,10 @@ private fun FlipDigit(digit: Char, ink: Color) {
     val bottomRot = 90f * (1f - ((p - 0.5f) * 2f).coerceIn(0f, 1f))
     // A Box puts every child at its top left, so the bottom half carries its own offset down.
     Box(Modifier.size(CardW, CardH)) {
-        Half(current, top = true, ink = ink)                                    // the new top, revealed as the old one falls
-        Half(previous, top = false, ink = ink)                                  // the old bottom, until the new one covers it
-        if (p < 1f) Half(previous, top = true, rotate = topRot, ink = ink)      // the falling old top
-        if (p > 0.5f) Half(current, top = false, rotate = bottomRot, ink = ink) // the unfolding new bottom
+        Half(current, top = true)                                    // the new top, revealed as the old one falls
+        Half(previous, top = false)                                  // the old bottom, until the new one covers it
+        if (p < 1f) Half(previous, top = true, rotate = topRot)      // the falling old top
+        if (p > 0.5f) Half(current, top = false, rotate = bottomRot) // the unfolding new bottom
         // The hinge, over everything, as on the original.
         Box(
             Modifier.matchParentSize().drawBehind {
@@ -202,7 +187,7 @@ private fun FlipDigit(digit: Char, ink: Color) {
  * never drew on the TV (Xiaomi MiTV-MFTR0): text placed above its parent's bounds was lost.
  */
 @Composable
-private fun Half(digit: Char, top: Boolean, rotate: Float = 0f, ink: Color) {
+private fun Half(digit: Char, top: Boolean, rotate: Float = 0f) {
     val half = CardH / 2
     val measurer = rememberTextMeasurer()
     // Only a moving flap gets a layer; a layer on every static half cost blank cards on the TV.
@@ -230,7 +215,7 @@ private fun Half(digit: Char, top: Boolean, rotate: Float = 0f, ink: Color) {
                     size = card, // clipped to this half, so only the outer corners come out rounded
                     cornerRadius = CornerRadius(CardCorner.toPx()),
                 )
-                val laid = measurer.measure(digit.toString(), FlipDigitStyle.copy(color = ink), maxLines = 1)
+                val laid = measurer.measure(digit.toString(), FlipDigitStyle, maxLines = 1)
                 // Digits stand on the baseline and are CAP_HEIGHT of the font tall. Centring the
                 // layout box is not the same thing: the box also holds the ascent above the cap
                 // and the descent below the baseline, which are not equal, and the digits came out
@@ -251,25 +236,19 @@ private fun Half(digit: Char, top: Boolean, rotate: Float = 0f, ink: Color) {
 
 /** The two dots between hour, minute and second. */
 @Composable
-private fun Colons(ink: Color) {
+private fun Colons() {
     Column(
         Modifier.height(CardH).padding(horizontal = 2.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Dot(ink)
+        Dot()
         Spacer(Modifier.height(22.dp))
-        Dot(ink)
+        Dot()
     }
 }
 
 @Composable
-private fun Dot(ink: Color) {
-    Box(Modifier.size(14.dp).clip(RoundedCornerShape(50)).background(ink))
-}
-
-/** Six hex digits (RRGGBB) to an opaque colour; null when malformed. */
-private fun hexToColor(hex: String): Color? {
-    if (!hex.matches(Regex("[0-9a-fA-F]{6}"))) return null
-    return Color(0xFF000000.toInt() or hex.toInt(16))
+private fun Dot() {
+    Box(Modifier.size(14.dp).clip(RoundedCornerShape(50)).background(DigitInk))
 }

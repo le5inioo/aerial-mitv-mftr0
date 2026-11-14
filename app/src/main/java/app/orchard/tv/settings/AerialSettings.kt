@@ -69,19 +69,6 @@ enum class ClockHours(val key: String) {
     }
 }
 
-/**
- * The flip clock's digit colour (owner, 2026-11-14): White is the default pale grey it has always
- * used; Wallpaper takes the average colour of the wallpaper that was up before the screensaver came
- * on; Custom is a six-digit RGB hex typed on the phone page.
- */
-enum class FlipClockColorMode(val key: String) {
-    White("white"), Wallpaper("wallpaper"), Custom("custom");
-
-    companion object {
-        fun of(key: String?) = entries.firstOrNull { it.key == key } ?: White
-    }
-}
-
 /** Aerial's own preferences. Compose state, written on the main thread only. */
 object AerialSettings {
     private const val PREFS = "settings"
@@ -210,12 +197,6 @@ object AerialSettings {
     /** The flip clock's seconds cards; off leaves HH and MM, an unhurried clock for a bedside set. */
     var flipClockSeconds by mutableStateOf(true); private set
 
-    /** The flip clock's digit colour mode (White / Wallpaper / Custom). */
-    var flipClockColorMode by mutableStateOf(FlipClockColorMode.White); private set
-
-    /** The custom digit colour as six hex digits (RRGGBB), used when [flipClockColorMode] is Custom. */
-    var flipClockColorHex by mutableStateOf("D8D8D8"); private set
-
     /** Every app's name under its tile, not only the focused one's (issue #28), the top row's on the glass plate too. */
     private var chosenAllNames by mutableStateOf(false)
 
@@ -304,8 +285,6 @@ object AerialSettings {
         showWeather = prefs.getBoolean("show_weather", true)
         screensaverClock = prefs.getBoolean("screensaver_clock", true)
         flipClockSeconds = prefs.getBoolean("flipclock_seconds", true)
-        flipClockColorMode = FlipClockColorMode.of(prefs.getString("flipclock_color", null))
-        flipClockColorHex = (prefs.getString("flipclock_color_hex", null) ?: "D8D8D8").takeIf { it.matches(Regex("[0-9a-fA-F]{6}")) } ?: "D8D8D8"
         // Before 1.28 this was on or off; on meant whichever sounds Aerial played.
         uiSounds = UiSounds.of(prefs.getString("ui_sounds_kind", null)) ?: when {
             !prefs.getBoolean("ui_sounds", true) -> UiSounds.Off
@@ -449,19 +428,6 @@ object AerialSettings {
     fun chooseFlipClockSeconds(on: Boolean) {
         flipClockSeconds = on
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("flipclock_seconds", on) }
-    }
-
-    /** The flip clock's digit colour. [hex] is kept when the mode is Custom (validated to six hex digits); other modes ignore it. */
-    fun chooseFlipClockColor(mode: FlipClockColorMode, hex: String? = null) {
-        flipClockColorMode = mode
-        if (mode == FlipClockColorMode.Custom) {
-            val clean = hex?.trim()?.removePrefix("#")?.takeIf { it.matches(Regex("[0-9a-fA-F]{6}")) }
-            if (clean != null) flipClockColorHex = clean
-        }
-        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
-            putString("flipclock_color", mode.key)
-            putString("flipclock_color_hex", flipClockColorHex)
-        }
     }
 
     fun chooseBackStartsScreensaver(on: Boolean) {
