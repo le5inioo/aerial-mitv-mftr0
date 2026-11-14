@@ -102,8 +102,8 @@ internal fun FlipClockSaver() {
     val mode = AerialSettings.flipClockColorMode
     val hex = AerialSettings.flipClockColorHex
     var wallColor by remember { mutableStateOf<Color?>(null) }
-    LaunchedEffect(Unit) {
-        if (mode == FlipClockColorMode.Wallpaper) wallColor = Wallpapers.currentWallpaperColor()
+    LaunchedEffect(mode) {
+        wallColor = if (mode == FlipClockColorMode.Wallpaper) Wallpapers.currentWallpaperColor() else null
     }
     val ink = when (mode) {
         FlipClockColorMode.White -> DigitInk
